@@ -1,75 +1,12 @@
-# Godot
+# Godot 4+ specific ignores
 .godot/
-.import/
-export.cfg
-export_credentials.cfg
-*.translation
+/android/
 
-# C# / .NET
+# C#/.NET build output
+.vs/
 bin/
 obj/
-*.user
-*.userosscache
-*.suo
-*.pidb
-*.mdb
-*.opendb
-.vs/
 
-# JetBrains
-.idea/
-*.iml
-.rider/
-
-# VS Code
-.vscode/
-*.code-workspace
-
-# OS
-.DS_Store
+# OS artifacts
 Thumbs.db
-desktop.ini
-
-# Builds
-/builds/
-*.exe
-*.dll
-*.so
-*.dylib
-*.pdb
-
-# Saves and mods (local testing)
-/saves/
-/mods/*/
-!/mods/README.md
-
-# Logs
-*.log
-logs/
-
-# Environment
-.env
-.env.local
-
-# Node (if we ever add tooling)
-node_modules/
-
-# Python (if we ever add tooling)
-__pycache__/
-*.pyc
-.venv/
-venv/
-
-# Test outputs
-TestResults/
-coverage/
-*.trx
-
-# Temporary
-tmp/
-temp/
-*.tmp
-*.bak
-*~
-
-# LFS-managed files handled separately (see .gitattributes)
+.DS_Store

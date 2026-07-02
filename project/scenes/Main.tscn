@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://owfryb0ytuyf"]
+
+[ext_resource type="Script" uid="uid://bqm6gitwtvr6a" path="res://scripts/client/SplashScreen.cs" id="1_splash"]
+[ext_resource type="Texture2D" uid="uid://deoio70os5ani" path="res://assets/Mankers Kingdoms.png" id="2_bg"]
+
+[node name="Main" type="Control" unique_id=1076179579]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_splash")
+
+[node name="Background" type="TextureRect" parent="." unique_id=1345511954]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bg")
+stretch_mode = 6
