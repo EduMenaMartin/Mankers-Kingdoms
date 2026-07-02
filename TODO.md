@@ -6,20 +6,9 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 
 ---
 
-## Current milestone: M0 — Project scaffolded
+## Current milestone: M0 — Project scaffolded ✅
 
-- [x] Initialize Godot 4 + C# project inside `/project/`
-- [x] Configure `.csproj` for .NET 8+ (`RootNamespace=MankersKingdoms`)
-- [x] Set up `.gitattributes` for LFS binary handling
-- [ ] Initialize git repo, initial commit with docs — **Edu runs this**
-- [ ] Configure Rider workspace — open `project/MankersKingdoms.sln` in Rider
-- [ ] Add GodotSteam plugin (verify current version compatibility)
-- [x] Add xUnit test project skeleton in `/project/tests/`
-- [ ] Set up basic GitHub Actions CI (build + test on push) — optional for M0
-- [x] Create `data/lang/en.json` with `"splash.title": "Mankers Kingdoms"`
-- [x] Create main scene that opens window, reads splash title from localization, displays it
-- [ ] Verify build runs on both Windows and Linux
-- [ ] **M0 demo:** window opens with "Mankers Kingdoms" text on both dev PCs
+All M0 tasks complete. Ready to begin M1.
 
 ---
 
@@ -29,19 +18,17 @@ Nothing currently.
 
 ---
 
-## Done (this milestone)
+## Done (M0)
 
-- Project structure coherency fixed: moved Godot project from `project/Mankers Kingdoms/` → `project/`
-- `.csproj` namespace fixed (`NewGameProject` → `MankersKingdoms`)
-- `.sln` rewritten with correct references, includes both game + tests projects
-- `project/project.godot`: assembly name fixed, main scene wired, C# feature tag present
-- Rider run configs updated to `--path "./project/"` (were pointing at repo root)
-- `.gitignore` extended with build output patterns
-- `.gitattributes` extended with Git LFS binary patterns
-- `project/scripts/shared/Loc.cs` — localization stub, pure .NET, testable
-- `project/scripts/client/SplashScreen.cs` — reads en.json, sets Label text via Loc.T()
-- `project/scenes/Main.tscn` — full-screen Control + centered Label, wired to SplashScreen
-- `project/tests/MankersKingdoms.Tests.csproj` — xUnit skeleton, compiles shared/ directly
-- `project/tests/Shared/LocTests.cs` — 3 tests covering Loc fallback, load, and missing-key cases
-- `data/lang/en.json` — canonical repo-level lang file created
+- [x] Initialize Godot 4.7 + C# project inside `/project/`
+- [x] Configure `.csproj` for .NET 8+ (`RootNamespace=MankersKingdoms`)
+- [x] Set up `.gitattributes` for LFS binary handling (png, jpg, audio, 3D, native DLLs)
+- [x] Configure Rider workspace (run configs pointing to `./project/`)
+- [x] Add GodotSteam GDExtension 4.20 via Godot AssetLib (not module build)
+- [x] Add xUnit test project skeleton in `/project/tests/`
+- [x] Set up GitHub Actions CI — tests on ubuntu-latest + windows-latest
+- [x] Create `data/lang/en.json` with `"splash.title": "Mankers Kingdoms"`
+- [x] Create main scene with splash image + Loc.T() wired
+- [x] Verify build runs on both Windows (local) and Linux (CI ubuntu runner)
+- [x] **M0 demo:** window opens with splash image; Steam initialized (status 0 = OK), Steam ID printed
 

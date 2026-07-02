@@ -2,70 +2,74 @@
 
 **Update this file at the end of every substantial session.**
 
-The point: give the next session (whether it's you tomorrow or Claude Code opening cold) enough context to pick up without re-reading everything.
-
 ---
 
 ## Current status
 
-**Milestone:** M0 (project scaffolding — in progress)
-**Last session:** 2026-07-02 — coherency pass + Steps 2 & 3 complete
+**Milestone:** M0 complete — ready to begin M1
+**Last session:** 2026-07-02 — M0 fully closed out
 **Blockers:** None
-**Awaiting:** Edu to open project in Godot editor and run the demo
+**Awaiting:** Edu to run final M0 commit and push to trigger CI
 
 ---
 
 ## What was done last
 
-### Structural coherency pass
-- Godot project was in `project/Mankers Kingdoms/` (spaces in name, wrong path) — merged into `project/`
-- Stray `project.godot`, `icon.svg`, `icon.svg.import` at repo root — deleted
-- `.csproj` had `RootNamespace=NewGameProject` — fixed to `MankersKingdoms`
-- `.sln` referenced `"New Game Project.csproj"` — rewritten as `MankersKingdoms.sln`
-- Rider run configs pointed `--path "./"` (repo root) — fixed to `--path "./project/"`
-- `.gitignore` and `.gitattributes` extended (build output patterns, Git LFS patterns)
+### M0 fully completed
 
-### Step 2 — Localization + main scene
-- `project/scripts/shared/Loc.cs` — static `Loc.T(key)` backed by `System.Text.Json`, no Godot dependency, `Reset()` for test isolation
-- `project/scripts/client/SplashScreen.cs` — loads `res://data/lang/en.json`, sets Label text on `_Ready()`
-- `project/scenes/Main.tscn` — full-screen Control + centered Label, wired to SplashScreen
-- `project/data/lang/en.json` — `"splash.title": "Mankers Kingdoms"` (Godot-accessible via res://)
-- `data/lang/en.json` — canonical repo-level copy per ADR-0012 architecture
+**Project structure:**
+- Godot 4.7 + C# project at `project/` (assembly: MankersKingdoms, .NET 8)
+- Client/server/shared folder discipline in place
+- Rider run configs correct (`--path "./project/"`, Godot at `F:\Godot_v4.7-stable_mono_win64\`)
 
-### Step 3 — xUnit test skeleton
-- `project/tests/MankersKingdoms.Tests.csproj` — Microsoft.NET.Sdk (not Godot SDK), compiles shared/ directly to avoid Godot runtime dependency
-- `project/tests/Shared/LocTests.cs` — 3 tests: fallback brackets, load+retrieve, missing-key-after-load
+**Localization:**
+- `Loc.T(key)` in `project/scripts/shared/Loc.cs` — pure .NET, no Godot dependency
+- `data/lang/en.json` (canonical) + `project/data/lang/en.json` (res:// accessible)
+- ADR-0012 compliant from day one
 
-## What's next
+**Scene:**
+- `project/scenes/Main.tscn` — full-screen splash image (TextureRect, stretch=cover)
+- `SplashScreen.cs` in client/ — loads Loc, inits Steam, pumps runCallbacks every frame
 
-1. **Edu opens `project/project.godot` in Godot editor** — this regenerates `.godot/` cache, re-imports `icon.svg`, and validates the scene
-2. **Edu runs `dotnet test` from `project/`** — should pass all 3 Loc tests
-3. **Run the game** — window should open with "Mankers Kingdoms" centered on screen
-4. **GodotSteam plugin** — next main task in M0
-5. **CI setup** (optional for M0)
+**GodotSteam:**
+- GDExtension 4.20 at `project/addons/godotsteam/`
+- `steam_appid.txt` (480) in `project/` for exported builds
+- `steam_api64.dll` + `steam_appid.txt` must also be in Godot editor dir for editor play mode
+- `status: 0` from steamInitEx = `k_ESteamAPIInitResult_OK` (success — raw Steamworks SDK enum)
+- Steam ID confirmed printing on startup
+- `runCallbacks()` pumped every frame — ready for M1 Steam features
 
-## Open questions
+**Tests:**
+- `project/tests/MankersKingdoms.Tests.csproj` — 3 passing Loc tests
+- Compiles `shared/` directly, no Godot runtime dependency
 
-- `data/lang/en.json` at repo root vs `project/data/lang/en.json` inside the Godot project: for M0 both exist and the game loads from `res://`. The full content-loading architecture (loading from repo-root `data/`) is M1+ work. No ADR needed yet, but track in IDEAS_BACKLOG.
-- Rider workspace: `.idea/` is at repo root. After Rider opens `project/MankersKingdoms.sln`, it may create `project/.idea/`. Leave both until they cause a conflict.
+**CI:**
+- `.github/workflows/ci.yml` — runs `dotnet test` on ubuntu-latest + windows-latest on push/PR
+- No Godot install needed on runner (test project is pure .NET)
+- Full Godot build CI deferred to M1
 
-## Decisions needed from Edu
+---
 
-None currently.
+## What's next (M1)
+
+Start `CURRENT_MILESTONE.md` for M1 when kicking off. Key M1 scope from VERTICAL_SLICE.md:
+- Player avatar spawning (WASD movement, top-down camera)
+- Basic world chunk loading
+- First NPC settler
+- Steam lobby creation (host) and join flow
+
+## Open questions / decisions needed from Edu
+
+- Does `steam_appid.txt` need to live permanently in the Godot editor dir, or should we document a setup script?
+- M1 scope confirmation: confirm which VERTICAL_SLICE items are in M1 before starting
 
 ---
 
 ## Session log
 
 ### 2026-07-02 — Foundation
-- Design conversation from initial concept to locked decisions
-- 22 ADRs written
-- Repo scaffolding complete
-- Ready to initialize Godot project
+- Design complete, 22 ADRs, repo scaffolding
 
-### 2026-07-02 — M0 coherency + Steps 2 & 3
-- Godot project structure corrected
-- Loc system + splash scene created
-- xUnit test skeleton in place
-- M0 demo ready for first run
-
+### 2026-07-02 — M0 complete
+- Project structure, Loc, splash scene, GodotSteam, xUnit, CI
+- M0 demo verified: splash + Steam ID on screen

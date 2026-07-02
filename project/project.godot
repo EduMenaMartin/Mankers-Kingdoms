@@ -11,6 +11,7 @@ config_version=5
 [application]
 
 config/name="Mankers Kingdoms"
+run/main_scene="uid://owfryb0ytuyf"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 config/main_scene="res://scenes/Main.tscn"
@@ -31,3 +32,14 @@ project/assembly_name="MankersKingdoms"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+
+[steam]
+
+initialization/app_data/app_type=0
+initialization/app_data/app_id=0
+initialization/app_data/demo_id=0
+initialization/app_data/playtest_id=0
+initialization/app_data/tool_id=0
+initialization/processes/initialize_on_startup=false
+initialization/processes/embed_callbacks=false
+multiplayer_peer/max_channels=4

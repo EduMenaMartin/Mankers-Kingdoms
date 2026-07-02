@@ -10,3 +10,6 @@ obj/
 # OS artifacts
 Thumbs.db
 .DS_Store
+
+# Steam dev file — replace 480 with real App ID before shipping, never commit the real ID
+steam_appid.txt
