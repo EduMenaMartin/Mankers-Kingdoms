@@ -9,59 +9,34 @@
 **Milestone:** M0 complete — ready to begin M1
 **Last session:** 2026-07-02 — M0 fully closed out
 **Blockers:** None
-**Awaiting:** Edu to run final M0 commit and push to trigger CI
+**Awaiting:** Edu to run final commit + push, then confirm CI green
 
 ---
 
-## What was done last
+## What was done this session
 
-### M0 fully completed
+- **Structural coherency pass:** Godot project was in `project/Mankers Kingdoms/` (spaces in name, wrong path) — merged into `project/`; stray `project.godot`, `icon.svg`, `icon.svg.import` at repo root deleted; `.csproj` namespace fixed (`NewGameProject` → `MankersKingdoms`); `.sln` rewritten with correct references; Rider run configs fixed to `--path "./project/"`
+- **Localization stub:** `project/scripts/shared/Loc.cs` — `Loc.T(key)` backed by `System.Text.Json`, `Reset()` for test isolation, no Godot dependency; `data/lang/en.json` + `project/data/lang/en.json` created
+- **Splash scene:** `project/scenes/Main.tscn` — full-screen TextureRect with `Mankers Kingdoms.png` (stretch=cover); Label removed (title embedded in artwork)
+- **GodotSteam GDExtension 4.20:** installed via Godot AssetLib; confirmed Steam initializes (`status: 0` = `k_ESteamAPIInitResult_OK` — raw Steamworks SDK enum, NOT failure); Steam ID printed on startup; `runCallbacks()` pumped every frame
+- **xUnit test skeleton:** `project/tests/MankersKingdoms.Tests.csproj` — 3 Loc tests pass; compiles `shared/` directly, no Godot runtime needed on CI
+- **GitHub Actions CI:** `.github/workflows/ci.yml` — `dotnet test` on `ubuntu-latest` + `windows-latest` on push/PR
+- **Config hygiene:** `.gitignore` extended (build output, `steam_appid.txt`); `.gitattributes` extended (LFS for images, audio, native binaries)
 
-**Project structure:**
-- Godot 4.7 + C# project at `project/` (assembly: MankersKingdoms, .NET 8)
-- Client/server/shared folder discipline in place
-- Rider run configs correct (`--path "./project/"`, Godot at `F:\Godot_v4.7-stable_mono_win64\`)
+## What's next (top 3)
 
-**Localization:**
-- `Loc.T(key)` in `project/scripts/shared/Loc.cs` — pure .NET, no Godot dependency
-- `data/lang/en.json` (canonical) + `project/data/lang/en.json` (res:// accessible)
-- ADR-0012 compliant from day one
+1. **Push to main** — triggers first CI run; confirm both ubuntu + windows jobs green
+2. **Start M1** — create `CURRENT_MILESTONE.md`, confirm M1 scope from `VERTICAL_SLICE.md` before any code
+3. **M1 first task** — player avatar spawning: WASD movement, top-down camera, single scene
 
-**Scene:**
-- `project/scenes/Main.tscn` — full-screen splash image (TextureRect, stretch=cover)
-- `SplashScreen.cs` in client/ — loads Loc, inits Steam, pumps runCallbacks every frame
+## Blocked
 
-**GodotSteam:**
-- GDExtension 4.20 at `project/addons/godotsteam/`
-- `steam_appid.txt` (480) in `project/` for exported builds
-- `steam_api64.dll` + `steam_appid.txt` must also be in Godot editor dir for editor play mode
-- `status: 0` from steamInitEx = `k_ESteamAPIInitResult_OK` (success — raw Steamworks SDK enum)
-- Steam ID confirmed printing on startup
-- `runCallbacks()` pumped every frame — ready for M1 Steam features
+Nothing.
 
-**Tests:**
-- `project/tests/MankersKingdoms.Tests.csproj` — 3 passing Loc tests
-- Compiles `shared/` directly, no Godot runtime dependency
+## Decisions needed from Edu before next session
 
-**CI:**
-- `.github/workflows/ci.yml` — runs `dotnet test` on ubuntu-latest + windows-latest on push/PR
-- No Godot install needed on runner (test project is pure .NET)
-- Full Godot build CI deferred to M1
-
----
-
-## What's next (M1)
-
-Start `CURRENT_MILESTONE.md` for M1 when kicking off. Key M1 scope from VERTICAL_SLICE.md:
-- Player avatar spawning (WASD movement, top-down camera)
-- Basic world chunk loading
-- First NPC settler
-- Steam lobby creation (host) and join flow
-
-## Open questions / decisions needed from Edu
-
-- Does `steam_appid.txt` need to live permanently in the Godot editor dir, or should we document a setup script?
-- M1 scope confirmation: confirm which VERTICAL_SLICE items are in M1 before starting
+- **M1 scope confirmation:** VERTICAL_SLICE.md lists M1 as "playable world + avatar." Confirm exact deliverable before I start writing systems.
+- **steam_appid.txt editor setup:** currently requires manually copying `steam_api64.dll` + `steam_appid.txt` to the Godot editor dir on each dev machine. Want a setup script for onboarding, or just document it in README?
 
 ---
 
@@ -71,5 +46,8 @@ Start `CURRENT_MILESTONE.md` for M1 when kicking off. Key M1 scope from VERTICAL
 - Design complete, 22 ADRs, repo scaffolding
 
 ### 2026-07-02 — M0 complete
-- Project structure, Loc, splash scene, GodotSteam, xUnit, CI
-- M0 demo verified: splash + Steam ID on screen
+- Full coherency pass on Godot project structure
+- Loc system, splash scene with artwork, GodotSteam GDExtension wired
+- xUnit skeleton with 3 passing tests
+- GitHub Actions CI on Linux + Windows
+- M0 demo verified: splash image on screen, Steam ID printed on startup

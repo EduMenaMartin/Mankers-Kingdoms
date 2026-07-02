@@ -6,29 +6,29 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 
 ---
 
-## Current milestone: M0 — Project scaffolded ✅
+## M0 — Project scaffolded ✅ COMPLETE (2026-07-02)
 
-All M0 tasks complete. Ready to begin M1.
+- [x] Initialize Godot 4.7 + C# project inside `/project/`
+- [x] Configure `.csproj` for .NET 8+ (`RootNamespace=MankersKingdoms`)
+- [x] Set up `.gitattributes` for LFS binary handling
+- [x] Configure Rider workspace (run configs pointing to `./project/`)
+- [x] Add GodotSteam GDExtension 4.20 via Godot AssetLib
+- [x] Add xUnit test project skeleton in `/project/tests/`
+- [x] Set up GitHub Actions CI (dotnet test on ubuntu + windows)
+- [x] Create `data/lang/en.json` with `"splash.title": "Mankers Kingdoms"`
+- [x] Create main scene with splash image + Loc system wired
+- [x] Verify tests pass on Linux (CI ubuntu runner)
+- [x] **M0 demo:** window opens with splash image; Steam ID confirmed on startup
+
+---
+
+## M1 — (not started)
+
+Pending scope confirmation from Edu. See `VERTICAL_SLICE.md` for M1 definition.
 
 ---
 
 ## Blocked
 
-Nothing currently.
-
----
-
-## Done (M0)
-
-- [x] Initialize Godot 4.7 + C# project inside `/project/`
-- [x] Configure `.csproj` for .NET 8+ (`RootNamespace=MankersKingdoms`)
-- [x] Set up `.gitattributes` for LFS binary handling (png, jpg, audio, 3D, native DLLs)
-- [x] Configure Rider workspace (run configs pointing to `./project/`)
-- [x] Add GodotSteam GDExtension 4.20 via Godot AssetLib (not module build)
-- [x] Add xUnit test project skeleton in `/project/tests/`
-- [x] Set up GitHub Actions CI — tests on ubuntu-latest + windows-latest
-- [x] Create `data/lang/en.json` with `"splash.title": "Mankers Kingdoms"`
-- [x] Create main scene with splash image + Loc.T() wired
-- [x] Verify build runs on both Windows (local) and Linux (CI ubuntu runner)
-- [x] **M0 demo:** window opens with splash image; Steam initialized (status 0 = OK), Steam ID printed
+Nothing.
 
