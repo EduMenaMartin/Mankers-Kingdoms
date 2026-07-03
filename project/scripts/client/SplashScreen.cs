@@ -5,8 +5,11 @@ namespace MankersKingdoms.Client;
 
 public partial class SplashScreen : Control
 {
+    private const double SPLASH_DURATION = 2.0; // seconds before auto-advancing to main menu
+
     // Kept as field so _Process can guard against running callbacks before init
     private bool _steamReady;
+    private double _elapsed;
 
     public override void _Ready()
     {
@@ -18,8 +21,13 @@ public partial class SplashScreen : Control
     {
         // Steam callbacks must be pumped every frame after a successful init.
         // Without this, no Steam events (achievements, lobby, networking) will fire.
+        // M1 note: proper Steam init moves to server/NetworkManager in a later milestone (ADR-0002, ADR-0005).
         if (_steamReady)
-            Engine.GetSingleton("Steam").Call("runCallbacks");
+            Engine.GetSingleton("Steam").Call("run_callbacks");
+
+        _elapsed += delta;
+        if (_elapsed >= SPLASH_DURATION)
+            GetTree().ChangeSceneToFile("res://scenes/MainMenu.tscn");
     }
 
     // M0 smoke test — proper Steam init moves to server/ in M1 (ADR-0002, ADR-0005)

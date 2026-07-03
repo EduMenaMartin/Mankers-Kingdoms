@@ -6,14 +6,27 @@
 
 ## Current status
 
-**Milestone:** M0 complete — ready to begin M1
-**Last session:** 2026-07-02 — M0 fully closed out
+**Milestone:** M1 ✅ COMPLETE (2026-07-03)
+**Last session:** 2026-07-03 — M1 debug + demo verified
 **Blockers:** None
-**Awaiting:** Edu to run final commit + push, then confirm CI green
+**Awaiting:** Edu decision — go straight to M2 (terrain + tree chopping) or add M1.5 (GodotSteam P2P lobby)?
 
 ---
 
-## What was done this session
+## What was done this session (2026-07-03 — M1 implementation)
+
+- **Onboarding scripts:** `tools/setup-steam-dev.ps1` + `tools/setup-steam-dev.sh` — locate Godot editor, copy `steam_api64.dll` / `libsteam_api.so`, write `steam_appid.txt` (appid 480 / Spacewar placeholder)
+- **Shared DTOs:** `scripts/shared/MsgPlayerInput.cs`, `MsgPlayerState.cs` (no Godot deps, testable), `GameSession.cs` (scene-to-scene intent bridge)
+- **Server layer:** `scripts/server/NetworkManager.cs` (ENet host/join, reads `GameSession.Intent` on `_Ready`), `scripts/server/PlayerSystem.cs` (spawns/despawns `Player.tscn` via reliable RPC on peer connect/disconnect, `SortedDictionary` for ordered iteration)
+- **Client layer:** `scripts/client/PlayerController.cs` (WASD input, client-side prediction, `ReceiveInput` RPC → server, `UpdateState` RPC → all clients, remote lerp, server reconciliation), `scripts/client/MainMenuController.cs` (menu logic + runtime WASD action registration), `scripts/client/OptionsMenuController.cs` (audio + graphics stubs)
+- **Scenes:** `MainMenu.tscn`, `OptionsMenu.tscn`, `GameWorld.tscn` (50×50 green plane + directional light + Players container + NetworkManager + PlayerSystem nodes), `Player.tscn` (CharacterBody3D + CapsuleMesh + CapsuleShape3D + Camera3D at -60° pitch)
+- **Splash update:** `SplashScreen.cs` gets a 2-second auto-transition to `MainMenu.tscn`
+- **Tests:** `tests/Shared/MessageTests.cs` — 8 new tests; 11/11 passing total
+- **Loc keys:** 17 entries in `data/lang/en.json`
+
+## What was done previously
+
+
 
 - **Structural coherency pass:** Godot project was in `project/Mankers Kingdoms/` (spaces in name, wrong path) — merged into `project/`; stray `project.godot`, `icon.svg`, `icon.svg.import` at repo root deleted; `.csproj` namespace fixed (`NewGameProject` → `MankersKingdoms`); `.sln` rewritten with correct references; Rider run configs fixed to `--path "./project/"`
 - **Localization stub:** `project/scripts/shared/Loc.cs` — `Loc.T(key)` backed by `System.Text.Json`, `Reset()` for test isolation, no Godot dependency; `data/lang/en.json` + `project/data/lang/en.json` created
@@ -25,9 +38,9 @@
 
 ## What's next (top 3)
 
-1. **Push to main** — triggers first CI run; confirm both ubuntu + windows jobs green
-2. **Start M1** — create `CURRENT_MILESTONE.md`, confirm M1 scope from `VERTICAL_SLICE.md` before any code
-3. **M1 first task** — player avatar spawning: WASD movement, top-down camera, single scene
+1. **Commit M1** — prepare commit message; Edu runs `git commit`
+2. **Decide next milestone** — M2 (terrain + tree chopping) or M1.5 (GodotSteam P2P lobby + friend invite flow)
+3. **Start next milestone** — create `CURRENT_MILESTONE.md` for chosen milestone
 
 ## Blocked
 
@@ -35,8 +48,7 @@ Nothing.
 
 ## Decisions needed from Edu before next session
 
-- **M1 scope confirmation:** VERTICAL_SLICE.md lists M1 as "playable world + avatar." Confirm exact deliverable before I start writing systems.
-- **steam_appid.txt editor setup:** currently requires manually copying `steam_api64.dll` + `steam_appid.txt` to the Godot editor dir on each dev machine. Want a setup script for onboarding, or just document it in README?
+- **Next milestone:** M2 (terrain + tree chopping, first gameplay loop) or M1.5 (GodotSteam P2P to replace ENet, Steam friend invite flow)?
 
 ---
 
@@ -44,6 +56,11 @@ Nothing.
 
 ### 2026-07-02 — Foundation
 - Design complete, 22 ADRs, repo scaffolding
+
+### 2026-07-03 — M1 complete
+- Debugged camera (wrong transform row-major vs column-major), player spawning, material rendering
+- Locked `docs/scene_workflow.md` rule: Claude Code never edits .tscn files; editor owns scenes
+- M1 demo verified: two instances, 127.0.0.1, both capsules visible, both move smoothly
 
 ### 2026-07-02 — M0 complete
 - Full coherency pass on Godot project structure

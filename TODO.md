@@ -22,9 +22,49 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 
 ---
 
-## M1 — (not started)
+## M1 — Main menu and two clients see each other (in progress)
 
-Pending scope confirmation from Edu. See `VERTICAL_SLICE.md` for M1 definition.
+**Goal:** From menu, one player hosts, other joins over LAN, both run around an empty plane and can see each other move smoothly.
+**Transport:** ENet (LAN bring-up per ARCHITECTURE.md §4.2); GodotSteam SteamMultiplayerPeer replaces this in a later milestone.
+
+### Onboarding
+- [x] `tools/setup-steam-dev.ps1` — copy Steam DLL + write steam_appid.txt to Godot editor dir (Windows)
+- [x] `tools/setup-steam-dev.sh` — same for Linux/macOS
+
+### Foundation
+- [x] Create `CURRENT_MILESTONE.md` for M1
+- [x] Add M1 loc keys to `data/lang/en.json`
+- [x] `project/scripts/shared/GameSession.cs` — session intent bridge between menu and game world
+- [x] `project/scripts/shared/MsgPlayerInput.cs` — client→server movement DTO
+- [x] `project/scripts/shared/MsgPlayerState.cs` — server→clients position snapshot DTO
+
+### Networking
+- [x] `project/scripts/server/NetworkManager.cs` — ENet host/join, peer lifecycle signals, reads GameSession.Intent on _Ready
+- [x] `project/scripts/server/PlayerSystem.cs` — spawns/despawns Player.tscn nodes on peer connect/disconnect via RPC
+
+### Player
+- [x] `project/scripts/client/PlayerController.cs` — CharacterBody3D; WASD client prediction; sends input to server; reconciles corrections; interpolates remote players
+- [x] `project/scenes/Player.tscn` — CharacterBody3D + CapsuleMesh + CapsuleShape3D + Camera3D (top-down, active only for local player)
+
+### UI
+- [x] `project/scripts/client/MainMenuController.cs` — Start Solo / Host / Join / Options / Exit; registers WASD input actions
+- [x] `project/scripts/client/OptionsMenuController.cs` — master volume, graphics quality, language dropdown (EN only)
+- [x] `project/scenes/MainMenu.tscn`
+- [x] `project/scenes/OptionsMenu.tscn`
+- [x] Update `project/scripts/client/SplashScreen.cs` — add 2-second timer → transition to MainMenu
+
+### World
+- [x] `project/scenes/GameWorld.tscn` — StaticBody3D plane + DirectionalLight3D + Players container + NetworkManager + PlayerSystem nodes
+
+### Tests
+- [x] `project/tests/Shared/MessageTests.cs` — MsgPlayerInput, MsgPlayerState, GameSession tests (8 tests, 11 total passing)
+
+### Demo gate
+- [x] M1 demo: host instance + join instance over LAN; both capsules visible; both move smoothly → mark M1 complete
+
+---
+
+## M1 ✅ COMPLETE (2026-07-03)
 
 ---
 

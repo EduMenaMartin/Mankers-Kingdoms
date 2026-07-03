@@ -27,6 +27,7 @@ For system-level questions, consult:
 - `ARCHITECTURE.md` for technical design
 - `docs/decisions/ADR-XXXX-*.md` for the *why* of specific decisions
 - `docs/gdd/<system>.md` for a specific system's design detail
+- `docs/scene_workflow.md` for scene creation and "nothing appears" debug order — **Claude Code never edits `.tscn` or `.tres` files**
 
 ---
 

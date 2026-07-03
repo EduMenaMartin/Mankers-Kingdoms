@@ -1,3 +1,20 @@
 {
-  "splash.title": "Mankers Kingdoms"
+  "splash.title": "Mankers Kingdoms",
+  "menu.start_solo": "Start Solo",
+  "menu.host": "Host Multiplayer",
+  "menu.join": "Join Multiplayer",
+  "menu.options": "Options",
+  "menu.exit": "Exit",
+  "menu.address_placeholder": "Host IP address",
+  "menu.status.hosting": "Starting host...",
+  "menu.status.joining": "Connecting...",
+  "menu.status.connected": "Connected!",
+  "menu.status.failed": "Connection failed.",
+  "options.back": "Back",
+  "options.volume_label": "Master Volume",
+  "options.graphics_label": "Graphics Quality",
+  "options.language_label": "Language",
+  "options.graphics.low": "Low",
+  "options.graphics.medium": "Medium",
+  "options.graphics.high": "High"
 }

@@ -23,6 +23,10 @@ Currently `data/lang/en.json` lives both at repo root (`data/lang/`) and duplica
 
 Getting GodotSteam working in editor play mode requires manually copying `steam_api64.dll` and `steam_appid.txt` into the Godot editor executable directory on each dev machine. A small `tools/setup-godotsteam-editor.ps1` script would automate this for onboarding. Low effort, useful for second dev PC.
 
+### 2026-07-03 — [post-slice] Right-mouse orbital camera rotation
+
+Right-click + drag to orbit the camera horizontally around the player. Implementation: add a `CameraPivot` Node3D child to `Player.tscn` (between the CharacterBody3D and Camera3D), accumulate mouse delta on `InputEventMouseMotion` while right button held, rotate pivot Y. Pitch stays fixed from editor transform. All client-side, no networking changes.
+
 ### 2026-07-02 — [post-slice] Full Godot headless build in CI
 
 CI currently only runs xUnit tests (pure .NET, no Godot). A headless Godot build step would catch C# compile errors in client/server scripts that reference Godot types. Requires `chickensoft-games/setup-godot` action on the runner. Worth adding in M1 once server scripts exist.
