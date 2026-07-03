@@ -117,6 +117,8 @@ Each entry references the ADR where the decision is recorded.
 - **Multiple settlements per world.** Players can found their own or contribute to another's.
 - **Contribution model:** guests can deposit resources, use crafting stations, sleep, but not place or demolish. Only founder can grant elevated permissions in v1.
 
+See `docs/gdd/settlements.md` for the full founder/guest permission table and roadmap role hierarchy.
+
 ### 4.7 Death and penalty
 
 - **Respawn at base** on death.

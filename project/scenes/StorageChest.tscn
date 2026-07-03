@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://dxed3jpy14a20"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_tepmp"]
+size = Vector3(0.5, 0.5, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_tepmp"]
+top_radius = 0.24707031
+bottom_radius = 0.24707031
+height = 1.0065918
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tepmp"]
+size = Vector3(0.48284912, 0.77197266, 1)
+
+[node name="StorageChest" type="StaticBody3D" unique_id=990174083]
+collision_layer = 8
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=2013663254]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.12475586, 0, 0)
+layers = 8
+mesh = SubResource("BoxMesh_tepmp")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="MeshInstance3D" unique_id=137670725]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0.23939842, 0.0020751953)
+mesh = SubResource("CylinderMesh_tepmp")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=49307442]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.13510132, 0.11401367, 0)
+shape = SubResource("BoxShape3D_tepmp")

@@ -1,0 +1,95 @@
+[gd_scene format=3 uid="uid://bni1yv8etsrsa"]
+
+[ext_resource type="Script" uid="uid://dx4gc25k6aecy" path="res://scripts/client/MainMenuController.cs" id="1_ctrl"]
+
+[node name="MainMenu" type="Control" unique_id=1516936373]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ctrl")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1609850650]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.08, 0.12, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=480682135]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="CenterContainer" unique_id=1142321932]
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer" unique_id=1745224765]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer" unique_id=1619895552]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=385007902]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Mankers Kingdoms"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=76816331]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+
+[node name="StartSoloButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=1482275935]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Start Solo"
+
+[node name="HostButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=1151254501]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Host Multiplayer"
+
+[node name="AddressInput" type="LineEdit" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=568470595]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+placeholder_text = "Host IP address"
+
+[node name="JoinButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=914256199]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Join Multiplayer"
+
+[node name="OptionsButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=1129973725]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Options"
+
+[node name="ExitButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=1234415979]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+text = "Exit"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer" unique_id=1577706639]
+unique_name_in_owner = true
+layout_mode = 2
+horizontal_alignment = 1

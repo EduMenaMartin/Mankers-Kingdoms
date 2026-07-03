@@ -16,5 +16,16 @@
   "options.language_label": "Language",
   "options.graphics.low": "Low",
   "options.graphics.medium": "Medium",
-  "options.graphics.high": "High"
+  "options.graphics.high": "High",
+  "item.wood.name": "Wood",
+  "item.wood.desc": "A piece of wood, chopped from a tree.",
+  "item.berry.name": "Berry",
+  "item.berry.desc": "A wild berry. Eat raw for a little hunger, or cook at a Cooking Fire for more.",
+  "item.cooked_berry.name": "Cooked Berry",
+  "item.cooked_berry.desc": "A roasted berry. Restores 40 hunger.",
+  "building.shelter.name": "Shelter",
+  "building.storage_chest.name": "Storage Chest",
+  "building.workbench.name": "Workbench",
+  "building.cooking_fire.name": "Cooking Fire",
+  "building.kingdom_marker.name": "Kingdom Marker"
 }

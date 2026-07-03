@@ -1,0 +1,168 @@
+using System.Collections.Generic;
+using Godot;
+using MankersKingdoms.Shared;
+
+namespace MankersKingdoms.Server;
+
+/// <summary>
+/// Manages the food loop: berry bush spawning, harvesting, cooking, and eating.
+///
+/// Bush nodes are created programmatically in _Ready() on ALL peers from the same
+/// deterministic seed — no spawn RPC required.  CollisionLayer 5 (bitmask 16) keeps
+/// bushes distinct from terrain (1), trees (2), and buildings (4/8).
+///
+/// RPCs:
+///   ReceiveHarvest  — client tells server it picked a bush → +1 berry, bush hides for 30s
+///   RequestCook     — client asks to cook at a Cooking Fire → 1 berry → 1 cooked berry
+///   RequestEat      — client asks to eat → consumes 1 cooked berry → +40 hunger
+///
+/// Node must appear in GameWorld.tscn AFTER InventorySystem and NeedsSystem.
+/// </summary>
+public partial class BushSystem : Node
+{
+    public static BushSystem Instance { get; private set; } = null!;
+
+    private const float  HARVEST_COOLDOWN = 30f;
+    private const uint   BUSH_LAYER       = 16u;  // editor Layer 5 = bitmask 16
+
+    // Shared: both server and clients populate this from deterministic generation.
+    private readonly Dictionary<string, StaticBody3D> _bushNodes = new();
+
+    // Server-only: which bushes are on cooldown and when they recover.
+    private readonly SortedDictionary<string, double> _cooldowns = new();
+    private double _elapsed;
+
+    private const string BUSH_SYSTEM_PATH = "/root/GameWorld/BushSystem";
+
+    public override void _Ready()
+    {
+        Instance = this;
+
+        var cfg      = TerrainConfig.Default;
+        var gen      = new TerrainGenerator(GameSession.WorldSeed, cfg);
+        var heightmap = gen.GenerateHeightmap();
+        var bushes   = new BushGenerator(GameSession.WorldSeed, cfg).Generate(heightmap);
+
+        foreach (var b in bushes)
+            SpawnBushNode(b);
+    }
+
+    private void SpawnBushNode(BushData b)
+    {
+        var body = new StaticBody3D
+        {
+            Name           = $"bush_{b.Index}",
+            CollisionLayer = BUSH_LAYER,
+            CollisionMask  = 0u
+        };
+
+        var shape = new CollisionShape3D { Shape = new SphereShape3D { Radius = 0.6f } };
+        body.AddChild(shape);
+
+        // Simple green sphere to represent the bush visually.
+        var mat = new StandardMaterial3D { AlbedoColor = new Color(0.15f, 0.55f, 0.1f) };
+        var mi  = new MeshInstance3D
+        {
+            Mesh             = new SphereMesh { Radius = 0.45f, Height = 0.9f },
+            MaterialOverride = mat
+        };
+        body.AddChild(mi);
+
+        AddChild(body);
+        body.GlobalPosition = new Vector3(b.WorldX, b.WorldY, b.WorldZ);
+        _bushNodes[body.Name] = body;
+    }
+
+    // ── Server tick: restore harvested bushes ─────────────────────────────────
+
+    public override void _Process(double delta)
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        _elapsed += delta;
+        var toRestore = new List<string>();
+        foreach (var (bushId, restoreAt) in _cooldowns)
+        {
+            if (_elapsed >= restoreAt)
+                toRestore.Add(bushId);
+        }
+        foreach (var id in toRestore)
+        {
+            _cooldowns.Remove(id);
+            Rpc(MethodName.SetBushVisible, id, true);
+        }
+    }
+
+    // ── RPCs ──────────────────────────────────────────────────────────────────
+
+    /// <summary>Client pressed E near a bush.</summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void ReceiveHarvest(string bushId)
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+
+        if (_cooldowns.ContainsKey(bushId)) return;       // already depleted
+        if (!_bushNodes.ContainsKey(bushId)) return;       // unknown bush
+
+        _cooldowns[bushId] = _elapsed + HARVEST_COOLDOWN;
+        Rpc(MethodName.SetBushVisible, bushId, false);
+
+        InventorySystem.Instance.AddItem(sender, "item.berry", 1);
+        GD.Print($"[Bush] peer {sender} harvested {bushId} → +1 berry");
+    }
+
+    /// <summary>Client pressed E near a Cooking Fire with berries.</summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RequestCook()
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+
+        if (!InventorySystem.Instance.HasItems(sender, "item.berry", 1))
+        {
+            GD.Print($"[Food] peer {sender} tried to cook — no berries");
+            return;
+        }
+
+        InventorySystem.Instance.RemoveItems(sender, "item.berry", 1);
+        InventorySystem.Instance.AddItem(sender, "item.cooked_berry", 1);
+        GD.Print($"[Food] peer {sender} cooked 1 berry → 1 cooked berry");
+    }
+
+    /// <summary>Client pressed Tab to eat a cooked berry.</summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RequestEat()
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+
+        if (!InventorySystem.Instance.HasItems(sender, "item.cooked_berry", 1))
+        {
+            GD.Print($"[Food] peer {sender} tried to eat — no cooked berries");
+            return;
+        }
+
+        InventorySystem.Instance.RemoveItems(sender, "item.cooked_berry", 1);
+        NeedsSystem.Instance.RestoreHunger(sender, 40f);
+        GD.Print($"[Food] peer {sender} ate a cooked berry (+40 hunger)");
+    }
+
+    /// <summary>Hides or shows a bush on all peers (harvest/restore visual).</summary>
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void SetBushVisible(string bushId, bool visible)
+    {
+        if (_bushNodes.TryGetValue(bushId, out var node))
+            node.Visible = visible;
+    }
+}

@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://biorhdfkyyw7g"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_tepmp"]
+size = Vector3(4, 3, 4)
+
+[sub_resource type="PrismMesh" id="PrismMesh_tepmp"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tepmp"]
+size = Vector3(4.0497437, 3.894287, 4.0286865)
+
+[node name="Shelter" type="StaticBody3D" unique_id=1126313826]
+collision_layer = 8
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=566443161]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+layers = 8
+mesh = SubResource("BoxMesh_tepmp")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="MeshInstance3D" unique_id=36940255]
+transform = Transform3D(4.7306776, 0, 0, 0, 1, 0, 0, 0, 4.139868, 0, 2.0005527, 0)
+mesh = SubResource("PrismMesh_tepmp")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1327271369]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.002532959, 1.1712646, -0.008239746)
+shape = SubResource("BoxShape3D_tepmp")

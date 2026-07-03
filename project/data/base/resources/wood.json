@@ -1,0 +1,7 @@
+{
+  "id": "resource.wood",
+  "display_name_key": "item.wood.name",
+  "description_key": "item.wood.desc",
+  "stack_size": 50,
+  "weight": 1.0
+}

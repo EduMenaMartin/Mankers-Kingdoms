@@ -5,6 +5,7 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>MankersKingdoms</RootNamespace>
     <AssemblyName>MankersKingdoms</AssemblyName>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>

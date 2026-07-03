@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://10c3smyir5fc"]
+
+[ext_resource type="Script" uid="uid://d4e6nhoe55uij" path="res://scripts/client/TreeNode.cs" id="1_avsvi"]
+[ext_resource type="PackedScene" uid="uid://2o04epqnncot" path="res://assets/ExternalAssets/KayKit-ForestNaturePack1/Assets/gltf/Tree_1_C_Color1.gltf" id="2_qd6xs"]
+[ext_resource type="PackedScene" uid="uid://cv6ah8yx2fg2x" path="res://assets/ExternalAssets/KayKit-ForestNaturePack1/Assets/gltf/Grass_1_A_Singlesided_Color1.gltf" id="3_ake3r"]
+[ext_resource type="PackedScene" uid="uid://l2mewaws5522" path="res://assets/ExternalAssets/KayKit-ForestNaturePack1/Assets/gltf/Grass_1_C_Color1.gltf" id="4_18mvg"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_bo0yh"]
+height = 3.2504883
+radius = 0.6
+
+[node name="StaticBody3D" type="StaticBody3D" unique_id=1310394503]
+collision_layer = 2
+script = ExtResource("1_avsvi")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1366337139]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.24822485, 1.3747559, 0)
+shape = SubResource("CylinderShape3D_bo0yh")
+
+[node name="Tree_1_C_Color12" parent="." unique_id=1750826225 instance=ExtResource("2_qd6xs")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.20213747, 0, -0.12116575)
+
+[node name="Grass_1_A_Singlesided_Color12" parent="." unique_id=140815464 instance=ExtResource("3_ake3r")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7810545, 0, -0.02159214)
+
+[node name="Grass_1_C_Color12" parent="." unique_id=232168287 instance=ExtResource("4_18mvg")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12591743, 0, 0.619915)

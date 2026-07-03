@@ -1,0 +1,19 @@
+[gd_scene format=3 uid="uid://cjcxuk540v661"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_tepmp"]
+top_radius = 0.1
+bottom_radius = 0.1
+height = 5.0
+
+[sub_resource type="QuadMesh" id="QuadMesh_tepmp"]
+size = Vector2(2, 1)
+
+[node name="KingdomMarker" type="Node3D" unique_id=543761900]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1732242204]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
+mesh = SubResource("CylinderMesh_tepmp")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="MeshInstance3D" unique_id=993653141]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9916229, 1.9562473, 0)
+mesh = SubResource("QuadMesh_tepmp")

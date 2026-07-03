@@ -68,6 +68,84 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 
 ---
 
+## M2 — World with things in it (in progress)
+
+**Goal:** Two players explore a 64×64 procedural terrain and chop trees.
+**Transport:** ENet (unchanged).
+
+### Foundation
+- [ ] `shared/WorldSeed.cs` — seed value + `CreateRandom()` factory
+- [ ] `shared/TerrainConfig.cs` — generation params record with defaults
+- [ ] `shared/TerrainGenerator.cs` — pure-C# value noise → `float[,]` heightmap
+- [ ] `shared/TreeConfig.cs` — density, hp, yield, xp record with defaults
+- [ ] `shared/TreeData.cs` — record: Id, GridX, GridZ, WorldX, WorldY, WorldZ
+- [ ] `shared/TreeGenerator.cs` — heightmap + config + seed → `IReadOnlyList<TreeData>`
+- [ ] `shared/MsgDayNight.cs` — DTO: WorldTimeSec, SunAngleDeg
+- [ ] `GameSession.cs` — add `WorldSeed: uint` field
+- [ ] `project/data/base/resources/wood.json` — item stub
+
+### Terrain
+- [ ] `server/TerrainSystem.cs` — Node: generates HeightMapShape3D collision at runtime
+- [ ] `client/TerrainRenderer.cs` — Node: same heightmap → ArrayMesh visual
+- [ ] `client/PlayerController.cs` — add gravity; E-key raycast → RequestChop
+
+### Day/night
+- [ ] `server/DayNightSystem.cs` — Node: advances world time, broadcasts SunAngleDeg RPC
+- [ ] `client/DayNightClient.cs` — Node: rotates DirectionalLight3D, adjusts energy
+
+### Trees
+- [ ] `server/TreeSystem.cs` — Node: spawns Tree.tscn instances (all peers), manages HP,
+      handles chop RPCs, broadcasts fell + wood drop events
+- [ ] `client/TreeNode.cs` — StaticBody3D script: receives fell RPC, hides mesh, spawns WoodDrop
+- [ ] `client/MainMenuController.cs` — register "interact" (E key) input action
+
+### Tests
+- [ ] `tests/Shared/WorldSeedTests.cs`
+- [ ] `tests/Shared/TerrainGeneratorTests.cs`
+- [ ] `tests/Shared/TreeGeneratorTests.cs`
+
+### Demo gate
+- [ ] M2 demo: two ENet players on procedural terrain, chop trees (E key),
+      wood drops appear, Woodcutting XP logged in Output
+
+---
+
+## M1.5 — GodotSteam P2P transport swap ⏸ DEFERRED
+
+**Why deferred:** GodotSteam has no official C# bindings. The only option (`LauraWebdev/GodotSteam_CSharpBindings`) is Open Beta, targets GodotSteam 4.6.1 (we're on 4.20), and has an open bug on the exact signal (`lobby_created`) the host/join flow depends on. See `docs/research/godotsteam/csharp-bindings-investigation-outcome.md`.
+
+**Decision:** Continue M2–M4 gameplay work on ENet/LAN. Revisit once bindings mature or we evaluate a GDScript networking boundary as an ADR-level decision.
+
+**Research preserved:** `docs/research/godotsteam/M1.5-implementation-guide.md` + class snapshots — reuse when we return to this.
+
+---
+
+## M3 — Settlement basics (in progress)
+
+### Phase 2 follow-up
+- [ ] Show "Not enough materials" HUD message when player tries to place a building with insufficient resources. Server rejects silently now — needs a client-visible error (flash label or status bar). Wire via RPC rejection callback from SettlementSystem → client.
+
+### Phase 3 — Needs system
+- [x] `shared/LocalState.cs` — add `Hunger`, `Rest` float properties + `SetNeeds(float, float)`
+- [x] `server/NeedsSystem.cs` — hunger drains in 5 min, rest in 10 min; sync every 2s; death clears inventory + respawns; `RequestSleep` RPC sets rest to 100
+- [x] `client/NeedsHUD.cs` — hunger (orange) and rest (blue) ProgressBars anchored bottom-right
+- [x] `client/PlayerController.cs` — `TryChopTree` → `TryInteract` (shelter check first → sleep, then tree chop); `ForceRespawn` RPC (AnyPeer)
+- [x] `server/SettlementSystem.cs` — `GetRespawnPosition(peerId)` helper (marker pos or terrain origin)
+- [x] **Editor:** Add `NeedsSystem` node (script: `server/NeedsSystem.cs`) to GameWorld.tscn after SettlementSystem
+- [x] **Editor:** Add `NeedsHUD` CanvasLayer (script: `client/NeedsHUD.cs`) to GameWorld.tscn
+
+### Phase 4 — Food loop
+- [x] `shared/BushData.cs` — record: Index, WorldX, WorldZ, WorldY
+- [x] `shared/BushGenerator.cs` — deterministic scatter placement, ~50 bushes per map
+- [x] `server/BushSystem.cs` — spawns bush nodes in code (layer 16); ReceiveHarvest (+1 berry, 30s respawn); RequestCook (1 berry → 1 cooked berry); RequestEat (1 cooked berry → +40 hunger via NeedsSystem)
+- [x] `server/NeedsSystem.cs` — add static Instance + RestoreHunger(peerId, amount)
+- [x] `client/PlayerController.cs` — TryInteract priority: shelter > bush > cooking fire > tree; EatFood() on Tab
+- [x] `client/MainMenuController.cs` — register "eat_food" → Tab
+- [x] `data/lang/en.json` — berry and cooked_berry loc keys
+- [ ] **Editor:** Add `BushSystem` node (script: `server/BushSystem.cs`) to GameWorld.tscn after NeedsSystem
+
+---
+
 ## Blocked
 
 Nothing.

@@ -1,0 +1,73 @@
+[gd_scene format=3 uid="uid://ccmsytmy3s76w"]
+
+[ext_resource type="Script" uid="uid://bfksrvpsx85lu" path="res://scripts/server/NetworkManager.cs" id="1_net"]
+[ext_resource type="Script" uid="uid://7bdoa42i3ewt" path="res://scripts/server/PlayerSystem.cs" id="2_ps"]
+[ext_resource type="Script" uid="uid://d4maopmxia0oa" path="res://scripts/server/TerrainSystem.cs" id="3_g8ckf"]
+[ext_resource type="Script" uid="uid://x1fmqxy06kyh" path="res://scripts/client/TerrainRenderer.cs" id="4_yms0u"]
+[ext_resource type="Script" uid="uid://tcshn1ans32b" path="res://scripts/server/DayNightSystem.cs" id="5_rrjg7"]
+[ext_resource type="Script" uid="uid://dv037qk5fx8fe" path="res://scripts/client/DayNightClient.cs" id="6_pexic"]
+[ext_resource type="Script" uid="uid://cwkud37pui7uj" path="res://scripts/server/TreeSystem.cs" id="7_n8hyf"]
+[ext_resource type="Script" uid="uid://7ol050ndnjx4" path="res://scripts/server/InventorySystem.cs" id="7_rrjg7"]
+[ext_resource type="Script" uid="uid://by6hfvoxphwo" path="res://scripts/client/InventoryHUD.cs" id="9_pexic"]
+[ext_resource type="Script" uid="uid://dnprapr7x5leu" path="res://scripts/server/SettlementSystem.cs" id="10_n8hyf"]
+[ext_resource type="Script" uid="uid://cfe20wgtcv0mo" path="res://scripts/client/BuildMenu.cs" id="11_d67nr"]
+[ext_resource type="Script" uid="uid://cuos0ja711y4j" path="res://scripts/server/NeedsSystem.cs" id="11_pcadl"]
+[ext_resource type="Script" uid="uid://hwvw17sbnlxn" path="res://scripts/client/NeedsHUD.cs" id="13_rpagb"]
+[ext_resource type="Script" uid="uid://bku8801n6s53u" path="res://scripts/server/BushSystem.cs" id="14_rpagb"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_rpagb"]
+
+[node name="GameWorld" type="Node3D" unique_id=1324218193]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=549759842]
+transform = Transform3D(-0.6174607, 0.5562113, -0.5562114, -0.3895824, 0.3980486, 0.8305315, 0.6833503, 0.7295108, -0.029089242, 0, 22.172506, 10)
+light_energy = 1.5
+shadow_enabled = true
+
+[node name="Players" type="Node3D" parent="." unique_id=91079921]
+
+[node name="NetworkManager" type="Node" parent="." unique_id=1114723391]
+script = ExtResource("1_net")
+
+[node name="PlayerSystem" type="Node" parent="." unique_id=1676281541]
+script = ExtResource("2_ps")
+
+[node name="TerrainSystem" type="Node" parent="." unique_id=1429543628]
+script = ExtResource("3_g8ckf")
+
+[node name="TerrainRenderer" type="Node" parent="." unique_id=982281933]
+script = ExtResource("4_yms0u")
+
+[node name="DayNightSystem" type="Node" parent="." unique_id=772331664]
+script = ExtResource("5_rrjg7")
+
+[node name="DayNightClient" type="Node" parent="." unique_id=1605758431]
+script = ExtResource("6_pexic")
+
+[node name="IventorySystem" type="Node" parent="." unique_id=942439723]
+script = ExtResource("7_rrjg7")
+
+[node name="TreeSystem" type="Node" parent="." unique_id=1164407957]
+script = ExtResource("7_n8hyf")
+
+[node name="InventoryHUD" type="CanvasLayer" parent="." unique_id=1718932259]
+script = ExtResource("9_pexic")
+
+[node name="SettlementSystem" type="Node" parent="." unique_id=943312780]
+script = ExtResource("10_n8hyf")
+
+[node name="NeedsSystem" type="Node" parent="." unique_id=1092178020]
+script = ExtResource("11_pcadl")
+
+[node name="BuildMenu" type="CanvasLayer" parent="." unique_id=384166002]
+script = ExtResource("11_d67nr")
+
+[node name="NeedsHUD" type="CanvasLayer" parent="." unique_id=2032225935]
+script = ExtResource("13_rpagb")
+
+[node name="BushSystem" type="Node" parent="." unique_id=1595227944]
+script = ExtResource("14_rpagb")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BushSystem" unique_id=448121085]
+transform = Transform3D(0.47527698, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, -0.93450856, -0.081207216, -0.07943725)
+mesh = SubResource("SphereMesh_rpagb")

@@ -27,6 +27,18 @@ Getting GodotSteam working in editor play mode requires manually copying `steam_
 
 Right-click + drag to orbit the camera horizontally around the player. Implementation: add a `CameraPivot` Node3D child to `Player.tscn` (between the CharacterBody3D and Camera3D), accumulate mouse delta on `InputEventMouseMotion` while right button held, rotate pivot Y. Pitch stays fixed from editor transform. All client-side, no networking changes.
 
+### 2026-07-03 — [post-slice] Kingdom Marker upgrade system
+
+Kingdom Marker has a level (1–5). Each upgrade increases the territory radius by +10 units (base 40, max 90). Upgrading costs wood + stone (resources unlock at M4). Upgrade UI shown on E-interact with the marker. Visual: marker gets taller / adds decorative rings per level. Pairs naturally with the settlement progression loop — grow your territory as you gather resources.
+
+### 2026-07-04 — [post-slice] Full settlement role hierarchy
+
+Founder/Co-Founder/Officer/Member/Guest tiers. Fully designed in `docs/gdd/settlements.md` §2. Not scheduled. Solves v1's presence-based-guest limitation (guests today have same storage rights as trusted members; post-slice hierarchy introduces explicit Member promotion with persistent access even when founder is offline). Revisit post-M9.
+
+### 2026-07-03 — [post-slice] Ambient audio tied to day/night and monster proximity
+
+Two ambient audio layers: daytime (birdsong) and nighttime (insects/crickets), crossfaded by DayNightClient on sunrise/sunset. A proximity check silences ambient audio when a hostile entity is within ~20 units — classic "audio tells you something is nearby" tension cue. Implementation: `client/AmbientAudioSystem.cs` — two AudioStreamPlayer nodes, volume tweened on day/night change, muted when enemy detection radius triggers. No new server-side logic needed.
+
 ### 2026-07-02 — [post-slice] Full Godot headless build in CI
 
 CI currently only runs xUnit tests (pure .NET, no Godot). A headless Godot build step would catch C# compile errors in client/server scripts that reference Godot types. Requires `chickensoft-games/setup-godot` action on the runner. Worth adding in M1 once server scripts exist.

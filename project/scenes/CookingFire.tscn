@@ -1,0 +1,70 @@
+[gd_scene format=3 uid="uid://hl58lj0yk8lq"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_bo0yh"]
+height = 1.762207
+
+[sub_resource type="SphereMesh" id="SphereMesh_bo0yh"]
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_tepmp"]
+radius = 1.2382813
+
+[node name="CookingFire" type="StaticBody3D" unique_id=98685153]
+collision_layer = 8
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1063651596]
+transform = Transform3D(0.24125235, 0, 0, 0, 0.31898716, 0, 0, 0, 0.22413443, 0.004068911, 0.19529365, 0)
+layers = 8
+mesh = SubResource("CapsuleMesh_bo0yh")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="MeshInstance3D" unique_id=1903896545]
+transform = Transform3D(0.47527698, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, -0.93450856, -0.081207216, -0.07943725)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="MeshInstance3D" unique_id=527229508]
+transform = Transform3D(0.4752769, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, -0.8056353, -0.081207216, 0.38451615)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D4" type="MeshInstance3D" parent="MeshInstance3D" unique_id=425596838]
+transform = Transform3D(0.47527686, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, -0.8056353, -0.081207216, -0.5761021)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="MeshInstance3D" unique_id=728099980]
+transform = Transform3D(0.47527683, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, -0.43977043, -0.081207216, 0.81379485)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D11" type="MeshInstance3D" parent="MeshInstance3D" unique_id=846229807]
+transform = Transform3D(0.47527677, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, 0.028035125, -0.081207216, 1.024431)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D5" type="MeshInstance3D" parent="MeshInstance3D" unique_id=731785304]
+transform = Transform3D(0.47527677, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, -0.27459708, -0.081207216, -0.8271226)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D6" type="MeshInstance3D" parent="MeshInstance3D" unique_id=963841954]
+transform = Transform3D(0.47527674, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, 0.30435345, -0.081207216, -0.82712257)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D7" type="MeshInstance3D" parent="MeshInstance3D" unique_id=628718908]
+transform = Transform3D(0.47527668, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, 0.8435906, -0.081207216, -0.5718588)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D8" type="MeshInstance3D" parent="MeshInstance3D" unique_id=2097731349]
+transform = Transform3D(0.47527662, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, 1.0917375, -0.081207216, -0.028689533)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D9" type="MeshInstance3D" parent="MeshInstance3D" unique_id=934848898]
+transform = Transform3D(0.4752766, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, 1.0320929, -0.081207216, 0.52167636)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="MeshInstance3D10" type="MeshInstance3D" parent="MeshInstance3D" unique_id=715758488]
+transform = Transform3D(0.4752766, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, 0.56869686, -0.081207216, 0.869952)
+mesh = SubResource("SphereMesh_bo0yh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2026469598]
+transform = Transform3D(0.24125214, 0, 0, 0, 0.31898716, 0, 0, 0, 0.22413437, 0.004068911, 0.25673217, 0)
+shape = SubResource("CylinderShape3D_tepmp")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="." unique_id=610936574]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.26090956, 0)
+distance_fade_enabled = true
+omni_shadow_mode = 0
