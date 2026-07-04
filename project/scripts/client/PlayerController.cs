@@ -55,6 +55,12 @@ public partial class PlayerController : CharacterBody3D
 	// Path to BushSystem — used for untyped RPC to avoid client→server import.
 	private const string BUSH_SYSTEM_PATH = "/root/GameWorld/BushSystem";
 
+	// Path to CombatSystem — used for untyped RPC (arrow crafting at workbench).
+	private const string COMBAT_SYSTEM_PATH = "/root/GameWorld/CombatSystem";
+
+	// Path to ProjectileSystem — used for untyped RPC (not used directly; BowController owns fire).
+	private const string PROJECTILE_SYSTEM_PATH = "/root/GameWorld/ProjectileSystem";
+
 	public override void _Ready()
 	{
 		_camera = GetNode<Camera3D>("Camera3D");
@@ -64,12 +70,20 @@ public partial class PlayerController : CharacterBody3D
 		// Layer 2 = trees, Layer 4 (bitmask 8) = buildings.
 		CollisionMask |= 2u | 8u;
 
+		// Layer 6 (bitmask 32) = player combat layer — makes this node detectable
+		// by MeleeController's sphere query on all peers (local and remote).
+		CollisionLayer |= 32u;
+
 		if (_isLocalPlayer)
 		{
 			// Defer so GlobalPosition is set by PlayerSystem before we activate this camera.
 			Callable.From(() => { _camera.MakeCurrent(); }).CallDeferred();
 			// PlacementController handles building ghost preview for the local player.
 			AddChild(new PlacementController());
+			// MeleeController handles LMB swing and RMB block for the local player.
+			AddChild(new MeleeController());
+			// BowController handles LMB fire (ranged) and arrow ghost management.
+			AddChild(new BowController());
 		}
 	}
 
@@ -94,6 +108,10 @@ public partial class PlayerController : CharacterBody3D
 			TryPlantMarker();
 		if (@event.IsActionPressed("eat_food"))
 			EatFood();
+		if (@event.IsActionPressed("toggle_weapon"))
+			LocalState.ToggleWeaponMode();
+		if (@event.IsActionPressed("toggle_combat"))
+			LocalState.ToggleCombatMode();
 	}
 
 	// ── Movement ─────────────────────────────────────────────────────────────
@@ -211,7 +229,19 @@ public partial class PlayerController : CharacterBody3D
 			}
 		}
 
-		// Priority 4: Tree → chop (nearest).
+		// Priority 4: Workbench → craft arrows.
+		foreach (var hit in hits)
+		{
+			var collider    = hit["collider"].As<Node>();
+			var buildingNode = FindBuildingNode(collider);
+			if (buildingNode != null && buildingNode.Name.ToString().Contains("workbench"))
+			{
+				TryCraftArrows();
+				return;
+			}
+		}
+
+		// Priority 5: Tree → chop (nearest).
 		Node? nearestTree = null;
 		float nearestDist = float.MaxValue;
 		foreach (var hit in hits)
@@ -256,6 +286,17 @@ public partial class PlayerController : CharacterBody3D
 			bushSystem.Call("RequestCook");
 		else
 			bushSystem.RpcId(1, "RequestCook");
+	}
+
+	private void TryCraftArrows()
+	{
+		var combatSystem = GetNodeOrNull(COMBAT_SYSTEM_PATH);
+		if (combatSystem == null) return;
+
+		if (Multiplayer.IsServer())
+			combatSystem.Call("RequestCraftArrows");
+		else
+			combatSystem.RpcId(1, "RequestCraftArrows");
 	}
 
 	private void EatFood()

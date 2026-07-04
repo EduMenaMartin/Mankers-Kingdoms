@@ -154,7 +154,87 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `tests/Shared/FoodRegistryTests.cs` — hunger values, cook multiplier math, fallback logic
 - [x] Demo gate: Tab with raw berry → +10 hunger; Tab with cooked berry → +40 hunger
 
+### Inventory (backend delivered; UI panel deferred)
+- [x] `PlayerInventory` + `InventorySystem` + `InventoryHUD` — item→count dict backend,
+      server-authoritative sync, minimal label display at top-center
+- [ ] **Inventory UI panel** (slot list, `I` key to open, drag-drop) — deferred to M5
+      per scope decision 2026-07-04; Phase B (shape-based grid, `docs/gdd/inventory.md`)
+      deferred post-slice
+
 ## M3 ✅ COMPLETE (2026-07-04)
+
+---
+
+## M4 — Combat and monsters (in progress)
+
+**Goal:** Two players (Fighter + Ranger) clear a bandit camp cooperatively.
+**Transport:** ENet (unchanged).
+
+### Phase 1 — Health & damage foundation ✅
+- [x] `shared/HealthData.cs` — record: CurrentHp, MaxHp, IsDead
+- [x] `shared/MsgEntityHealth.cs` — DTO: EntityId (long), CurrentHp, MaxHp
+- [x] `server/HealthSystem.cs` — HP map for all entities (players + monsters); Damage/Heal/Kill; death → drop inventory + broadcast; player death → RespawnAt shelter
+- [x] `client/HealthHUD.cs` — HP bar anchored top-left, fed by LocalState
+- [x] `shared/LocalState.cs` — add CurrentHp, MaxHp + SetHealth(float, float)
+- [ ] **Editor:** Add HealthSystem node to GameWorld.tscn; add HealthHUD CanvasLayer
+
+### Phase 2 — Weapons & melee ✅
+- [x] `shared/WeaponData.cs` — record: Id, Damage, Range, SwingCooldown, IsRanged, ProjectileSpeed, AmmoItemId
+- [x] `shared/WeaponRegistry.cs` — sword, shield, shortbow, hunting knife; hardcoded for now
+- [x] `data/base/weapons/sword.json`, `shield.json`, `shortbow.json`, `hunting_knife.json`, `arrow.json`
+- [x] `server/CombatSystem.cs` — RequestMeleeAttack RPC: validate weapon owned, cooldown, alive, distance; RequestSetBlocking; 50% flat block reduction
+- [x] `client/MeleeController.cs` — LMB swing; RMB hold block; sphere query nearest target; client-side cooldown guard
+- [x] `client/PlayerController.cs` — CollisionLayer |= 32u; AddChild(MeleeController)
+- [ ] **Editor:** Add CombatSystem node to GameWorld.tscn
+
+### Phase 3 — Ranged combat ✅
+- [x] `shared/ProjectileState.cs` — record: Id, OriginPeerId, WeaponId, flat PosX/Y/Z, VelX/Y/Z
+- [x] `server/ProjectileSystem.cs` — tick projectiles (parabolic gravity), sphere collision vs entities, damage on hit, ClientSpawnArrow/ClientRemoveArrow RPC to clients
+- [x] `client/BowController.cs` — mouse aim via horizontal plane raycast, LMB fire → RPC; arrow ghost sphere meshes via LocalState.ArrowSpawned/ArrowRemoved events
+- [x] Arrow crafting: E key at Workbench → CombatSystem.RequestCraftArrows (3 wood → 5 arrows)
+- [x] **Editor:** Add ProjectileSystem node to GameWorld.tscn; create `scenes/Arrow.tscn`
+
+### Phase 4 — Monsters & AI ✅
+- [x] `shared/MonsterData.cs` — record: Id, MaxHp, MeleeDamage, MoveSpeed, AggroRange, AttackRange, LootTable
+- [x] `shared/MonsterRegistry.cs` — wolf, goblin, bandit (melee), bandit_archer (ranged)
+- [x] `data/base/monsters/wolf.json`, `goblin.json`, `bandit.json`, `bandit_archer.json`
+- [x] `server/MonsterSystem.cs` — AI state machine (Idle/Aggro/Attack); position broadcast RPC; death → loot drop to nearest player; bandit_archer uses ProjectileSystem.FireFromMonster
+- [x] `client/MonsterNode.cs` — colour-coded CapsuleMesh; lerps toward server position; hit flash red; death hides mesh
+- [ ] **Editor:** Create `scenes/Monster.tscn`; add MonsterSystem node to GameWorld.tscn; add Monsters Node child to GameWorld
+
+### Phase 4.5 — Combat mode state + weapon HUD ✅
+- [x] `shared/LocalState.cs` — add `InCombatMode` bool (default false = build mode), `ToggleCombatMode()`, `CombatModeChanged` event
+- [x] `client/BuildMenu.cs` — block B in combat mode, flash "You cannot build in combat mode"; subscribe to CombatModeChanged → close when switching to combat
+- [x] `client/PlacementController.cs` — subscribe to CombatModeChanged → Cancel() when switching to combat
+- [x] `client/BowController.cs` — only fire when `InCombatMode`
+- [x] `client/MeleeController.cs` — only swing/block when `InCombatMode`
+- [x] `client/WeaponHUD.cs` — CanvasLayer bottom-center; polls LocalState each frame; shows `[Build Mode]` or `[Combat · Melee · Sword]` or `[Combat · Ranged · Shortbow]`
+- [x] `client/PlayerController.cs` — handle `toggle_combat` → `LocalState.ToggleCombatMode()`
+- [x] `client/MainMenuController.cs` — register `toggle_combat` → key `C`
+- [x] **Editor:** Add WeaponHUD CanvasLayer node (script: `client/WeaponHUD.cs`) to GameWorld.tscn
+
+### Phase 5 — Nests & death penalty
+- [ ] `shared/NestData.cs` — record: Id, MonsterTypeId, WorldX, WorldZ, MaxSpawned, RespawnDelaySec
+- [ ] `server/NestSystem.cs` — deterministic nest positions (seeded), spawn timing, respawn after all monsters killed
+- [ ] Death penalty in HealthSystem: drop full inventory at death position (ItemDrop nodes via RPC), respawn at shelter
+- [ ] `client/PlayerController.cs` — pickup dropped items on E-interact with ItemDrop node
+- [ ] **Editor:** Create `scenes/MonsterNest.tscn`; add NestSystem node to GameWorld.tscn
+
+### Phase 6 — Class kit selection
+- [ ] `shared/ClassKitData.cs` — record: ClassId, DisplayNameKey, StartingItemIds
+- [ ] `client/ClassSelectScreen.cs` — two-button screen (Fighter / Ranger) shown before world join; sends chosen class ID in GameSession
+- [ ] `shared/GameSession.cs` — add ChosenClassId field
+- [ ] `server/HealthSystem.cs` or `PlayerSystem.cs` — distribute starting kit on peer connect based on ChosenClassId
+- [ ] **Editor:** Create `scenes/ClassSelectScreen.tscn`; wire into scene flow after MainMenu host/join
+
+### Tests
+- [x] `tests/Shared/WeaponRegistryTests.cs`
+- [x] `tests/Shared/MonsterRegistryTests.cs`
+- [ ] `tests/Shared/HealthDataTests.cs`
+- [x] `tests/Shared/ProjectileStateTests.cs`
+
+### Demo gate
+- [ ] M4 demo: two ENet players, one Fighter (sword + shield), one Ranger (shortbow + arrows); find bandit camp from nest placement; clear it cooperatively; both combat styles functional; death drops inventory, player respawns at shelter
 
 ---
 

@@ -35,6 +35,18 @@ Kingdom Marker has a level (1–5). Each upgrade increases the territory radius 
 
 Founder/Co-Founder/Officer/Member/Guest tiers. Fully designed in `docs/gdd/settlements.md` §2. Not scheduled. Solves v1's presence-based-guest limitation (guests today have same storage rights as trusted members; post-slice hierarchy introduces explicit Member promotion with persistent access even when founder is offline). Revisit post-M9.
 
+### 2026-07-04 — [post-slice] Menu music
+
+Background music track on the main menu and options screen. Loops seamlessly. Volume controlled by master volume slider (already wired in OptionsMenuController). Implementation: `client/MenuMusicPlayer.cs` — AudioStreamPlayer node added to MainMenu scene; autoplay on _Ready, stop on scene change. Separate "Music Volume" slider is a stretch goal.
+
+### 2026-07-04 — [post-slice] Ambient audio (day/night + biome)
+
+Layered ambient audio system: daytime (birdsong, wind) and nighttime (insects, crickets) layers crossfaded by DayNightClient at sunrise/sunset. Optional biome layers (forest density, near water). Implementation: `client/AmbientAudioSystem.cs` — two AudioStreamPlayer nodes, volume tweened on day/night change. Complements the existing day/night visual system with no new server logic.
+
+### 2026-07-04 — [post-slice] Proximity sound effects for character actions
+
+Spatial audio for all player and NPC actions: footsteps (surface-sensitive — dirt/wood/stone), weapon swings, tool use (axe chop, harvest), building placement, death/respawn. Uses Godot AudioStreamPlayer3D nodes parented to the acting entity for automatic distance attenuation. Server broadcasts action events; clients spawn the sound locally to avoid audio RPC overhead. Includes: swing whoosh, hit impact (meaty vs armour), tree fell crash, fire crackle (Cooking Fire, Campfire).
+
 ### 2026-07-04 — [post-slice] Toxic raw foods / poison status effect
 
 Some foods are flagged `IsToxicRaw=true` in FoodData — eating raw inflicts poison for `PoisonDuration` seconds (HP drain over time). Cooked form is safe. Data fields already in `FoodData` and `FoodRegistry`. Implementation blocked on M4's health/damage system. When ready: `NeedsSystem` tracks `PoisonedUntil` timestamp and drains HP per tick; `LocalState` exposes poison state; `NeedsHUD` shows purple indicator. Log server-side already prints `[TOXIC]` warning as a placeholder.

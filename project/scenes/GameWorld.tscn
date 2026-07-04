@@ -11,10 +11,15 @@
 [ext_resource type="Script" uid="uid://by6hfvoxphwo" path="res://scripts/client/InventoryHUD.cs" id="9_pexic"]
 [ext_resource type="Script" uid="uid://dnprapr7x5leu" path="res://scripts/server/SettlementSystem.cs" id="10_n8hyf"]
 [ext_resource type="Script" uid="uid://cfe20wgtcv0mo" path="res://scripts/client/BuildMenu.cs" id="11_d67nr"]
+[ext_resource type="Script" uid="uid://ceskmss5vfd4l" path="res://scripts/server/HealthSystem.cs" id="11_dl20d"]
 [ext_resource type="Script" uid="uid://cuos0ja711y4j" path="res://scripts/server/NeedsSystem.cs" id="11_pcadl"]
+[ext_resource type="Script" uid="uid://bn3pk4iymgwbj" path="res://scripts/server/CombatSystem.cs" id="12_i828f"]
+[ext_resource type="Script" uid="uid://gop8kk226h1c" path="res://scripts/server/ProjectileSystem.cs" id="13_5425a"]
 [ext_resource type="Script" uid="uid://hwvw17sbnlxn" path="res://scripts/client/NeedsHUD.cs" id="13_rpagb"]
+[ext_resource type="Script" uid="uid://bj4xfv1ftqccr" path="res://scripts/server/MonsterSystem.cs" id="14_i828f"]
 [ext_resource type="Script" uid="uid://bku8801n6s53u" path="res://scripts/server/BushSystem.cs" id="14_rpagb"]
-[ext_resource type="PackedScene" uid="uid://drudr7wpmfg7n" path="res://assets/ExternalAssets/KayKit-ForestNaturePack1/Assets/gltf/Bush_2_D_Color1.gltf" id="15_omux8"]
+[ext_resource type="Script" uid="uid://cpy1uu1nbxbkn" path="res://scripts/client/HealthHUD.cs" id="18_2usp3"]
+[ext_resource type="Script" uid="uid://b3hmua34etwts" path="res://scripts/client/WeaponHUD.cs" id="20_5425a"]
 
 [node name="GameWorld" type="Node3D" unique_id=1324218193]
 
@@ -43,9 +48,6 @@ script = ExtResource("5_rrjg7")
 [node name="DayNightClient" type="Node" parent="." unique_id=1605758431]
 script = ExtResource("6_pexic")
 
-[node name="IventorySystem" type="Node" parent="." unique_id=942439723]
-script = ExtResource("7_rrjg7")
-
 [node name="TreeSystem" type="Node" parent="." unique_id=1164407957]
 script = ExtResource("7_n8hyf")
 
@@ -54,6 +56,21 @@ script = ExtResource("9_pexic")
 
 [node name="SettlementSystem" type="Node" parent="." unique_id=943312780]
 script = ExtResource("10_n8hyf")
+
+[node name="InventorySystem" type="Node" parent="." unique_id=942439723]
+script = ExtResource("7_rrjg7")
+
+[node name="HealthSystem" type="Node" parent="." unique_id=2048189410]
+script = ExtResource("11_dl20d")
+
+[node name="CombatSystem" type="Node" parent="." unique_id=1118382118]
+script = ExtResource("12_i828f")
+
+[node name="ProjectileSystem" type="Node" parent="." unique_id=727632598]
+script = ExtResource("13_5425a")
+
+[node name="MonsterSystem" type="Node" parent="." unique_id=1436809408]
+script = ExtResource("14_i828f")
 
 [node name="NeedsSystem" type="Node" parent="." unique_id=1092178020]
 script = ExtResource("11_pcadl")
@@ -67,5 +84,10 @@ script = ExtResource("13_rpagb")
 [node name="BushSystem" type="Node" parent="." unique_id=1595227944]
 script = ExtResource("14_rpagb")
 
-[node name="Bush_2_D_Color12" parent="BushSystem" unique_id=708238927 instance=ExtResource("15_omux8")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7143378, 0, 0.04032767)
+[node name="HealthHUD" type="CanvasLayer" parent="." unique_id=1831888386]
+script = ExtResource("18_2usp3")
+
+[node name="Monsters" type="Node" parent="." unique_id=2095614204]
+
+[node name="WeaponHUD" type="CanvasLayer" parent="." unique_id=1185951150]
+script = ExtResource("20_5425a")

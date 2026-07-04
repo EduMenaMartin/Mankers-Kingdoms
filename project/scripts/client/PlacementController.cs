@@ -26,6 +26,9 @@ public partial class PlacementController : Node
     /// <summary>The active PlacementController instance for the local player, if any.</summary>
     public static PlacementController? Current { get; private set; }
 
+    /// <summary>True while a building ghost is active (player is in placement mode).</summary>
+    public bool IsPlacing => _ghost != null;
+
     // ── Instance state ────────────────────────────────────────────────────────
 
     private Camera3D _camera = null!;
@@ -76,6 +79,7 @@ public partial class PlacementController : Node
         };
 
         OnBuildingSelected += StartPlacement;
+        LocalState.CombatModeChanged += OnCombatModeChanged;
 
         // Flash label shown when the server rejects a placement request.
         _flashLabel = new Label
@@ -103,6 +107,7 @@ public partial class PlacementController : Node
     {
         if (Current == this) Current = null;
         OnBuildingSelected -= StartPlacement;
+        LocalState.CombatModeChanged -= OnCombatModeChanged;
         LocalState.RejectionMessageReceived -= ShowFlash;
         _ghost?.QueueFree();
         _territoryRing?.QueueFree();
@@ -112,6 +117,13 @@ public partial class PlacementController : Node
     // ── Public API ────────────────────────────────────────────────────────────
 
     public void Cancel() => CancelPlacement();
+
+    // ── Combat mode integration ───────────────────────────────────────────────
+
+    private void OnCombatModeChanged(bool inCombat)
+    {
+        if (inCombat) CancelPlacement(); // entering combat cancels any active ghost
+    }
 
     // ── Signal receiver (untyped connect from SettlementSystem) ──────────────
 
@@ -248,7 +260,7 @@ public partial class PlacementController : Node
         float sy = SampleTerrainHeight(sx, sz);
 
         var snapped = new Vector3(sx, sy, sz);
-        _ghost.GlobalPosition = snapped;
+        _ghost!.GlobalPosition = snapped;
 
         // Validate.
         bool overlaps   = CheckOverlap(snapped);

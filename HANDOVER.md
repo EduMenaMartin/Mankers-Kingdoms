@@ -6,10 +6,10 @@
 
 ## Current status
 
-**Milestone:** M3 ✅ COMPLETE (2026-07-04)
-**Last session:** 2026-07-04 — settlement permissions GDD wired + "Not enough materials" HUD feedback
+**Milestone:** M4 — Combat and monsters (started 2026-07-04)
+**Last session:** 2026-07-04 — M3 closed; M4 planned and scoped
 **Blockers:** None
-**Awaiting:** Start M4 (Combat and monsters)
+**Awaiting:** Implementation — start with Phase 1 (HealthSystem)
 
 ---
 
@@ -50,9 +50,9 @@
 
 ## What's next (top 3)
 
-1. **Commit M3 close-out** — prepare commit message; Edu runs `git commit`
-2. **Start M4** — Combat and monsters (directional melee, bow/arrow, wolves + goblins AI, health/damage, death penalty). Create `CURRENT_MILESTONE.md` for M4 and add tasks to `TODO.md`.
-3. **Update `CURRENT_MILESTONE.md`** — currently still shows M2 scope; replace with M4.
+1. **M4 Phase 1** — `HealthData`, `MsgEntityHealth`, `HealthSystem` (server), `HealthHUD` (client), `LocalState` HP fields. Tests for HealthData. Editor: add nodes to GameWorld.tscn.
+2. **M4 Phase 2** — `WeaponData`, `WeaponRegistry`, `CombatSystem`, `MeleeController`. Tests for WeaponRegistry.
+3. **M4 Phase 3** — `ProjectileState`, `ProjectileSystem`, `BowController`. Arrow crafting at Workbench.
 
 ## Blocked
 

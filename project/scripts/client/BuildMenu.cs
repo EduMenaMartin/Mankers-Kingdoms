@@ -15,11 +15,61 @@ public partial class BuildMenu : CanvasLayer
 	// Place buttons keyed by building ID — refreshed when the menu opens.
 	private readonly Dictionary<string, Button> _placeButtons = new();
 
+	// Flash warning for "cannot build in combat mode".
+	private CanvasLayer? _warnLayer;
+	private Label?       _warnLabel;
+	private double       _warnTimer;
+
 	public override void _Ready()
 	{
 		Layer   = 20;
 		Visible = false;
 		BuildUI();
+
+		_warnLabel = new Label
+		{
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment   = VerticalAlignment.Top,
+			AnchorLeft          = 0f,
+			AnchorRight         = 1f,
+			AnchorTop           = 0.08f,
+			AnchorBottom        = 0.18f,
+			Visible             = false
+		};
+		_warnLayer = new CanvasLayer { Layer = 21 };
+		_warnLayer.AddChild(_warnLabel);
+		GetTree().GetCurrentScene().AddChild(_warnLayer);
+
+		LocalState.CombatModeChanged += OnCombatModeChanged;
+	}
+
+	public override void _ExitTree()
+	{
+		LocalState.CombatModeChanged -= OnCombatModeChanged;
+		_warnLayer?.QueueFree();
+	}
+
+	public override void _Process(double delta)
+	{
+		if (_warnTimer > 0)
+		{
+			_warnTimer -= delta;
+			if (_warnTimer <= 0 && _warnLabel != null)
+				_warnLabel.Visible = false;
+		}
+	}
+
+	private void OnCombatModeChanged(bool inCombat)
+	{
+		if (inCombat) Visible = false; // close build menu when entering combat
+	}
+
+	private void ShowCombatWarning()
+	{
+		if (_warnLabel == null) return;
+		_warnLabel.Text    = "You cannot build in combat mode.";
+		_warnLabel.Visible = true;
+		_warnTimer         = 2.0;
 	}
 
 	// Disable/enable Place buttons based on current founder status.
@@ -37,6 +87,13 @@ public partial class BuildMenu : CanvasLayer
 	public override void _UnhandledInput(InputEvent @event)
 	{
 		if (!@event.IsActionPressed("build_menu")) return;
+
+		if (LocalState.InCombatMode)
+		{
+			ShowCombatWarning();
+			GetViewport().SetInputAsHandled();
+			return;
+		}
 
 		if (!Visible)
 		{

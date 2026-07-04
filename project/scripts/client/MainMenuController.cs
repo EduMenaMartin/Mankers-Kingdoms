@@ -81,7 +81,9 @@ public partial class MainMenuController : Control
 		AddKeyAction("interact",     Key.E);
 		AddKeyAction("plant_marker", Key.F);
 		AddKeyAction("build_menu",   Key.B);
-		AddKeyAction("eat_food",     Key.Tab);
+		AddKeyAction("eat_food",        Key.Tab);
+		AddKeyAction("toggle_weapon",   Key.Q);
+		AddKeyAction("toggle_combat",   Key.C);
 	}
 
 	private static void AddKeyAction(string action, Key key)

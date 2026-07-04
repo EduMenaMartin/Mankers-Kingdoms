@@ -253,11 +253,12 @@ Each milestone is small, demoable, and unambiguous. Each takes 1–4 weeks depen
 - Monster nests spawn goblins/bandits
 - **Demo:** Two players — one Fighter, one Ranger — clear a bandit camp cooperatively using both combat styles.
 
-### M5 — Class, stats, and skills (3 weeks)
+### M5 — Class, stats, skills, and inventory panel (3–4 weeks)
 - Class selection at character creation (Fighter, Ranger) with class kits distributed
 - Stats rolled (3d6 or 4d6-drop-lowest — final call before implementation) and displayed
 - Skill system live: 6 skills (Melee, Ranged, Athletics, Woodcutting, Foraging, Cooking) grow through use, capped by stats
 - Character sheet UI shows stats, skills, and tool tier progress
+- **Inventory UI panel — Phase A:** simple slot list, `I` key to open; reuses existing `PlayerInventory` dict backend; no shape-based placement (Phase B is post-slice)
 - Tool tier progression: at least one skill (Woodcutting) unlocks a better axe at level 15
 - **Demo:** Player creates a Ranger, chops wood, watches Woodcutting skill level up, unlocks bronze axe at 15, hits stat ceiling and stops.
 
@@ -356,6 +357,7 @@ If M9 succeeds, next milestones extend the slice toward 0.1:
 - Full save robustness pass
 - Second procedural village
 - Playtest with 4 players
+- **Inventory rework — Phase B** (`docs/gdd/inventory.md`): shape-based Tetris grid (W×H footprints, rotation, weight cap tied to Strength, dual-pane Storage Chest UI, save-format migration). UX upgrade, not core-loop-validating — prioritise only if the M9 playtest shows the Phase A slot list is actively painful to use.
 
 This is a rough sketch; the actual 0.1 milestone plan is written after slice success, informed by what we learned.
 

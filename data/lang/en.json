@@ -27,5 +27,15 @@
   "building.storage_chest.name": "Storage Chest",
   "building.workbench.name": "Workbench",
   "building.cooking_fire.name": "Cooking Fire",
-  "building.kingdom_marker.name": "Kingdom Marker"
+  "building.kingdom_marker.name": "Kingdom Marker",
+  "weapon.sword.name": "Sword",
+  "weapon.shield.name": "Shield",
+  "weapon.shortbow.name": "Shortbow",
+  "weapon.hunting_knife.name": "Hunting Knife",
+  "item.arrow.name": "Arrow",
+  "item.arrow.desc": "A wooden arrow, tipped with stone. Ammo for the shortbow.",
+  "monster.wolf.name": "Wolf",
+  "monster.goblin.name": "Goblin",
+  "monster.bandit.name": "Bandit",
+  "monster.bandit_archer.name": "Bandit Archer"
 }

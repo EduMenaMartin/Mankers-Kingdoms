@@ -24,9 +24,17 @@ public partial class InventoryHUD : CanvasLayer
 
 		_label = new Label
 		{
-			Text        = "",
-			Position    = new Vector2(8, 8),
-			MouseFilter = Control.MouseFilterEnum.Ignore
+			Text                = "",
+			AnchorLeft          = 0.5f,
+			AnchorRight         = 0.5f,
+			AnchorTop           = 0f,
+			AnchorBottom        = 0f,
+			OffsetLeft          = -120f,
+			OffsetRight         = 120f,
+			OffsetTop           = 8f,
+			OffsetBottom        = 220f,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			MouseFilter         = Control.MouseFilterEnum.Ignore
 		};
 		AddChild(_label);
 	}
@@ -54,10 +62,15 @@ public partial class InventoryHUD : CanvasLayer
 			// Show a friendly suffix where we know the key; raw ID otherwise.
 			var display = id switch
 			{
-				"resource.wood"      => "Wood",
-				"item.berry"         => "Berry",
-				"item.cooked_berry"  => "Cooked Berry",
-				_                    => id
+				"resource.wood"        => "Wood",
+				"item.berry"           => "Berry",
+				"item.cooked_berry"    => "Cooked Berry",
+				"weapon.sword"         => "Sword",
+				"weapon.shield"        => "Shield",
+				"weapon.shortbow"      => "Shortbow",
+				"weapon.hunting_knife" => "Hunting Knife",
+				"item.arrow"           => "Arrow",
+				_                      => id
 			};
 			sb.AppendLine($"{display}: {count}");
 		}
