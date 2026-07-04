@@ -6,12 +6,24 @@
 
 ## Current status
 
-**Milestone:** M1 ✅ COMPLETE (2026-07-03)
-**Last session:** 2026-07-03 — M1 debug + demo verified
+**Milestone:** M3 ✅ COMPLETE (2026-07-04)
+**Last session:** 2026-07-04 — settlement permissions GDD wired + "Not enough materials" HUD feedback
 **Blockers:** None
-**Awaiting:** Edu decision — go straight to M2 (terrain + tree chopping) or add M1.5 (GodotSteam P2P lobby)?
+**Awaiting:** Start M4 (Combat and monsters)
 
 ---
+
+## What was done this session (2026-07-04 — M3 close-out)
+
+- **Settlement permissions GDD (`docs/gdd/settlements.md`):** §1 locked permission table wired into code. `SettlementSystem.RequestPlaceBuilding` now calls `IsFounder(sender)` explicitly with §1.3 reference comment.
+- **"Not enough materials" HUD feedback:** server sends `ClientNotifyRejection` RPC to the requesting peer on resource check failure. Routes through `LocalState.NotifyRejection()` (shared/ event) to avoid server/ → client/ import. `PlacementController` subscribes to the event and flashes a label for 2.5 s at top-center of screen — no editor task required (label created programmatically).
+- **Loc key added:** `hud.build.no_materials` → "Not enough materials."
+- **TODO.md + HANDOVER.md updated:** M3 marked complete.
+
+## What was done previously (2026-07-03 — M2 + M3)
+
+- **M2:** procedural terrain, day/night, trees, tree chopping, wood drops
+- **M3:** Kingdom Marker, settlement buildings (Shelter, Storage, Workbench, Cooking Fire), inventory system, needs (hunger/rest), food loop (bushes → berries → cook → eat), class-building permission table in GDD
 
 ## What was done this session (2026-07-03 — M1 implementation)
 
@@ -38,9 +50,9 @@
 
 ## What's next (top 3)
 
-1. **Commit M1** — prepare commit message; Edu runs `git commit`
-2. **Decide next milestone** — M2 (terrain + tree chopping) or M1.5 (GodotSteam P2P lobby + friend invite flow)
-3. **Start next milestone** — create `CURRENT_MILESTONE.md` for chosen milestone
+1. **Commit M3 close-out** — prepare commit message; Edu runs `git commit`
+2. **Start M4** — Combat and monsters (directional melee, bow/arrow, wolves + goblins AI, health/damage, death penalty). Create `CURRENT_MILESTONE.md` for M4 and add tasks to `TODO.md`.
+3. **Update `CURRENT_MILESTONE.md`** — currently still shows M2 scope; replace with M4.
 
 ## Blocked
 

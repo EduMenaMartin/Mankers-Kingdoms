@@ -123,7 +123,7 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 ## M3 — Settlement basics (in progress)
 
 ### Phase 2 follow-up
-- [ ] Show "Not enough materials" HUD message when player tries to place a building with insufficient resources. Server rejects silently now — needs a client-visible error (flash label or status bar). Wire via RPC rejection callback from SettlementSystem → client.
+- [x] Show "Not enough materials" HUD message when player tries to place a building with insufficient resources. Server rejects silently now — needs a client-visible error (flash label or status bar). Wire via RPC rejection callback from SettlementSystem → client.
 
 ### Phase 3 — Needs system
 - [x] `shared/LocalState.cs` — add `Hunger`, `Rest` float properties + `SetNeeds(float, float)`
@@ -142,7 +142,19 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `client/PlayerController.cs` — TryInteract priority: shelter > bush > cooking fire > tree; EatFood() on Tab
 - [x] `client/MainMenuController.cs` — register "eat_food" → Tab
 - [x] `data/lang/en.json` — berry and cooked_berry loc keys
-- [ ] **Editor:** Add `BushSystem` node (script: `server/BushSystem.cs`) to GameWorld.tscn after NeedsSystem
+- [x] **Editor:** Add `BushSystem` node (script: `server/BushSystem.cs`) to GameWorld.tscn after NeedsSystem
+
+---
+
+### Phase 5 — Food nutrition values
+- [x] `shared/FoodData.cs` — record: RawItemId, CookedItemId (nullable), BaseHunger, CookMultiplier, IsToxicRaw, PoisonDuration
+- [x] `shared/FoodRegistry.cs` — static registry; berry: base 10, multiplier 4× (cooked = 40)
+- [x] `server/BushSystem.cs` — RequestEat: try cooked first (BaseHunger × CookMultiplier), fall back to raw (BaseHunger); use FoodRegistry
+- [x] `client/PlayerController.cs` — EatFood: guard accepts cooked OR raw berry, not cooked-only
+- [x] `tests/Shared/FoodRegistryTests.cs` — hunger values, cook multiplier math, fallback logic
+- [x] Demo gate: Tab with raw berry → +10 hunger; Tab with cooked berry → +40 hunger
+
+## M3 ✅ COMPLETE (2026-07-04)
 
 ---
 

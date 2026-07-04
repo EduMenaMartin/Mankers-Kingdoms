@@ -136,7 +136,12 @@ public partial class BushSystem : Node
         GD.Print($"[Food] peer {sender} cooked 1 berry → 1 cooked berry");
     }
 
-    /// <summary>Client pressed Tab to eat a cooked berry.</summary>
+    /// <summary>
+    /// Client pressed Tab to eat food. Priority: cooked form first, raw form fallback.
+    /// Hunger values come from FoodRegistry — no hardcoded numbers here.
+    /// Toxic-raw foods: IsToxicRaw flag is stored in FoodData but the poison status
+    /// effect is not yet applied (deferred to post-M4 health/damage system).
+    /// </summary>
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
          TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     public void RequestEat()
@@ -146,15 +151,32 @@ public partial class BushSystem : Node
         long sender = Multiplayer.GetRemoteSenderId();
         if (sender == 0) sender = 1L;
 
-        if (!InventorySystem.Instance.HasItems(sender, "item.cooked_berry", 1))
+        // Try cooked items first (higher nutrition, not toxic).
+        foreach (var food in FoodRegistry.All)
         {
-            GD.Print($"[Food] peer {sender} tried to eat — no cooked berries");
+            if (food.CookedItemId is null) continue;
+            if (!InventorySystem.Instance.HasItems(sender, food.CookedItemId, 1)) continue;
+
+            InventorySystem.Instance.RemoveItems(sender, food.CookedItemId, 1);
+            NeedsSystem.Instance.RestoreHunger(sender, food.CookedHunger);
+            GD.Print($"[Food] peer {sender} ate {food.CookedItemId} (+{food.CookedHunger} hunger)");
             return;
         }
 
-        InventorySystem.Instance.RemoveItems(sender, "item.cooked_berry", 1);
-        NeedsSystem.Instance.RestoreHunger(sender, 40f);
-        GD.Print($"[Food] peer {sender} ate a cooked berry (+40 hunger)");
+        // Fall back to raw items.
+        foreach (var food in FoodRegistry.All)
+        {
+            if (!InventorySystem.Instance.HasItems(sender, food.RawItemId, 1)) continue;
+
+            InventorySystem.Instance.RemoveItems(sender, food.RawItemId, 1);
+            NeedsSystem.Instance.RestoreHunger(sender, food.BaseHunger);
+            // TODO(post-M4): if food.IsToxicRaw, apply poison status to sender.
+            GD.Print($"[Food] peer {sender} ate {food.RawItemId} (+{food.BaseHunger} hunger)" +
+                     (food.IsToxicRaw ? " [TOXIC — effect not yet implemented]" : ""));
+            return;
+        }
+
+        GD.Print($"[Food] peer {sender} tried to eat — no food in inventory");
     }
 
     /// <summary>Hides or shows a bush on all peers (harvest/restore visual).</summary>

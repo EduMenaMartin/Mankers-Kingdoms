@@ -118,12 +118,15 @@ public partial class SettlementSystem : Node
             return;
         }
 
-        // Must have a marker planted first.
-        if (!_markers.TryGetValue(sender, out var marker))
+        // Must be the settlement founder — see docs/gdd/settlements.md §1.3.
+        // (Place buildings: Founder ✅, Guest ❌)
+        if (!IsFounder(sender))
         {
-            GD.PrintErr($"[Settlement] peer {sender} has no Kingdom Marker — plant one with F first");
+            GD.PrintErr($"[Settlement] peer {sender} tried to place building — not the founder");
             return;
         }
+        // Guaranteed to exist after IsFounder check; also needed for territory distance.
+        _markers.TryGetValue(sender, out var marker);
 
         // Must be within territory.
         if (position.DistanceTo(marker) > TERRITORY_RADIUS)
@@ -138,6 +141,11 @@ public partial class SettlementSystem : Node
             if (!InventorySystem.Instance.HasItems(sender, itemId, count))
             {
                 GD.PrintErr($"[Settlement] peer {sender} missing {count}× {itemId} for {buildingId}");
+                // Notify the requesting peer so the client can show a HUD message.
+                if (sender == Multiplayer.GetUniqueId())
+                    LocalState.NotifyRejection(itemId);
+                else
+                    RpcId(sender, MethodName.ClientNotifyRejection, itemId);
                 return;
             }
         }
@@ -167,6 +175,18 @@ public partial class SettlementSystem : Node
         float y = TerrainSystem.GetHeightAtWorld(0f, 0f) + 0.6f;
         return new Vector3(0f, y, 0f);
     }
+
+    /// <summary>
+    /// Sent from server to one specific client when their placement request is rejected.
+    /// Passes the missing item ID (e.g. "resource.wood") so LocalState can compose
+    /// "Not enough wood." without an extra loc entry per item.
+    /// Routes through LocalState to avoid a server/ → client/ import.
+    /// See docs/gdd/settlements.md §1.4 for enforcement model.
+    /// </summary>
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ClientNotifyRejection(string missingItemId) =>
+        LocalState.NotifyRejection(missingItemId);
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true,
          TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]

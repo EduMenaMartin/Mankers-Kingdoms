@@ -24,6 +24,26 @@ public static class LocalState
     public static void SetFounder() => IsFounder = true;
 
     /// <summary>
+    /// Fired on the local peer when the server rejects a building placement request.
+    /// Subscribed by PlacementController to flash a message on screen.
+    /// The string is already resolved via Loc.T before the event fires.
+    /// </summary>
+    public static event System.Action<string>? RejectionMessageReceived;
+
+    /// <summary>
+    /// Called by SettlementSystem.ClientNotifyRejection (runs on client via RpcId).
+    /// Composes "Not enough {item name}" from the item's existing loc key so no
+    /// extra loc entries are needed per item. Fires the event for PlacementController.
+    /// </summary>
+    public static void NotifyRejection(string missingItemId)
+    {
+        // missingItemId format: "resource.wood" → stem "wood" → loc key "item.wood.name"
+        string stem    = missingItemId.Contains('.') ? missingItemId.Split('.')[1] : missingItemId;
+        string name    = Loc.T($"item.{stem}.name").ToLower();
+        RejectionMessageReceived?.Invoke($"Not enough {name}.");
+    }
+
+    /// <summary>
     /// Called by InventorySystem when the authoritative server sends a state snapshot
     /// for the local peer. Replaces the whole inventory (snapshot semantics).
     /// </summary>

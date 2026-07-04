@@ -260,8 +260,19 @@ public partial class PlayerController : CharacterBody3D
 
 	private void EatFood()
 	{
-		// Quick client-side guard: don't bother the server if inventory is empty.
-		if (!LocalState.Inventory.Has("item.cooked_berry")) return;
+		// Quick client-side guard: skip the RPC if we have nothing edible.
+		// Mirrors FoodRegistry priority: cooked first, raw fallback.
+		bool hasFood = false;
+		foreach (var food in FoodRegistry.All)
+		{
+			if ((food.CookedItemId is not null && LocalState.Inventory.Has(food.CookedItemId)) ||
+			    LocalState.Inventory.Has(food.RawItemId))
+			{
+				hasFood = true;
+				break;
+			}
+		}
+		if (!hasFood) return;
 
 		var bushSystem = GetNodeOrNull(BUSH_SYSTEM_PATH);
 		if (bushSystem == null) return;

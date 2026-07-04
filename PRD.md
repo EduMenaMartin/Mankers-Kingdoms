@@ -1,4 +1,4 @@
-# Mankers Kingdoms — Product Requirements Document
+    # Mankers Kingdoms — Product Requirements Document
 
 **Status:** v0.1 — living document. All content lists (skills, stats, buildings, classes, monsters) are v1 prototype scope and expected to evolve. Architectural decisions are locked and require an ADR to change.
 

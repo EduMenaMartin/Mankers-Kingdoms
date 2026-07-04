@@ -39,6 +39,11 @@ public partial class PlacementController : Node
     private StandardMaterial3D _matOk      = null!;
     private StandardMaterial3D _matBlocked = null!;
 
+    // Flash label — created programmatically so no editor task is needed.
+    private CanvasLayer? _flashLayer;
+    private Label?       _flashLabel;
+    private double       _flashTimer;
+
     private const string SETTLEMENT_PATH     = "/root/GameWorld/SettlementSystem";
     private const float  GRID                = 1f;   // 1-unit snap
     private const float  TERRITORY_RADIUS    = 40f;  // must match SettlementSystem.TERRITORY_RADIUS
@@ -72,6 +77,23 @@ public partial class PlacementController : Node
 
         OnBuildingSelected += StartPlacement;
 
+        // Flash label shown when the server rejects a placement request.
+        _flashLabel = new Label
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment   = VerticalAlignment.Top,
+            AnchorLeft          = 0f,
+            AnchorRight         = 1f,
+            AnchorTop           = 0.08f,
+            AnchorBottom        = 0.18f,
+            Visible             = false
+        };
+        _flashLayer = new CanvasLayer { Layer = 25 };
+        _flashLayer.AddChild(_flashLabel);
+        GetTree().GetCurrentScene().AddChild(_flashLayer);
+
+        LocalState.RejectionMessageReceived += ShowFlash;
+
         // Connect to SettlementSystem signal without importing server/ namespace.
         var ss = GetNodeOrNull(SETTLEMENT_PATH);
         ss?.Connect("MarkerPlanted", new Callable(this, MethodName.OnMarkerPlanted));
@@ -81,8 +103,10 @@ public partial class PlacementController : Node
     {
         if (Current == this) Current = null;
         OnBuildingSelected -= StartPlacement;
+        LocalState.RejectionMessageReceived -= ShowFlash;
         _ghost?.QueueFree();
         _territoryRing?.QueueFree();
+        _flashLayer?.QueueFree();
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -178,10 +202,27 @@ public partial class PlacementController : Node
         _ghost = go;
     }
 
+    // ── Flash message ─────────────────────────────────────────────────────────
+
+    private void ShowFlash(string message)
+    {
+        if (_flashLabel == null) return;
+        _flashLabel.Text    = message;
+        _flashLabel.Visible = true;
+        _flashTimer         = 2.5;
+    }
+
     // ── Per-frame update ──────────────────────────────────────────────────────
 
     public override void _Process(double delta)
     {
+        if (_flashTimer > 0)
+        {
+            _flashTimer -= delta;
+            if (_flashTimer <= 0 && _flashLabel != null)
+                _flashLabel.Visible = false;
+        }
+
         if (_ghost == null || _building == null) return;
         UpdateGhost();
     }

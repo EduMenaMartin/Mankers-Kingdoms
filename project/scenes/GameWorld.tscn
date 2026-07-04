@@ -14,8 +14,7 @@
 [ext_resource type="Script" uid="uid://cuos0ja711y4j" path="res://scripts/server/NeedsSystem.cs" id="11_pcadl"]
 [ext_resource type="Script" uid="uid://hwvw17sbnlxn" path="res://scripts/client/NeedsHUD.cs" id="13_rpagb"]
 [ext_resource type="Script" uid="uid://bku8801n6s53u" path="res://scripts/server/BushSystem.cs" id="14_rpagb"]
-
-[sub_resource type="SphereMesh" id="SphereMesh_rpagb"]
+[ext_resource type="PackedScene" uid="uid://drudr7wpmfg7n" path="res://assets/ExternalAssets/KayKit-ForestNaturePack1/Assets/gltf/Bush_2_D_Color1.gltf" id="15_omux8"]
 
 [node name="GameWorld" type="Node3D" unique_id=1324218193]
 
@@ -68,6 +67,5 @@ script = ExtResource("13_rpagb")
 [node name="BushSystem" type="Node" parent="." unique_id=1595227944]
 script = ExtResource("14_rpagb")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="BushSystem" unique_id=448121085]
-transform = Transform3D(0.47527698, 0, 0, 0, 0.2699459, 0, 0, 0, 0.37218624, -0.93450856, -0.081207216, -0.07943725)
-mesh = SubResource("SphereMesh_rpagb")
+[node name="Bush_2_D_Color12" parent="BushSystem" unique_id=708238927 instance=ExtResource("15_omux8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7143378, 0, 0.04032767)
