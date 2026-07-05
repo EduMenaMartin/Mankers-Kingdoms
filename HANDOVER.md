@@ -7,9 +7,41 @@
 ## Current status
 
 **Milestone:** M4 — Combat and monsters (in progress)
-**Last session:** 2026-07-05 — Phase 6 (ClassSelectScreen, ClassKitRegistry) complete; floating combat text (CombatFeedbackHUD) complete. 146 tests passing.
-**Blockers:** Two editor tasks pending (see below).
-**Awaiting:** Edu to complete editor tasks, then run game and test combat feel + floating numbers.
+**Last session:** 2026-07-05 — Faction allegiance system (ADR-0024), combat text font tuning, three combat bugs fixed, §12 block-and-attack penalty + shield-blocks-projectiles implemented. 163 tests passing.
+**Blockers:** None.
+**Awaiting:** M4 demo gate run — two players, Fighter + Ranger, find and clear bandit camp cooperatively.
+
+---
+
+## What was done this session (2026-07-05, session 3)
+
+### Faction allegiance system (ADR-0024)
+- `shared/FactionType.cs` — enum: MonsterNest, Village, PlayerSettlement
+- `shared/FactionRelationship.cs` — enum: Allied, Neutral, Hostile
+- `shared/FactionService.cs` — two-layer model: type-level defaults + instance overrides; §4 hard rule (no PlayerSettlement×PlayerSettlement Hostile override); `Reset()` for test isolation
+- `shared/NestData.cs` — `FactionId` field added (default `""`, backward compatible)
+- `server/NestSystem.cs` — registers PLAYER_FACTION_ID at startup; assigns unique `faction.nest.{id}` per nest; passes FactionId to SpawnMonster
+- `server/MonsterSystem.cs` — FactionId on MutableMonster; SpawnMonster signature extended; aggro gate wrapped in `FactionService.IsHostile(m.FactionId, PLAYER_FACTION_ID)`; `GetMonsterFactionId(long id)` public API
+- `server/ProjectileSystem.cs` — replaced MONSTER_ID_THRESHOLD ad-hoc patch with `FactionService.IsHostile(originFaction, targetFaction)` gate; also extended shooter exclusion to monster nodes (see bug fix below)
+- `tests/Shared/FactionServiceTests.cs` — 16 tests: type defaults, instance overrides, symmetry, §4 hard rule, unknown-faction fallback, IsHostile convenience
+- `docs/decisions/ADR-0024-faction-allegiance-system.md` — documents problem, decision, alternatives, consequences
+
+### Bug fixes
+- **[P1] Bandit archer arrows invisible:** ProjectileSystem excluded only `Players/Player_{id}` from sphere query; for monster origin (id ≥ 10001) the node wasn't found, projectile immediately re-hit the firing monster, ClientRemoveArrow fired in same tick as ClientSpawnArrow. Fixed: also look up `Monsters/Monster_{id}`.
+- **[P1] Shield blocking ineffective vs monster melee:** MonsterSystem.TickAttack had no blocking check. Fixed: added `CombatSystem.Instance?.IsBlocking(m.TargetPeer)` gate before dice roll, with "Block!" feedback RPC.
+- **[P1] Shield blocking ineffective vs projectiles:** no gate in ProjectileSystem. Fixed as part of §12.4 (see below).
+
+### GDD §12 — Simultaneous block-and-attack
+- `docs/gdd/combat.md` §12 appended: block+attack allowed but attacker takes −3 Attack Bonus penalty (placeholder, balancing pass); shield also intercepts projectiles (§12.4)
+- `server/CombatSystem.cs` — `if (IsBlocking(sender)) attackBonus -= 3;` before ResolveAttack
+- `server/ProjectileSystem.cs` — `CombatSystem.Instance?.IsBlocking(targetId.Value)` check; blocked arrows show "Block!" RPC and are removed
+- `tests/Shared/CombatResolverTests.cs` — `ResolveAttack_BlockPenalty_ReducesHitRate` regression test (same-seed RNG, AB=5 vs AB=2 vs TN=12)
+
+### UX
+- Floating combat text font sizes halved: Block!=13, Miss=12, Crit=16, Normal=12
+
+### Totals
+- **163 tests, 0 failures**
 
 ---
 
@@ -119,14 +151,11 @@
 
 ## What's next (top 3)
 
-1. **Editor task A** — Create `scenes/ClassSelectScreen.tscn`:
-   `Control` (script: `client/ClassSelectScreen.cs`) → `VBoxContainer` → `%TitleLabel` (Label), `%SubtitleLabel` (Label), `HBoxContainer` → `%FighterButton` (Button), `%RangerButton` (Button). Enable "Access as Unique Name" on all four or just ensure child names match exactly (`FindChild` is used, so unique names are optional).
-   Wire `MainMenuController` → `ClassSelectScreen.tscn` (already done in code).
+1. **M4 demo gate** — two players, Fighter + Ranger, find bandit camp from minimap, clear cooperatively. Full checklist: melee hit/miss/crit visible, block works vs both melee and arrows, ranged arrows visible, death drop + respawn, floating combat text readable.
 
-2. **Editor task B** — Add `CombatFeedbackHUD` node to `GameWorld.tscn`:
-   Add a plain `Node` as a child of GameWorld, rename it exactly `CombatFeedbackHUD`, attach script `client/CombatFeedbackHUD.cs`. No special position needed — it has no visual of its own. Server systems look it up via path `/root/GameWorld/CombatFeedbackHUD`.
+2. **Wire real player stats into CombatResolver** — Phase 6 class kits give Fighter Str 16 / Ranger Dex 15, but CombatResolver still uses placeholder Str=13/Dex=12 constants. Replacing these makes combat resolution match the GDD's worked examples exactly.
 
-3. **M4 demo gate** — two players, Fighter + Ranger, find bandit camp from minimap, clear cooperatively. Floating combat numbers should be visible during the demo.
+3. **M4 completion review** — once demo gate passes, write M4 CHANGELOG entry, tag, move to M5 planning.
 
 ---
 
@@ -143,6 +172,13 @@ None outstanding.
 ---
 
 ## Session log
+
+### 2026-07-05 — Faction system, block-and-attack §12, three P1 bug fixes (163 tests)
+- Faction allegiance system (ADR-0024): FactionService two-layer model, per-nest faction IDs, ProjectileSystem + MonsterSystem faction gates replace MONSTER_ID_THRESHOLD patch
+- Three P1 bug fixes: bandit archer arrows invisible (shooter exclusion gap), shield not blocking monster melee (TickAttack had no gate), shield not blocking arrows (no gate in ProjectileSystem)
+- GDD §12 implemented: −3 Attack Bonus penalty when blocking while swinging; shield intercepts projectiles
+- Floating combat text font sizes halved
+- 163 tests, 0 failures
 
 ### 2026-07-05 — M4 Phases 4.6 + Phase 5 complete; combat GDD locked
 - Minimap (150×150 top-right) and world map (M key, 700×700) implemented with terrain, nests, player, Kingdom Marker

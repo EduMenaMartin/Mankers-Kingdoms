@@ -55,14 +55,17 @@ public partial class HealthSystem : Node
         GD.Print($"[Health] peer {peerId} registered ({PLAYER_MAX_HP}/{PLAYER_MAX_HP} hp)");
 
         // Distribute starting kit from the class the player selected in ClassSelectScreen.
-        // Falls back to Fighter kit if ChosenClassId is unrecognised (e.g. first-boot edge case).
+        // For the host/solo player this is always correct. Remote clients will call
+        // RequestSetClass immediately after spawning to override with their own choice.
         var kit = ClassKitRegistry.Find(GameSession.ChosenClassId)
                   ?? ClassKitRegistry.Find("class.fighter");
         if (kit != null)
         {
             foreach (var item in kit.StartingItems)
                 InventorySystem.Instance.AddItem(peerId, item.ItemId, item.Count);
-            GD.Print($"[Health] peer {peerId} received {kit.ClassId} kit ({kit.StartingItems.Length} stacks)");
+            CombatSystem.Instance?.SetPlayerStats(peerId, kit.Str, kit.Dex);
+            GD.Print($"[Health] peer {peerId} received {kit.ClassId} kit " +
+                     $"(Str={kit.Str}, Dex={kit.Dex}, {kit.StartingItems.Length} stacks)");
         }
     }
 
@@ -70,6 +73,38 @@ public partial class HealthSystem : Node
     {
         _health.Remove(peerId);
         _players.Remove(peerId);
+    }
+
+    // ── Class selection RPC ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by the local player's PlayerController immediately after spawning.
+    /// Clears and re-distributes the correct kit for the peer's chosen class,
+    /// fixing the case where a remote client has a different class than the host.
+    /// </summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RequestSetClass(string classId)
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+
+        var kit = ClassKitRegistry.Find(classId) ?? ClassKitRegistry.Find("class.fighter");
+        if (kit == null) return;
+
+        // Clear any items from the default kit given in OnPlayerConnected.
+        foreach (var kitDef in ClassKitRegistry.All)
+            foreach (var item in kitDef.StartingItems)
+                InventorySystem.Instance.RemoveItems(sender, item.ItemId, 999);
+
+        foreach (var item in kit.StartingItems)
+            InventorySystem.Instance.AddItem(sender, item.ItemId, item.Count);
+
+        CombatSystem.Instance?.SetPlayerStats(sender, kit.Str, kit.Dex);
+        GD.Print($"[Health] peer {sender} confirmed class {classId} " +
+                 $"(Str={kit.Str}, Dex={kit.Dex})");
     }
 
     // ── Server API ────────────────────────────────────────────────────────────
@@ -159,8 +194,9 @@ public partial class HealthSystem : Node
             }
         }
 
-        // Restore HP before sending respawn so the client never sees 0 at the new position.
+        // Restore HP and needs before sending respawn so the client never sees 0 at the new position.
         _health[peerId] = (PLAYER_MAX_HP, PLAYER_MAX_HP);
+        NeedsSystem.Instance?.ResetNeeds(peerId);
 
         var respawnPos = SettlementSystem.Instance.GetRespawnPosition(peerId);
         var playerNode = GetNodeOrNull($"{PLAYERS_PATH}/Player_{peerId}");

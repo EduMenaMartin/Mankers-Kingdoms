@@ -158,7 +158,11 @@ public partial class MeleeController : Node
             if (id == null) continue;
 
             float dist = player.GlobalPosition.DistanceTo(((Node3D)collider).GlobalPosition);
-            if (dist < nearestDist) { nearestDist = dist; nearest = id; }
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = id;
+            }
         }
 
         return nearest;

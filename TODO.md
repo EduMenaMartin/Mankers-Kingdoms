@@ -279,14 +279,32 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `server/CombatSystem.cs`, `MonsterSystem.cs`, `ProjectileSystem.cs` — each calls `GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)?.Rpc("ShowCombatResult", pos, hit, dmg, isCrit)` after resolving attack; string-based Rpc avoids Client import in server scripts
 - [x] **Editor:** Add a plain `Node` to GameWorld.tscn, rename it exactly `CombatFeedbackHUD`, attach script `client/CombatFeedbackHUD.cs`; no special position needed
 
+### Faction allegiance system (ADR-0024) ✅
+- [x] `shared/FactionType.cs`, `shared/FactionRelationship.cs`, `shared/FactionService.cs` — two-layer model, §4 hard rule, Reset() for test isolation
+- [x] `shared/NestData.cs` — FactionId field added
+- [x] `server/NestSystem.cs` — registers factions at startup, passes FactionId to SpawnMonster
+- [x] `server/MonsterSystem.cs` — FactionId on MutableMonster; aggro gate; GetMonsterFactionId() API
+- [x] `server/ProjectileSystem.cs` — faction gate replaces MONSTER_ID_THRESHOLD patch
+- [x] `tests/Shared/FactionServiceTests.cs` — 16 tests
+- [x] `docs/decisions/ADR-0024-faction-allegiance-system.md`
+
+### GDD §12 — Block-and-attack penalty + shield vs projectiles ✅
+- [x] `docs/gdd/combat.md` §12 appended (locked design)
+- [x] `server/CombatSystem.cs` — `if (IsBlocking(sender)) attackBonus -= 3` before ResolveAttack
+- [x] `server/ProjectileSystem.cs` — IsBlocking gate; blocked arrows show "Block!" and are removed
+- [x] `tests/Shared/CombatResolverTests.cs` — ResolveAttack_BlockPenalty_ReducesHitRate
+
 ### Tests
 - [x] `tests/Shared/WeaponRegistryTests.cs`
 - [x] `tests/Shared/MonsterRegistryTests.cs`
 - [x] `tests/Shared/HealthDataTests.cs`
 - [x] `tests/Shared/ProjectileStateTests.cs`
+- [x] `tests/Shared/FactionServiceTests.cs`
 
 ### Demo gate
 - [ ] M4 demo: two ENet players, one Fighter (sword + shield), one Ranger (shortbow + arrows); find bandit camp from nest placement; clear it cooperatively; both combat styles functional; death drops inventory, player respawns at shelter
+- [ ] Verify: block reduces hit rate when swinging while guarding (−3 AB penalty)
+- [ ] Verify: RMB shield intercepts both melee and arrow attacks
 
 ---
 

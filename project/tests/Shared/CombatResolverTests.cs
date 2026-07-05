@@ -218,31 +218,58 @@ public class CombatResolverTests
     // ── Player helpers ────────────────────────────────────────────────────────
 
     [Fact]
-    public void PlayerAttackBonus_MeleeWeapon_IsZero()
+    public void PlayerAttackBonus_Fighter_Melee_IsOne()
     {
-        // Phase 4.8: Str=13 → mod 0; skill=0 → AB = 0.
-        Assert.Equal(0, CombatResolver.PlayerAttackBonus("item.weapon.longsword"));
+        // Fighter: Str=16 → mod +1; skill=0 → AB = 1. (combat.md §2.4)
+        Assert.Equal(1, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 16, dex: 10));
     }
 
     [Fact]
-    public void PlayerAttackBonus_RangedWeapon_IsZero()
+    public void PlayerAttackBonus_Ranger_Ranged_IsOne()
     {
-        // Phase 4.8: Dex=12 → mod 0; skill=0 → AB = 0.
-        Assert.Equal(0, CombatResolver.PlayerAttackBonus("item.weapon.shortbow"));
+        // Ranger: Dex=15 → mod +1; skill=0 → AB = 1. (combat.md §4.2)
+        Assert.Equal(1, CombatResolver.PlayerAttackBonus("item.weapon.shortbow", str: 10, dex: 15));
     }
 
     [Fact]
-    public void PlayerTargetNumber_IsTen()
+    public void PlayerAttackBonus_NeutralStats_IsZero()
     {
-        // Phase 4.8: Dex=12 → mod 0; no equipped armor → TN = 10 + 0 = 10.
-        Assert.Equal(10, CombatResolver.PlayerTargetNumber());
+        // Str=13/Dex=12 → mod 0 for both.
+        Assert.Equal(0, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 13, dex: 12));
+        Assert.Equal(0, CombatResolver.PlayerAttackBonus("item.weapon.shortbow",  str: 13, dex: 12));
     }
 
     [Fact]
-    public void PlayerDamageMod_IsZero()
+    public void PlayerTargetNumber_NeutralDex_IsTen()
     {
-        // Phase 4.8: both Str and Dex placeholder mods are 0.
-        Assert.Equal(0, CombatResolver.PlayerDamageMod("item.weapon.longsword"));
-        Assert.Equal(0, CombatResolver.PlayerDamageMod("item.weapon.shortbow"));
+        // Dex=12 → mod 0; no armor → TN = 10.
+        Assert.Equal(10, CombatResolver.PlayerTargetNumber(dex: 12));
+    }
+
+    [Fact]
+    public void PlayerTargetNumber_HighDex_IsElevated()
+    {
+        // Dex=15 → mod +1 → TN = 11.
+        Assert.Equal(11, CombatResolver.PlayerTargetNumber(dex: 15));
+    }
+
+    [Fact]
+    public void PlayerDamageMod_Fighter_Melee_IsOne()
+    {
+        // Fighter Str=16 → mod +1 for melee damage. (combat.md §4.2)
+        Assert.Equal(1, CombatResolver.PlayerDamageMod("item.weapon.longsword", str: 16, dex: 10));
+    }
+
+    [Fact]
+    public void PlayerDamageMod_Ranger_Ranged_IsOne()
+    {
+        // Ranger Dex=15 → mod +1 for ranged damage.
+        Assert.Equal(1, CombatResolver.PlayerDamageMod("item.weapon.shortbow", str: 10, dex: 15));
+    }
+
+    [Fact]
+    public void PlayerDamageMod_NeutralStats_IsZero()
+    {
+        Assert.Equal(0, CombatResolver.PlayerDamageMod("item.weapon.longsword", str: 13, dex: 12));
     }
 }

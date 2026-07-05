@@ -20,6 +20,42 @@ Severity levels: **P0** (blocking / crash), **P1** (major), **P2** (minor), **P3
 
 ---
 
+## [P1] Shield does not block arrow/projectile attacks (2026-07-05)
+
+**Milestone found:** M4
+**Reproduce:** Hold RMB (shield), let a bandit archer shoot an arrow at you.
+**Expected:** "Block!" text, no damage taken.
+**Actual:** Arrow hit and dealt damage — no block gate existed in ProjectileSystem.
+**Notes:** Fixed as part of GDD §12.4. `ProjectileSystem._PhysicsProcess` now checks `CombatSystem.Instance?.IsBlocking(targetId.Value)` after faction gate, before damage.
+
+Status: FIXED (2026-07-05)
+
+---
+
+## [P1] Shield blocking has no effect against monster melee attacks (2026-07-05)
+
+**Milestone found:** M4
+**Reproduce:** Hold RMB (shield), let a wolf or goblin melee you.
+**Expected:** "Block!" text, no damage taken.
+**Actual:** Monster dealt full damage — MonsterSystem.TickAttack had no blocking check.
+**Notes:** Block gate only existed in CombatSystem.RequestMeleeAttack (player-initiated path). Fixed by adding `CombatSystem.Instance?.IsBlocking(m.TargetPeer)` check before dice roll in TickAttack, with "Block!" feedback RPC.
+
+Status: FIXED (2026-07-05)
+
+---
+
+## [P1] Bandit archer arrows produce no ghost orbs (2026-07-05)
+
+**Milestone found:** M4
+**Reproduce:** Stand near a bandit archer; output shows it is firing but no arrow ghost appears.
+**Expected:** Arrow ghost orb flies from archer toward player.
+**Actual:** Ghost appears and immediately vanishes — output confirmed ClientSpawnArrow fired then ClientRemoveArrow in the same tick.
+**Notes:** ProjectileSystem shooter exclusion only looked up `Players/Player_{OriginPeerId}`. For monster origin IDs (≥ 10001) no node was found, nothing was excluded, and the projectile immediately sphere-hit the firing monster node on tick 1. Faction gate (Allied → same faction) dropped the hit but still removed the projectile. Fixed: also look up `Monsters/Monster_{OriginPeerId}`.
+
+Status: FIXED (2026-07-05)
+
+---
+
 ## [P3] Monster bodies clip through each other (2026-07-04)
 
 **Milestone found:** M4

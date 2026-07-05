@@ -204,7 +204,11 @@ public partial class MonsterSystem : Node
         }
 
         var targetPos = GetPlayerPosition(m.TargetPeer);
-        if (!targetPos.HasValue) { ReturnToIdle(m); return; }
+        if (!targetPos.HasValue)
+        {
+            ReturnToIdle(m);
+            return;
+        }
 
         float dist = m.Position.DistanceTo(targetPos.Value);
 
@@ -233,7 +237,11 @@ public partial class MonsterSystem : Node
         }
 
         var targetPos = GetPlayerPosition(m.TargetPeer);
-        if (!targetPos.HasValue) { ReturnToIdle(m); return; }
+        if (!targetPos.HasValue)
+        {
+            ReturnToIdle(m);
+            return;
+        }
 
         float dist = m.Position.DistanceTo(targetPos.Value);
 
@@ -271,7 +279,8 @@ public partial class MonsterSystem : Node
             }
 
             // Melee attack roll (combat.md §2.2): 1d20 + AttackBonus vs player's TargetNumber.
-            int targetNumber = CombatResolver.PlayerTargetNumber();
+            int targetNumber = CombatSystem.Instance?.GetPlayerTargetNumber(m.TargetPeer)
+                               ?? CombatResolver.PlayerTargetNumber(12);
             var (hit, damage, isCrit) = CombatResolver.ResolveAttack(
                 data.AttackBonus, targetNumber, data.DamageDice, damageMod: 0, _monsterRng);
 

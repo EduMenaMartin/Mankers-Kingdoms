@@ -36,8 +36,9 @@ public partial class CombatSystem : Node
 
     // Server-only. SortedDictionary: ADR-0011 deterministic iteration.
     // Value = elapsed time at which the next swing is allowed.
-    private readonly SortedDictionary<long, double> _swingReady = new();
-    private readonly SortedDictionary<long, bool>   _blocking   = new();
+    private readonly SortedDictionary<long, double>      _swingReady   = new();
+    private readonly SortedDictionary<long, bool>        _blocking     = new();
+    private readonly SortedDictionary<long, (int str, int dex)> _playerStats = new();
     private double _elapsed;
 
     // Seeded per ADR-0022. Initialised in _Ready() once GameSession.WorldSeed is set.
@@ -62,14 +63,16 @@ public partial class CombatSystem : Node
 
     private void OnPlayerConnected(long peerId)
     {
-        _swingReady[peerId] = 0.0;
-        _blocking[peerId]   = false;
+        _swingReady[peerId]   = 0.0;
+        _blocking[peerId]     = false;
+        _playerStats[peerId]  = (13, 12); // overwritten by RequestSetClass when client announces class
     }
 
     private void OnPlayerDisconnected(long peerId)
     {
         _swingReady.Remove(peerId);
         _blocking.Remove(peerId);
+        _playerStats.Remove(peerId);
     }
 
     // ── Blocking state ────────────────────────────────────────────────────────
@@ -77,6 +80,28 @@ public partial class CombatSystem : Node
     /// <summary>True if the peer is actively blocking with a shield.</summary>
     public bool IsBlocking(long peerId) =>
         _blocking.TryGetValue(peerId, out bool b) && b;
+
+    // ── Player stats API (called by HealthSystem and MonsterSystem) ───────────
+
+    /// <summary>
+    /// Stores the class stats for a peer. Called by HealthSystem.RequestSetClass
+    /// after distributing the starting kit.
+    /// </summary>
+    public void SetPlayerStats(long peerId, int str, int dex)
+    {
+        _playerStats[peerId] = (str, dex);
+    }
+
+    /// <summary>Returns the Target Number for a player peer (combat.md §2.2).</summary>
+    public int GetPlayerTargetNumber(long peerId)
+    {
+        var (_, dex) = _playerStats.TryGetValue(peerId, out var s) ? s : (13, 12);
+        return CombatResolver.PlayerTargetNumber(dex);
+    }
+
+    /// <summary>Returns the stored (str, dex) for a player peer, or safe defaults.</summary>
+    public (int str, int dex) GetPlayerStats(long peerId) =>
+        _playerStats.TryGetValue(peerId, out var s) ? s : (13, 12);
 
     // ── RPCs ──────────────────────────────────────────────────────────────────
 
@@ -151,11 +176,12 @@ public partial class CombatSystem : Node
         }
 
         // ── Attack roll (combat.md §2.2 + §12.2) ────────────────────────────
-        int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId);
+        var (sStr, sDex) = GetPlayerStats(sender);
+        int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId, sStr, sDex);
         // §12.2: fighting defensively lowers hit chance for that swing only.
         if (IsBlocking(sender)) attackBonus -= 3;
         int targetNumber = GetEntityTargetNumber(targetEntityId);
-        int damageMod    = CombatResolver.PlayerDamageMod(weaponId);
+        int damageMod    = CombatResolver.PlayerDamageMod(weaponId, sStr, sDex);
 
         var (hit, damage, isCrit) = CombatResolver.ResolveAttack(
             attackBonus, targetNumber, weapon.DamageDice, damageMod, _combatRng);
@@ -239,11 +265,11 @@ public partial class CombatSystem : Node
     /// Target Number for attack resolution. Uses the monster's authored TargetNumber
     /// for monster targets, or CombatResolver.PlayerTargetNumber() for player targets.
     /// </summary>
-    private static int GetEntityTargetNumber(long entityId)
+    private int GetEntityTargetNumber(long entityId)
     {
         var monsterData = MonsterSystem.Instance?.GetMonsterData(entityId);
         if (monsterData != null) return monsterData.TargetNumber;
-        return CombatResolver.PlayerTargetNumber();
+        return GetPlayerTargetNumber(entityId);
     }
 
     private Vector3? GetEntityPosition(long entityId)

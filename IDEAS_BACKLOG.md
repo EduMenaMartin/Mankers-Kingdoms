@@ -70,6 +70,10 @@ Always-visible minimap (top-right corner, ~180×180 px) showing terrain heightma
 
 **Recommend:** Pull into M4 as Phase 4.6. Without it the M4 demo gate cannot be demonstrated.
 
+### 2026-07-05 — [post-slice] Mod loader implementation
+
+Content modding foundation exists (stable string IDs per ADR-0009, content-is-data per CLAUDE.md rule 3, `FactionService.TrySetOverride` already driven by authored data). What's missing: actual `/data/mods/` directory scan, load-order resolution, base-content merge/override logic, mod manifest format (`mod.json` with id/version/dependencies), and conflict detection. Code mods (C# assembly loading or GDExtension) not yet designed. Recommend speccing during M9 or post-slice, not before.
+
 ### 2026-07-02 — [post-slice] Full Godot headless build in CI
 
 CI currently only runs xUnit tests (pure .NET, no Godot). A headless Godot build step would catch C# compile errors in client/server scripts that reference Godot types. Requires `chickensoft-games/setup-godot` action on the runner. Worth adding in M1 once server scripts exist.

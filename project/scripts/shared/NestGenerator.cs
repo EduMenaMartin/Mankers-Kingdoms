@@ -52,7 +52,11 @@ public static class NestGenerator
                 foreach (var n in nests)
                 {
                     float dx = x - n.WorldX, dz = z - n.WorldZ;
-                    if (dx * dx + dz * dz < MIN_NEST_DIST * MIN_NEST_DIST) { tooClose = true; break; }
+                    if (dx * dx + dz * dz < MIN_NEST_DIST * MIN_NEST_DIST)
+                    {
+                        tooClose = true;
+                        break;
+                    }
                 }
                 if (tooClose) continue;
 

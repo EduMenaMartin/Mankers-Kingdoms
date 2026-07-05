@@ -14,10 +14,9 @@ namespace MankersKingdoms.Shared;
 ///   On hit: damage = RollDice(damageDice) + damageMod, minimum 1.
 ///   On miss: damage = 0.
 ///
-/// Phase 4.8 — placeholder player stats (Option A, decided 2026-07-05):
-///   PLACEHOLDER_STR = 13, PLACEHOLDER_DEX = 12 — both give StatModifier = 0.
-///   Skill levels are 0 — attack bonus is 0 for both placeholder stats.
-///   Real stats and trained skill levels wired in Phase 6 when class kits land.
+/// Player stat helpers accept explicit (str, dex) parameters sourced from ClassKitData.
+/// CombatSystem stores per-peer stats and passes them through; skill levels remain 0
+/// until the skills system is wired in a later milestone.
 ///
 /// All randomness goes through the caller's seeded System.Random (ADR-0022).
 /// This class has no Godot dependency and is fully testable in xUnit.
@@ -25,10 +24,6 @@ namespace MankersKingdoms.Shared;
 /// </summary>
 public static class CombatResolver
 {
-    // ── Placeholder player stats (Phase 4.8 Option A) ─────────────────────────
-    // Replace with real per-player CharacterData stats in Phase 6.
-    private const int PLACEHOLDER_STR = 13;
-    private const int PLACEHOLDER_DEX = 12;
 
     // ── Stat modifier ─────────────────────────────────────────────────────────
 
@@ -109,39 +104,36 @@ public static class CombatResolver
         return (true, System.Math.Max(1, damage), isCrit);
     }
 
-    // ── Player helpers (Phase 4.8 placeholders) ───────────────────────────────
+    // ── Player helpers ────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Player's attack bonus for Phase 4.8.
+    /// Player's attack bonus.
     /// Formula: floor(SkillLevel / 10) + StatModifier(GoverningStat).
-    /// Both skill (0) and stat modifier (0 for Str 13 / Dex 12) yield 0.
-    /// Wire real per-player stats and skill levels in Phase 6.
+    /// Melee → Strength; Ranged → Dexterity (combat.md §2.2).
+    /// Skill level remains 0 until the skills system is wired.
     /// </summary>
-    public static int PlayerAttackBonus(string weaponId)
+    public static int PlayerAttackBonus(string weaponId, int str, int dex)
     {
-        // Melee → Strength; Ranged → Dexterity (combat.md §2.2).
         var weapon = WeaponRegistry.Find(weaponId);
-        int stat   = (weapon?.IsRanged == true) ? PLACEHOLDER_DEX : PLACEHOLDER_STR;
-        return 0 + StatModifier(stat); // skill=0; stat modifier = 0 for both placeholders
+        int stat   = (weapon?.IsRanged == true) ? dex : str;
+        return StatModifier(stat); // skill=0
     }
 
     /// <summary>
-    /// Player's Target Number for Phase 4.8.
+    /// Player's Target Number.
     /// Formula: 10 + StatModifier(Dex) + ArmorValue + ShieldBonus.
-    /// Dex=12 → mod 0; no equipment slots tracked yet → ArmorValue=0, ShieldBonus=0.
-    /// Result: 10. Wire real equipped-armor lookup in Phase 6.
+    /// ArmorValue and ShieldBonus remain 0 until equipment slots are wired (M5).
     /// </summary>
-    public static int PlayerTargetNumber() => 10 + StatModifier(PLACEHOLDER_DEX);
+    public static int PlayerTargetNumber(int dex) => 10 + StatModifier(dex);
 
     /// <summary>
-    /// Player's damage modifier for Phase 4.8.
-    /// Melee → StatModifier(Str); Ranged → StatModifier(Dex).
-    /// Returns 0 for both placeholder values. Wire in Phase 6.
+    /// Player's damage modifier.
+    /// Melee → StatModifier(Str); Ranged → StatModifier(Dex). (combat.md §4)
     /// </summary>
-    public static int PlayerDamageMod(string weaponId)
+    public static int PlayerDamageMod(string weaponId, int str, int dex)
     {
         var weapon = WeaponRegistry.Find(weaponId);
-        int stat   = (weapon?.IsRanged == true) ? PLACEHOLDER_DEX : PLACEHOLDER_STR;
+        int stat   = (weapon?.IsRanged == true) ? dex : str;
         return StatModifier(stat);
     }
 }

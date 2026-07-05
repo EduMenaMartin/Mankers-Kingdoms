@@ -129,6 +129,22 @@ public partial class NeedsSystem : Node
 
     // ── Server API ───────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Called by HealthSystem on combat death — resets both hunger and rest to full
+    /// so the player respawns with a clean state, matching starvation-death behaviour.
+    /// </summary>
+    public void ResetNeeds(long peerId)
+    {
+        if (!_hunger.ContainsKey(peerId)) return;
+        _hunger[peerId] = 100f;
+        _rest[peerId]   = 100f;
+
+        if (peerId == 1)
+            ApplyNeeds(100f, 100f);
+        else
+            RpcId(peerId, MethodName.ApplyNeeds, 100f, 100f);
+    }
+
     /// <summary>Called by BushSystem when a player eats food.</summary>
     public void RestoreHunger(long peerId, float amount)
     {

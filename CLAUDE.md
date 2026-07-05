@@ -69,7 +69,7 @@ Non-negotiable. Enforced by folder structure, code review, and CI where possible
 
 ### C# / .NET
 - Target .NET 8+
-- 4-space indent, K&R braces
+- 4-space indent, **Allman braces** (opening brace on its own line) — per Godot's official C# Style Guide
 - `PascalCase` for types, methods, public properties
 - `camelCase` for local variables and parameters
 - `_camelCase` for private fields
@@ -77,6 +77,10 @@ Non-negotiable. Enforced by folder structure, code review, and CI where possible
 - File name = primary type name
 - One top-level type per file
 - `using` directives sorted, no wildcard imports
+- **All Godot-derived classes must use the `partial` keyword** — required for the source generator; `[Export]` and `[Signal]` silently fail to wire up without it
+- **Prefer properties over public fields**
+- **Prefer plain .NET collections for internal logic** (`List<T>`, `Dictionary<T>`, `SortedDictionary<T>`); only use `Godot.Collections` types at the actual Godot API boundary (method parameters/returns that Godot itself requires). This reinforces, not conflicts with, the existing "never iterate Dictionary/HashSet in server logic" rule.
+- **Modifier ordering:** `public` / `protected` / `private` / `internal` / `virtual` / `override` / `abstract` / `new` / `static` / `readonly`
 
 ### Naming patterns
 - Components: `<Thing>Component` (e.g. `HealthComponent`)

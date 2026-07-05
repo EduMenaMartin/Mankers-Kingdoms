@@ -23,6 +23,8 @@ public static class ClassKitRegistry
         new ClassKitData(
             ClassId:        "class.fighter",
             DisplayNameKey: "class.fighter.name",
+            Str:            16,   // combat.md §2.4 Fighter example: Str 16 → mod +1
+            Dex:            10,
             StartingItems:
             [
                 new ClassKitItem("item.weapon.longsword", 1),
@@ -32,6 +34,8 @@ public static class ClassKitRegistry
         new ClassKitData(
             ClassId:        "class.ranger",
             DisplayNameKey: "class.ranger.name",
+            Str:            10,
+            Dex:            15,   // combat.md §4.2 Ranger example: Dex 15 → mod +1
             StartingItems:
             [
                 new ClassKitItem("item.weapon.shortbow", 1),

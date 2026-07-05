@@ -144,11 +144,15 @@ public partial class ProjectileSystem : Node
 				if (weapon != null)
 				{
 					// Ranged physical hit: trajectory is the attack roll; just roll damage dice.
-					// Player shots add Dex damage modifier; monster shots use 0 (no stat modifier in M4).
+					// Player shots add Dex damage modifier; monster shots use 0.
 					// combat.md §4: Damage = WeaponDice + StatModifier(Dex for ranged).
-					int damageMod = proj.OriginPeerId < MONSTER_ID_THRESHOLD
-						? CombatResolver.PlayerDamageMod(proj.WeaponId)
-						: 0;
+					int damageMod = 0;
+					if (proj.OriginPeerId < MONSTER_ID_THRESHOLD)
+					{
+						var (pStr, pDex) = CombatSystem.Instance?.GetPlayerStats(proj.OriginPeerId)
+						                   ?? (13, 12);
+						damageMod = CombatResolver.PlayerDamageMod(proj.WeaponId, pStr, pDex);
+					}
 					int dmg = System.Math.Max(1,
 						CombatResolver.RollDice(weapon.DamageDice, _projectileRng) + damageMod);
 					HealthSystem.Instance.ApplyDamage(targetId.Value, dmg);

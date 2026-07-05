@@ -87,6 +87,9 @@ public partial class PlayerController : CharacterBody3D
 			AddChild(new MeleeController());
 			// BowController handles LMB fire (ranged) and arrow ghost management.
 			AddChild(new BowController());
+			// Tell the server our chosen class so it distributes the right kit and stats.
+			// Deferred so the node tree is fully ready before the RPC fires.
+			Callable.From(AnnounceClass).CallDeferred();
 		}
 	}
 
@@ -115,6 +118,19 @@ public partial class PlayerController : CharacterBody3D
 			LocalState.ToggleWeaponMode();
 		if (@event.IsActionPressed("toggle_combat"))
 			LocalState.ToggleCombatMode();
+	}
+
+	// ── Class announcement ────────────────────────────────────────────────────
+
+	private void AnnounceClass()
+	{
+		var hs = GetNodeOrNull(HEALTH_SYSTEM_PATH);
+		if (hs == null) return;
+		// Host (IsServer) calls directly; remote client sends to peer 1 (server).
+		if (Multiplayer.IsServer())
+			hs.Call("RequestSetClass", GameSession.ChosenClassId);
+		else
+			hs.RpcId(1, "RequestSetClass", GameSession.ChosenClassId);
 	}
 
 	// ── Movement ─────────────────────────────────────────────────────────────
@@ -266,7 +282,11 @@ public partial class PlayerController : CharacterBody3D
 			if (treeNode == null) continue;
 
 			float dist = GlobalPosition.DistanceTo(((Node3D)treeNode).GlobalPosition);
-			if (dist < nearestDist) { nearestDist = dist; nearestTree = treeNode; }
+			if (dist < nearestDist)
+			{
+				nearestDist = dist;
+				nearestTree = treeNode;
+			}
 		}
 
 		if (nearestTree == null) return;

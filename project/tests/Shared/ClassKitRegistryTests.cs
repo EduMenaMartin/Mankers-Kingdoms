@@ -113,6 +113,34 @@ public class ClassKitRegistryTests
             Assert.NotEqual("item.weapon.longsword", item.ItemId);
     }
 
+    // ── Stats ─────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void Fighter_Stats_MatchGddExample()
+    {
+        // combat.md §2.4: Fighter Str 16 → mod +1.
+        var kit = ClassKitRegistry.Find("class.fighter")!;
+        Assert.Equal(16, kit.Str);
+    }
+
+    [Fact]
+    public void Ranger_Stats_MatchGddExample()
+    {
+        // combat.md §4.2: Ranger Dex 15 → mod +1.
+        var kit = ClassKitRegistry.Find("class.ranger")!;
+        Assert.Equal(15, kit.Dex);
+    }
+
+    [Fact]
+    public void AllKits_StatsArePositive()
+    {
+        foreach (var kit in ClassKitRegistry.All)
+        {
+            Assert.True(kit.Str > 0, $"{kit.ClassId} has non-positive Str");
+            Assert.True(kit.Dex > 0, $"{kit.ClassId} has non-positive Dex");
+        }
+    }
+
     // ── Lookup ────────────────────────────────────────────────────────────────
 
     [Fact]
