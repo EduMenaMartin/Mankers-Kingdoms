@@ -56,11 +56,17 @@ public partial class CombatFeedbackHUD : Node
     private void SpawnLabel(Vector3 worldPos, bool hit, int damage, bool isCrit)
     {
         var label = new Label3D();
-        label.Billboard  = BaseMaterial3D.BillboardMode.Enabled;
+        label.Billboard  = BaseMaterial3D.BillboardModeEnum.Enabled;
         label.NoDepthTest = true;
         label.FixedSize  = true;
 
-        if (!hit)
+        if (!hit && damage == -1)
+        {
+            label.Text     = "Block!";
+            label.Modulate = new Color(0.4f, 0.8f, 1f);  // cyan
+            label.FontSize = 26;
+        }
+        else if (!hit)
         {
             label.Text     = "Miss";
             label.Modulate = new Color(1f, 1f, 1f);   // white

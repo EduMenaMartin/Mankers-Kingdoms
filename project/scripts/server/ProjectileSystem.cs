@@ -116,6 +116,16 @@ public partial class ProjectileSystem : Node
 			// Hit something — entity or geometry.
 			if (targetId != null && HealthSystem.Instance.IsAlive(targetId.Value))
 			{
+				// Gate damage on faction relationship (docs/gdd/factions.md §6, ADR-0024).
+				// Replaces the earlier MONSTER_ID_THRESHOLD ad-hoc patch.
+				string originFaction = GetEntityFactionId(proj.OriginPeerId);
+				string targetFaction = GetEntityFactionId(targetId.Value);
+				if (!FactionService.IsHostile(originFaction, targetFaction))
+				{
+					_toRemove.Add(id);
+					continue;
+				}
+
 				var weapon = WeaponRegistry.Find(proj.WeaponId);
 				if (weapon != null)
 				{
@@ -271,6 +281,22 @@ public partial class ProjectileSystem : Node
 	}
 
 	// ── Utility ───────────────────────────────────────────────────────────────
+
+	/// <summary>
+	/// Maps a runtime entity ID to its faction ID for relationship queries.
+	/// Players all share FactionService.PLAYER_FACTION_ID in v1.
+	/// Monsters look up their faction via MonsterSystem (assigned at spawn from their nest).
+	/// Unknown entities (dead monsters, etc.) return PLAYER_FACTION_ID as a safe fallback
+	/// — this will cause the hit to be treated as Allied and skipped, which is fail-safe.
+	/// </summary>
+	private static string GetEntityFactionId(long entityId)
+	{
+		if (entityId < MONSTER_ID_THRESHOLD)
+			return FactionService.PLAYER_FACTION_ID;
+
+		return MonsterSystem.Instance?.GetMonsterFactionId(entityId)
+		       ?? FactionService.PLAYER_FACTION_ID;
+	}
 
 	private static long? ParseEntityId(Node? node)
 	{

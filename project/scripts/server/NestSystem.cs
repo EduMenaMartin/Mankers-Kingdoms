@@ -38,7 +38,18 @@ public partial class NestSystem : Node
         Instance = this;
         if (!Multiplayer.IsServer()) return;
 
-        _nests.AddRange(NestGenerator.Generate(GameSession.WorldSeed));
+        // Register the player faction once at world start (all players share one faction in v1).
+        FactionService.RegisterFaction(FactionService.PLAYER_FACTION_ID, FactionType.PlayerSettlement);
+
+        // Generate nests, assign a unique faction ID to each, and register them.
+        var rawNests = NestGenerator.Generate(GameSession.WorldSeed);
+        foreach (var nest in rawNests)
+        {
+            var factionId = $"faction.nest.{nest.Id}";
+            FactionService.RegisterFaction(factionId, FactionType.MonsterNest);
+            _nests.Add(nest with { FactionId = factionId });
+        }
+
         MonsterSystem.NestMonsterDied += OnNestMonsterDied;
 
         foreach (var nest in _nests)
@@ -101,7 +112,8 @@ public partial class NestSystem : Node
         {
             float ox = (float)(rng.NextDouble() * SPAWN_SCATTER * 2 - SPAWN_SCATTER);
             float oz = (float)(rng.NextDouble() * SPAWN_SCATTER * 2 - SPAWN_SCATTER);
-            MonsterSystem.Instance.SpawnMonster(typeId, nest.WorldX + ox, nest.WorldZ + oz, nest.Id);
+            MonsterSystem.Instance.SpawnMonster(typeId, nest.WorldX + ox, nest.WorldZ + oz,
+                nest.Id, nest.FactionId);
             spawned++;
         }
 

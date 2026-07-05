@@ -58,6 +58,7 @@ public partial class MonsterSystem : Node
         public long            Id;
         public string          TypeId      = "";
         public int             NestId      = -1;  // -1 = not from a nest
+        public string          FactionId   = "";  // e.g. "faction.nest.2"; set at spawn
         public Vector3         Position;
         public Vector3         SpawnPoint;
         public float           WanderAngle;
@@ -180,13 +181,17 @@ public partial class MonsterSystem : Node
         var wz = m.SpawnPoint.Z + Mathf.Sin(m.WanderAngle) * WANDER_RADIUS;
         MoveToward(m, new Vector3(wx, m.Position.Y, wz), data.MoveSpeed * 0.5f, dt);
 
-        // Check for nearby players.
-        var target = FindNearestPlayerInRange(m.Position, data.AggroRange);
-        if (target.HasValue)
+        // Check for nearby players — only aggro if the player faction is Hostile to this monster.
+        // Satisfies docs/gdd/factions.md §6: faction check is the first gate before AI targeting.
+        if (FactionService.IsHostile(m.FactionId, FactionService.PLAYER_FACTION_ID))
         {
-            m.State      = MonsterAiState.Aggro;
-            m.TargetPeer = target.Value.peerId;
-            GD.Print($"[Monster] {m.TypeId} {m.Id} aggros on peer {m.TargetPeer}");
+            var target = FindNearestPlayerInRange(m.Position, data.AggroRange);
+            if (target.HasValue)
+            {
+                m.State      = MonsterAiState.Aggro;
+                m.TargetPeer = target.Value.peerId;
+                GD.Print($"[Monster] {m.TypeId} {m.Id} aggros on peer {m.TargetPeer}");
+            }
         }
     }
 
@@ -286,7 +291,8 @@ public partial class MonsterSystem : Node
     /// nestId = -1 for monsters not associated with a nest.
     /// Called by NestSystem.
     /// </summary>
-    public long SpawnMonster(string typeId, float x, float z, int nestId = -1)
+    public long SpawnMonster(string typeId, float x, float z, int nestId = -1,
+                             string factionId = "")
     {
         var data = MonsterRegistry.Find(typeId);
         if (data == null)
@@ -304,6 +310,7 @@ public partial class MonsterSystem : Node
             Id          = id,
             TypeId      = typeId,
             NestId      = nestId,
+            FactionId   = factionId,
             Position    = pos,
             SpawnPoint  = pos,
             WanderAngle = id * 0.7f, // stagger start angles so the pack doesn't move as one
@@ -364,6 +371,14 @@ public partial class MonsterSystem : Node
         if (!_monsters.TryGetValue(id, out var m) || m.DeathHandled) return null;
         return MonsterRegistry.Find(m.TypeId);
     }
+
+    /// <summary>
+    /// Returns the faction ID of a live monster (e.g. "faction.nest.2").
+    /// Used by ProjectileSystem to resolve faction relationships for hit gating.
+    /// Returns null if the entity ID is not a known live monster.
+    /// </summary>
+    public string? GetMonsterFactionId(long id) =>
+        _monsters.TryGetValue(id, out var m) && !m.DeathHandled ? m.FactionId : null;
 
     // ── Player lifecycle ──────────────────────────────────────────────────────
 

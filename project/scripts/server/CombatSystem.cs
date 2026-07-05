@@ -145,6 +145,8 @@ public partial class CombatSystem : Node
             && InventorySystem.Instance.HasItems(targetEntityId, "item.armor.shield", 1))
         {
             GD.Print($"[Combat] entity {targetEntityId} blocked attack from peer {sender}");
+            GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
+                ?.Rpc("ShowCombatResult", targetPos.Value, false, -1, false);
             return;
         }
 

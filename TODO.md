@@ -271,7 +271,13 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `server/HealthSystem.cs` — debug kit removed; replaced with ClassKitRegistry.Find(ChosenClassId) loop; falls back to Fighter if classId unrecognised
 - [x] `data/lang/en.json` — class.select.title/subtitle, class.fighter/ranger .name/.desc
 - [x] `tests/Shared/ClassKitRegistryTests.cs` — 14 tests: catalog count, item IDs, Fighter has longsword+shield not bow, Ranger has bow+arrows not sword, default classId recognised
-- [ ] **Editor:** Create `scenes/ClassSelectScreen.tscn` — Control + VBoxContainer + %TitleLabel + %SubtitleLabel + HBoxContainer with %FighterButton + %RangerButton; attach script client/ClassSelectScreen.cs
+- [x] **Editor:** Create `scenes/ClassSelectScreen.tscn` — Control + VBoxContainer + %TitleLabel + %SubtitleLabel + HBoxContainer with %FighterButton + %RangerButton; attach script client/ClassSelectScreen.cs
+
+### Floating combat text ✅ (code complete; editor task pending)
+- [x] `shared/CombatResolver.cs` — ResolveAttack return extended to `(bool hit, int damage, bool isCrit)`; isCrit = natural 20
+- [x] `client/CombatFeedbackHUD.cs` — spawns Label3D above attacked entity; float+fade Tween; miss=white "Miss", hit=yellow number, crit=red "N!" larger; ShowCombatResult RPC (Authority, CallLocal=true)
+- [x] `server/CombatSystem.cs`, `MonsterSystem.cs`, `ProjectileSystem.cs` — each calls `GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)?.Rpc("ShowCombatResult", pos, hit, dmg, isCrit)` after resolving attack; string-based Rpc avoids Client import in server scripts
+- [x] **Editor:** Add a plain `Node` to GameWorld.tscn, rename it exactly `CombatFeedbackHUD`, attach script `client/CombatFeedbackHUD.cs`; no special position needed
 
 ### Tests
 - [x] `tests/Shared/WeaponRegistryTests.cs`

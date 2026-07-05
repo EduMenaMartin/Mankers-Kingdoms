@@ -1,313 +1,140 @@
-This is actually one of the parts of your project where **AI is least useful** and **human direction is most valuable**. AI is excellent at orchestrating and generating variations, but a memorable melody almost always comes from deliberate composition.
+# Mankers Kingdoms — Music & Audio GDD
 
-Given everything we've worked on together for *Mankers Kingdoms*, here's how I would approach it.
+**Status:** v0.1 — draft. **Not an ADR.** Not yet assigned to any milestone in `VERTICAL_SLICE.md`. This document exists so creative direction isn't lost, but nothing here is locked, and nothing here authorizes implementation work.
 
----
+**Related:** `PITCH.md` (tone pillars), `PRD.md` §4.8 (world/content tone), `ARCHITECTURE.md` §3 (client/server split — audio is client-only), `IDEAS_BACKLOG.md`
 
-# Phase 1 - Become the Composer (1–2 hours)
-
-We don't start with AI.
-
-We start with a piano.
-
-Don't worry if you don't play one—we can use a virtual keyboard.
-
-Our goal is simply to find a melody that makes you think:
-
-> "Yes. This is Mankers Kingdoms."
-
-Not "good."
-
-Not "medieval."
-
-Specifically **your game**.
+**Last updated:** 2026-07-05
 
 ---
 
-## Step 1 – Define the emotional arc
+## 1. Purpose
 
-Every great game theme tells a story.
+Define a musical identity for Mankers Kingdoms that a human composes once, deliberately, and that AI tools then orchestrate and vary — rather than generating a different musical identity per track. This mirrors how the project already treats content: architecture and identity are decided by Edu, execution is delegated.
 
-For *Mankers Kingdoms*, I imagine something like this:
-
-```
-Wonder
-     ↓
-Discovery
-     ↓
-Adventure
-     ↓
-Hope
-     ↓
-Determination
-```
-
-Notice what's missing:
-
-* sadness
-* despair
-* horror
-
-Those belong to specific areas, not the game's identity.
+This doc does **not** decide when music work happens. See §7 (Scope status).
 
 ---
 
-## Step 2 – Pick a key
+## 2. Tone alignment
 
-I'd recommend:
+Cross-checked against locked tone language already in the knowledge base:
 
-**D Dorian**
+- `PITCH.md`: *"mystical D&D-flavored fantasy world"* — not grimdark, not comedic.
+- `PRD.md` §4.8: *"Mystical D&D-flavored tone. Not grimdark, not comedic. High-fantasy adventuring feel."*
 
-Why?
+The proposed emotional arc (Wonder → Discovery → Adventure → Hope → Determination, explicitly excluding despair/horror/sadness as *identity* elements) is consistent with this. Those excluded moods aren't banned outright — they're appropriate for specific contexts (a dungeon, a losing battle) but shouldn't define the game's core musical signature. That distinction is worth keeping explicit so it doesn't get flattened later into "no dark music anywhere."
 
-It gives you:
-
-* medieval flavor
-* hopeful sound
-* room for dark variations later
-
-Many fantasy soundtracks rely on Dorian because it sits between major and minor.
+**No conflict found. No ADR contradicted.**
 
 ---
 
-## Step 3 – Limit yourself
+## 3. Music Bible (core identity)
 
-The biggest mistake is making the melody too long.
+This is the reference every future composition or AI prompt should be checked against.
 
-I'd aim for:
+| Field | Value |
+|---|---|
+| Title | Kingdom Motif (working name) |
+| Scale | D Dorian |
+| Tempo | 82 BPM |
+| Time signature | 4/4 |
+| Motif length | 8–12 notes |
+| Primary instruments | Great Highland bagpipes, hurdy-gurdy, lute, wooden flute, strings |
+| Core moods | Hopeful, ancient, noble, warm, adventurous |
+| Explicitly excluded | Electric guitar, synth pads, heavy percussion, choirs, pop harmonies |
 
-* 8 notes minimum
-* 12 notes maximum
+**Composition method (human-first, AI-second):**
+1. Compose the motif on piano/keyboard, not via AI generation.
+2. Structure as call-and-response (e.g. a 4-note "call" + 4-note "response" = one 8-note motif).
+3. Validate across multiple instrument timbres (piano, flute, bagpipes, whistle) — a motif that survives re-instrumentation is structurally strong.
+4. Only then hand the motif to an AI arranger (e.g. Mureka) with an explicit instruction to *orchestrate*, not *compose* — ideally seeded from a MIDI export of the motif itself, not a text description of the mood.
 
-That's it.
-
-If it's longer, players won't remember it.
-
----
-
-# Phase 2 - Build the Melody
-
-Instead of composing all at once, we compose in blocks.
-
-For example:
-
-### Call
-
-```
-D
-F
-G
-A
-```
-
-Feels like asking a question.
+This keeps authorship of the actual melody with Edu; AI's role is arrangement and variation, not invention.
 
 ---
 
-### Response
+## 4. Leitmotif grammar
 
-```
-G
-F
-E
-D
-```
+Rather than one theme, a small set of short, recombinable motifs — the same approach used by Uematsu, Soule, and Williams. This also maps naturally onto systems that already exist in the project's content model (settlements, monster nests/dungeons, combat, villages), so it's cheap to hook into later without new architecture.
 
-Feels like coming home.
+| Motif | Length | Proposed usage |
+|---|---|---|
+| Hero / Kingdom | 8 notes | Ubiquitous — the core identity, reharmonized per context |
+| Adventure | 6 notes | Overworld exploration |
+| Mystery | 5 notes | Caves, ruins, monster nests |
+| Royal | 4 notes | Settlement / kingdom interiors |
+| Enemy | 4 notes | Combat / danger proximity |
 
-Already that's an 8-note motif.
+**Contextual variation examples (illustrative, not final):**
 
----
-
-# Phase 3 - Test It
-
-Play it using:
-
-* piano
-* flute
-* bagpipes
-* whistle
-
-If it sounds good on every instrument...
-
-it's probably a strong melody.
+| Context | Treatment |
+|---|---|
+| Kingdom | Bagpipes, full and proud |
+| Tavern / Shelter | Lute, slow tempo |
+| Forest / overworld | Solo flute |
+| Dungeon / monster nest | Low strings, half speed |
+| Boss encounter | Minor-key variation, full orchestration |
+| Victory | Final 4 notes only, large cadence |
 
 ---
 
-# Phase 4 - Orchestrate
+## 5. State → music triggers (open sketch, not implemented)
 
-Only now do we ask Mureka.
+This is the part the original draft didn't cover, and the part that actually needs an engineering decision before this can be built: **what game state change causes what music transition, and how is that reconciled with a real-time, no-pause, multi-client architecture?**
 
-Instead of saying
+Since `ARCHITECTURE.md` §3 puts audio playback entirely in `/client/` (never `/server/`), each player's client can independently choose its own music based on that player's own location and state. This is *not* a networking problem — no sync is required, similarly to camera or particle effects. What's missing is the trigger table itself:
 
-> Compose a kingdom anthem.
+| Trigger | Candidate transition | Status |
+|---|---|---|
+| Enter settlement | → Royal motif variant | Undecided |
+| Enter overworld | → Adventure motif | Undecided |
+| Enter dungeon/nest | → Mystery motif | Undecided |
+| Combat starts | → Enemy motif layer/crossfade | Undecided — needs a decision on layered stems vs. hard cut |
+| Combat ends / boss defeated | → Victory cadence | Undecided |
+| Day → night | → tempo/instrumentation shift? | Undecided — not confirmed as needed at all |
 
-we say
-
-> Arrange this melody using Great Highland bagpipes, hurdy-gurdy, lute, and strings.
-
-The melody stays yours.
-
-The orchestration changes.
-
----
-
-# Phase 5 - Create Variants
-
-Once the melody exists, every location becomes easy.
-
-### Kingdom
-
-Bagpipes play it proudly.
+None of this should be treated as scoped work. It's listed so the *shape* of the eventual implementation is visible, the same way the mod loader's shape was described in `ARCHITECTURE.md` §10 well before it was built.
 
 ---
 
-### Tavern
+## 6. Technical implementation (undecided, flagged for later)
 
-Lute plays it slowly.
+Two real forks exist, and this doc deliberately does not resolve them:
 
----
+1. **Godot native audio** (`AudioStreamPlayer` + audio buses, manual crossfading in `/client/` code) vs. **middleware** (Wwise/FMOD via GDExtension) for adaptive layering.
+2. **Stem-based layering** (combat = same track + percussion layer fades in) vs. **discrete track swap** (hard cut/crossfade between separate files).
 
-### Forest
-
-Flute only.
-
----
-
-### Dungeon
-
-Low strings.
-
-Half speed.
+This is comparable in shape to the GodotSteam C# bindings situation — a dependency/tooling decision that shouldn't be locked until closer to the milestone that needs it. Recommend treating it the same way: tracked here as an open question, revisited when audio actually enters a milestone's scope, and given an ADR at that point if it affects architecture (e.g. adding a GDExtension dependency would trigger the "any new external dependency" escalation rule in `CLAUDE.md`).
 
 ---
 
-### Boss
+## 7. Scope status
 
-Minor variation.
+**Music is not mentioned in `VERTICAL_SLICE.md` §3 (Scope — IN) or §4 (Scope — OUT).** Per `CLAUDE.md` operating instruction #1 ("PRD-first — verify a feature is in PRD/VERTICAL_SLICE scope before implementing"), this document is creative/reference material only, not an authorized task.
 
-Big orchestra.
+Recommended backlog entry for `IDEAS_BACKLOG.md`:
 
----
-
-### Victory
-
-Last four notes only.
-
-Huge cadence.
+> **[post-slice] Music & audio system** — Kingdom Motif composed, leitmotif grammar and Music Bible drafted in `docs/gdd/music.md`. No implementation, no engine/middleware decision, no milestone assignment. Revisit after M9 vertical slice playtest, or earlier only if a specific milestone demo would clearly benefit from placeholder audio.
 
 ---
 
-Players subconsciously recognize every piece.
+## 8. Open questions
+
+1. Final motif notes — the 8-note call-and-response sketch (D-F-G-A / G-F-E-D) is a starting sketch, not confirmed as final. Needs Edu's actual composition pass on a keyboard.
+2. Stat generation for stems vs. swap (§6) — undecided, no urgency.
+3. Whether day/night cycle warrants its own musical treatment at all, or whether that's over-scoping a 20-minute in-game day cycle.
+4. Whether NPC/settlement ambient sound design (non-musical — wind, birds, forge sounds) is covered by this doc or deserves a separate `audio.md`. Currently out of scope for this draft.
+5. Licensing/rights model for composed music and any sample libraries used (Great Highland bagpipes, hurdy-gurdy samples etc.) — not addressed yet; worth resolving before any commercial release, lower priority for vertical slice.
 
 ---
 
-# Phase 6 - Build a Music Bible
+## 9. Reference
 
-Just like we talked about creating a design bible for the game, I'd create a **Music Bible**.
+- `PITCH.md`, `PRD.md` §4.8 — tone pillars this document must stay consistent with
+- `ARCHITECTURE.md` §3 — client/server split; audio confirmed client-only
+- `VERTICAL_SLICE.md` §3–4 — confirms music is currently unscoped
+- `IDEAS_BACKLOG.md` — where this should be logged as `[post-slice]`
+- `CLAUDE.md` — escalation rule for any new external dependency (relevant if middleware like Wwise/FMOD is later chosen)
 
-Example:
-
-```
-Title:
-Mankers Kingdom Theme
-
-Scale:
-D Dorian
-
-Tempo:
-82 BPM
-
-Time:
-4/4
-
-Primary instruments:
-
-Great Highland bagpipes
-Hurdy-gurdy
-Lute
-Wooden flute
-Strings
-
-Mood:
-
-Hopeful
-Ancient
-Noble
-Warm
-Adventurous
-
-Forbidden:
-
-Electric guitar
-Synth pads
-Heavy percussion
-Choirs
-Pop harmonies
-```
-
-Every prompt starts from this document.
-
----
-
-# Here's the Part I'm Most Excited About
-
-I think we can go one step further.
-
-Rather than composing **one melody**, we could create a **musical grammar** for *Mankers Kingdoms*.
-
-Imagine the game has its own musical language:
-
-### Hero Theme
-
-8 notes.
-
-Appears everywhere.
-
----
-
-### Adventure Theme
-
-6 notes.
-
-Used when exploring.
-
----
-
-### Mystery Theme
-
-5 notes.
-
-Used in caves and ruins.
-
----
-
-### Royal Theme
-
-4 notes.
-
-Used in castles.
-
----
-
-### Enemy Theme
-
-4 notes.
-
-Used whenever danger is nearby.
-
-Then every soundtrack is a combination of those motifs.
-
-This is how composers like John Williams, Nobuo Uematsu, and Jeremy Soule achieve such memorable scores. Rather than writing dozens of unrelated tunes, they develop and recombine a handful of recognizable ideas.
-
-## My proposal
-
-I'd love to help you build this from the ground up. We can treat it like a real game studio would:
-
-1. **Compose the Kingdom Motif** (8–10 notes).
-2. **Create the Music Bible** (rules, instrumentation, tempos, moods).
-3. **Generate a MIDI file** of the motif.
-4. **Use that MIDI as the seed** for Mureka or other AI music tools that support melodic conditioning or MIDI input.
-5. **Iterate until the soundtrack feels unmistakably like *Mankers Kingdoms*.**
-
-The key difference is that the melody—the heart of the music—would be yours. AI would act as the arranger and orchestrator, helping you produce a cohesive soundtrack instead of inventing a different musical identity for every track. I think that balance gives you the best of both worlds: a unique, ownable musical signature with the speed and flexibility of AI-assisted composition.
+*Note: `docs/decisions/` (ADRs) and any existing `docs/gdd/skills.md` were not available in the current knowledge base session to cross-check numbering/format conventions directly — this document mirrors the structure of `PRD.md`/`ARCHITECTURE.md` instead. Worth a quick pass to align formatting once those files are accessible again.*
