@@ -261,6 +261,15 @@ public partial class MonsterSystem : Node
         }
         else
         {
+            // Block gate (combat.md §2.5): if the target is blocking with a shield, nullify.
+            if (CombatSystem.Instance?.IsBlocking(m.TargetPeer) == true)
+            {
+                GD.Print($"[Monster] {m.TypeId} {m.Id} attack blocked by peer {m.TargetPeer}");
+                GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
+                    ?.Rpc("ShowCombatResult", targetPos.Value, false, -1, false);
+                return;
+            }
+
             // Melee attack roll (combat.md §2.2): 1d20 + AttackBonus vs player's TargetNumber.
             int targetNumber = CombatResolver.PlayerTargetNumber();
             var (hit, damage, isCrit) = CombatResolver.ResolveAttack(

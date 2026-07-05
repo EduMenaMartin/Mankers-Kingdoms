@@ -150,8 +150,10 @@ public partial class CombatSystem : Node
             return;
         }
 
-        // ── Attack roll (combat.md §2.2) ──────────────────────────────────────
+        // ── Attack roll (combat.md §2.2 + §12.2) ────────────────────────────
         int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId);
+        // §12.2: fighting defensively lowers hit chance for that swing only.
+        if (IsBlocking(sender)) attackBonus -= 3;
         int targetNumber = GetEntityTargetNumber(targetEntityId);
         int damageMod    = CombatResolver.PlayerDamageMod(weaponId);
 

@@ -64,25 +64,25 @@ public partial class CombatFeedbackHUD : Node
         {
             label.Text     = "Block!";
             label.Modulate = new Color(0.4f, 0.8f, 1f);  // cyan
-            label.FontSize = 26;
+            label.FontSize = 13;
         }
         else if (!hit)
         {
             label.Text     = "Miss";
             label.Modulate = new Color(1f, 1f, 1f);   // white
-            label.FontSize = 24;
+            label.FontSize = 12;
         }
         else if (isCrit)
         {
             label.Text     = $"{damage}!";
             label.Modulate = new Color(1f, 0.15f, 0.1f);  // red
-            label.FontSize = 32;
+            label.FontSize = 16;
         }
         else
         {
             label.Text     = damage.ToString();
             label.Modulate = new Color(1f, 0.9f, 0.1f);  // yellow
-            label.FontSize = 24;
+            label.FontSize = 12;
         }
 
         label.GlobalPosition = worldPos;

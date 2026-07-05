@@ -194,6 +194,27 @@ public class CombatResolverTests
         Assert.True(hitCount > 80, $"Expected many hits with AB=10 vs TN=20, got {hitCount}/200");
     }
 
+    // ── §12.2 block-and-attack penalty ───────────────────────────────────────
+
+    [Fact]
+    public void ResolveAttack_BlockPenalty_ReducesHitRate()
+    {
+        // §12.3: Fighter (AB=5) vs Goblin (TN=12). The −3 block penalty (AB=2) must
+        // produce fewer hits over the same dice sequence (same seed = same rolls).
+        var rngNormal  = new System.Random(12345);
+        var rngBlocked = new System.Random(12345);
+        int hitsNormal = 0, hitsBlocked = 0;
+        for (int i = 0; i < 1000; i++)
+        {
+            var (hit1, _, _) = CombatResolver.ResolveAttack(5, 12, "1d8", 0, rngNormal);
+            var (hit2, _, _) = CombatResolver.ResolveAttack(2, 12, "1d8", 0, rngBlocked);
+            if (hit1) hitsNormal++;
+            if (hit2) hitsBlocked++;
+        }
+        Assert.True(hitsBlocked < hitsNormal,
+            $"Block penalty must reduce hits: {hitsBlocked} blocked < {hitsNormal} normal");
+    }
+
     // ── Player helpers ────────────────────────────────────────────────────────
 
     [Fact]

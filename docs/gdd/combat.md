@@ -316,3 +316,41 @@ Extends `docs/gdd/inventory.md`'s item schema and this document's §7:
 1. Exact movement penalty percentages (§11.2's −15%, §11.4's −10%/−20%) — placeholders, real values are a balancing pass.
 2. Exact stealth-disadvantage severity (flat detection-range penalty vs. full negation of Stealth skill benefit) — balancing pass, not architectural.
 3. Whether encumbrance also affects stamina drain rate or attack speed, beyond movement — not yet specified, flagged for whenever the needs/stamina system (currently a v1 scaffold) is fleshed out further.
+
+---
+
+## 12. Simultaneous block-and-attack (addition)
+
+**Status:** locked. Fixes an unaddressed gap found during testing — no locked rule previously existed governing whether blocking and attacking could occur simultaneously, so the current implementation allows both with no trade-off, which is inconsistent with the rest of this document's design.
+
+### 12.1 The decision
+
+**Option B chosen** (over a hard mutually-exclusive state-lock): blocking and attacking CAN occur simultaneously, but doing so applies a flat penalty to the **Attack Bonus only** (§2.2) while the block input is actively held. Damage is unaffected if the attack hits.
+
+Rationale: every other part of this document layers AD&D-flavored dice resolution underneath an unchanged real-time input layer (§1). A hard state-lock (swing XOR block, action-game convention) would be simpler but breaks from that established pattern. A numeric hit-chance penalty keeps "real-time input, dice-driven resolution" consistent throughout — this is meant to feel like AD&D's "fighting defensively" trade-off, not a Souls-like animation lock.
+
+### 12.2 The rule
+
+While the block input is held **and** an attack is thrown in the same window:
+
+**Attacker's Attack Bonus** (§2.2) receives a flat penalty (placeholder: **−3**, tuned during balancing) for that attack roll only.
+
+No change to:
+- Damage roll (§4) if the attack hits
+- The defender's Target Number math (unaffected — this penalty applies only to the attacker choosing to fight while guarding, not to anyone being attacked)
+- The existing geometry gate (§2.5) — blocking still functions normally as a defensive gate against incoming attacks; this section only concerns a character's own outgoing attack roll while their own block is active
+
+### 12.3 Worked example
+
+Fighter (Str 16 → mod +1, Melee skill 45) attacks while holding block:
+- Normal Attack Bonus = floor(45÷10) + 1 = **5**
+- While blocking: Attack Bonus = 5 − 3 = **2**
+- Goblin's Target Number (from §2.4's example) = 12
+- Roll 14 → 14+2=16 ≥ 12 → still hits, but a roll that would have hit easily unblocked (14+5=19) now only barely clears
+- Roll 9 → 9+2=11 < 12 → misses (would have hit unblocked: 9+5=14 ≥ 12)
+
+### 12.4 Open questions
+
+1. Exact penalty value (−3 placeholder) — balancing pass, not architectural.
+2. Whether this penalty stacks with the Medium/Heavy armor Dex-cap interactions (§11.1) or is fully independent — recommend independent (simple addition/subtraction, no multiplicative interaction) unless playtesting shows otherwise.
+3. Whether NPCs ever use this behavior (an AI blocking while attacking) or whether it's a player-only input combination for v1 — not yet specified; likely low priority since NPC AI complexity isn't a v1 focus area.

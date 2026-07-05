@@ -30,6 +30,7 @@ public partial class ProjectileSystem : Node
 	private const uint COMBAT_MASK = 32u | 64u;
 
 	private const string PLAYERS_PATH         = "/root/GameWorld/Players";
+	private const string MONSTERS_PATH        = "/root/GameWorld/Monsters";
 	private const string COMBAT_FEEDBACK_PATH = "/root/GameWorld/CombatFeedbackHUD";
 
 	// Monster IDs start at 10001 — any OriginPeerId below this is a player.
@@ -96,8 +97,10 @@ public partial class ProjectileSystem : Node
 			};
 
 			// Exclude the shooter so self-hits are impossible.
-			// CharacterBody3D extends CollisionObject3D which exposes GetRid().
-			var shooter = GetNodeOrNull<CollisionObject3D>($"{PLAYERS_PATH}/Player_{proj.OriginPeerId}");
+			// Player path used for player projectiles; monster path for monster projectiles.
+			var shooter =
+				GetNodeOrNull<CollisionObject3D>($"{PLAYERS_PATH}/Player_{proj.OriginPeerId}")
+				?? GetNodeOrNull<CollisionObject3D>($"{MONSTERS_PATH}/Monster_{proj.OriginPeerId}");
 			if (shooter != null)
 				query.Exclude = new Godot.Collections.Array<Rid> { shooter.GetRid() };
 
@@ -122,6 +125,17 @@ public partial class ProjectileSystem : Node
 				string targetFaction = GetEntityFactionId(targetId.Value);
 				if (!FactionService.IsHostile(originFaction, targetFaction))
 				{
+					_toRemove.Add(id);
+					continue;
+				}
+
+				// combat.md §12.4: active block intercepts projectiles just like melee swings.
+				if (CombatSystem.Instance?.IsBlocking(targetId.Value) == true)
+				{
+					var blockPos = new Vector3(proj.PosX, proj.PosY, proj.PosZ);
+					GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
+						?.Rpc("ShowCombatResult", blockPos, false, -1, false);
+					GD.Print($"[Projectile] proj {id} blocked by entity {targetId.Value}");
 					_toRemove.Add(id);
 					continue;
 				}
@@ -295,7 +309,7 @@ public partial class ProjectileSystem : Node
 			return FactionService.PLAYER_FACTION_ID;
 
 		return MonsterSystem.Instance?.GetMonsterFactionId(entityId)
-		       ?? FactionService.PLAYER_FACTION_ID;
+			   ?? FactionService.PLAYER_FACTION_ID;
 	}
 
 	private static long? ParseEntityId(Node? node)
