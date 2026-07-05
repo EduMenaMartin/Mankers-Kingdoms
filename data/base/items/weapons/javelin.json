@@ -1,0 +1,19 @@
+{
+  "id": "item.weapon.javelin",
+  "display_name_key": "item.weapon.javelin.name",
+  "category": "weapon",
+  "damage_dice": "1d6",
+  "damage_type": "piercing",
+  "range": 1.5,
+  "swing_cooldown": 0.8,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["thrown"],
+  "thrown_range_short": 30,
+  "thrown_range_long": 120,
+  "weight": 2,
+  "stackable": false,
+  "shape": { "width": 1, "height": 3 },
+  "icon": "res://assets/items/javelin.png"
+}

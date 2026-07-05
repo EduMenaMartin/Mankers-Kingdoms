@@ -1,0 +1,18 @@
+{
+  "id": "item.weapon.blowgun",
+  "display_name_key": "item.weapon.blowgun.name",
+  "category": "weapon",
+  "damage_dice": "1d1",
+  "damage_type": "piercing",
+  "range": 10,
+  "swing_cooldown": 1.5,
+  "is_ranged": true,
+  "projectile_speed": 15,
+  "ammo_item_id": "item.needle",
+  "properties": ["ammunition", "loading"],
+  "weight": 1,
+  "stackable": false,
+  "shape": { "width": 1, "height": 2 },
+  "icon": "res://assets/items/blowgun.png",
+  "note": "SRD damage is a fixed 1 (not a die) — represented as 1d1 in our notation system"
+}

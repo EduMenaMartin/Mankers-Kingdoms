@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.longbow",
+  "display_name_key": "item.weapon.longbow.name",
+  "category": "weapon",
+  "damage_dice": "1d8",
+  "damage_type": "piercing",
+  "range": 40,
+  "swing_cooldown": 1.8,
+  "is_ranged": true,
+  "projectile_speed": 28,
+  "ammo_item_id": "item.arrow",
+  "properties": ["ammunition", "heavy", "two-handed"],
+  "weight": 2,
+  "stackable": false,
+  "shape": { "width": 1, "height": 4 },
+  "icon": "res://assets/items/longbow.png"
+}

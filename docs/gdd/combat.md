@@ -1,0 +1,318 @@
+# Mankers Kingdoms — Combat Resolution (GDD)
+
+**Status:** v0.1 — locked design for attack resolution, damage, and NPC/monster defense. Crit/fumble explicitly phased (Phase A locked for v1, Phase B roadmap).
+
+**Related:** `PRD.md` §4.3, `VERTICAL_SLICE.md` §3.4, `docs/gdd/skills.md` (Melee/Ranged skills, stat caps), `docs/gdd/inventory.md` (item schema — needs new fields, see §7), `ARCHITECTURE.md` §4.4 (server-authoritative hit confirmation), ADR-0013 (ranged combat in v1), ADR-0022 (determinism/seeded RNG)
+
+---
+
+## 1. What this document does NOT change
+
+The real-time input layer is untouched. Players still aim, swing, and block exactly as already designed in `VERTICAL_SLICE.md` §3.4 — directional melee swing/block, mouse-aimed ranged attacks with arrow trajectory. This document only changes **how the server decides what happens once an attack attempt reaches its target** — replacing (or rather, layering under) a pure geometry-only hit check with a dice-driven resolution step.
+
+This is consistent with — not a departure from — `ARCHITECTURE.md` §4.4: *"Client shows immediate swing animation on input, but damage is only applied when the server confirms the hit."* We are simply defining **how** the server confirms it.
+
+---
+
+## 2. Attack resolution — the hybrid model
+
+### 2.1 Why "hybrid," not classic THAC0
+
+Classic AD&D stores two separate persistent numbers per creature: an attack bonus (from class/level tables) and a stored Armor Class, resolved via THAC0 lookup tables (confusing, descending-is-better math, extra bookkeeping).
+
+Our hybrid keeps the **d20 roll** (so combat still has AD&D's swinginess and crit potential) but **never stores a separate Armor Class stat for gear-bearing entities.** The defender's target number is calculated live, at the moment of the attack, from data we already track (Dexterity, equipped armor). No new persistent attribute, no lookup tables. (Non-gear-bearing beasts are handled differently — see §6.)
+
+### 2.2 The formula
+
+**Attacker's Attack Bonus** = `floor(RelevantSkillLevel ÷ 10) + StatModifier(GoverningStat)`
+
+- `RelevantSkillLevel` is Melee or Ranged, per `docs/gdd/skills.md` §2.1 (already locked, already stat-capped per ADR-0019)
+- Melee uses Strength; Ranged uses Dexterity — consistent with each skill's governing stat already locked in `docs/gdd/skills.md`.
+
+**Defender's Target Number** (gear-bearing entities) = `10 (base) + StatModifier(Dexterity) + ArmorValue (equipped armor) + ShieldBonus (if wielding a shield)`
+
+**Resolution:** roll 1d20 (via seeded `world.Random`, per ADR-0022) + Attack Bonus. If the total **meets or beats** the Target Number → hit. Otherwise → miss.
+
+**Natural 20** always hits regardless of the math (and triggers a critical, see §5). **Natural 1** always misses regardless of the math (and may trigger a fumble, see §5.3's asymmetry rule).
+
+### 2.3 Stat modifier — gentler curve (locked)
+
+**Decision:** rather than the classic AD&D-style modifier table (roughly ±4 spread across the stat range), we use a **gentler curve**: `StatModifier = floor((Stat − 10) ÷ 4)`.
+
+Rationale: our skill-cap formula (ADR-0019, `floor(99 × stat / 18)`) already does most of the stat-differentiation work — a low-Str character is permanently capped at a low Melee skill regardless of anything else. Layering a *second*, equally steep stat swing on top of that (as classic AD&D's ±4 modifier would) double-counts stat significance in a single roll. The gentler curve lets skill level (which the player actively trains) dominate the moment-to-moment roll, while stat still provides a real but secondary nudge.
+
+| Stat | Modifier |
+|---|---|
+| 3–5 | −2 |
+| 6–9 | −1 |
+| 10–13 | 0 |
+| 14–17 | +1 |
+| 18 | +2 |
+
+### 2.4 Worked examples (updated for the gentler curve)
+
+**Fighter (Str 16 → mod +1, Melee skill 45) attacks a Goblin (Dex 12 → mod 0, hide armor +2):**
+- Attack Bonus = floor(45÷10) + 1 = 4 + 1 = **5**
+- Goblin's Target Number = 10 + 0 + 2 (hide) = **12**
+- Roll 14 → 14+5=19 ≥ 12 → **Hit**
+- Roll 3 → 3+5=8 < 12 → **Miss**
+
+**Same Fighter attacks a tougher Orc (Dex 14 → mod +1, chainmail +5, shield +1):**
+- Orc's Target Number = 10 + 1 + 5 (chainmail) + 1 (shield) = **17**
+- Roll 14 → 19 ≥ 17 → **Hit, barely**
+- Roll 9 → 14 < 17 → **Miss**
+
+### 2.5 Composition with existing swing/block system
+
+The existing directional facing/range/block check (`VERTICAL_SLICE.md` §3.4) remains a **prerequisite gate** before this roll ever happens:
+
+1. Client sends swing/fire input.
+2. Server checks geometry: is the target in range, in the swing arc / arrow path, and not actively blocking? If this fails, the attempt never reaches the dice roll — same as today.
+3. If the geometry gate passes, the server runs the attack roll (§2.2) to determine hit/miss.
+4. If hit, the server runs the damage roll (§3).
+
+**Active blocking** is treated as a hard binary gate at step 2 (block = attack never reaches the dice roll) — not folded into the Target Number math. This keeps blocking feeling responsive and skill-based, while the dice layer governs the *unblocked* outcome.
+
+---
+
+## 3. Ranged range penalty — confirmed: none needed (locked)
+
+**Decision:** no additional numeric to-hit penalty for range/distance. The existing arrow-trajectory and travel-time system (`VERTICAL_SLICE.md` §3.4 — arrows have travel time and trajectory, can miss based on target movement during flight) already makes long shots physically harder to land. Adding a second, numeric range penalty on top would be redundant with a mechanic that already does the same job through actual projectile physics rather than an abstract formula.
+
+---
+
+## 4. Damage
+
+**Damage = WeaponDice + StatModifier(GoverningStat)** — same gentler-curve modifier and governing-stat convention as the attack roll (Melee → Strength, Ranged → Dexterity).
+
+### 4.1 Example weapon dice (placeholder values, tuned during balancing)
+
+| Weapon | Dice | Category (for Phase B) |
+|---|---|---|
+| Dagger / hunting knife | 1d4 | Piercing |
+| Shortbow (arrow) | 1d6 | Piercing |
+| Longsword | 1d8 | Slashing |
+| Mace / club | 1d6 | Bludgeoning |
+| Shield bash | 1d3 | Bludgeoning |
+
+### 4.2 Worked examples (updated for the gentler curve)
+
+**Fighter (Str 16 → mod +1) with longsword (1d8):** roll 6 → 6+1 = **7 damage**
+**Ranger (Dex 15 → mod +1) with shortbow (1d6):** roll 4 → 4+1 = **5 damage**
+
+---
+
+## 5. Critical hits and fumbles — phased
+
+### 5.1 Historical grounding
+
+Core AD&D rulebooks **never shipped an official crit/fumble table** — by most accounts Gary Gygax considered a natural-20 guaranteed hit sufficient on its own. The famous "old tables" people remember are a fan supplement: **"Good Hits & Bad Misses" by Carl Parlagreco (Dragon Magazine #39)**, later reprinted in *Best of Dragon Magazine, Vol. V*. That system used **separate percentile (d100) tables per weapon damage type** (Slashing/Bludgeoning/Piercing, plus a distinct animal table), with **location-based effects** rather than simple bonus damage.
+
+Building that full system is a genuine **content-authoring project**, phased the same way the inventory system's shape-based grid was (`docs/gdd/inventory.md` §7).
+
+### 5.2 Two lessons carried forward from real community experience
+
+1. **Fumble asymmetry rule.** A natural 1 is only a *true* fumble if the total roll (with all bonuses) would have missed anyway. If a skilled character's bonus carries a natural-1 roll past the target number, it's just a normal hit — no fumble.
+2. **Symmetry.** Crit/fumble rules apply identically to players and NPCs, from day one.
+
+### 5.3 Critical hit / fumble does NOT affect XP gain (locked)
+
+Combat XP remains purely tick-based-while-engaged per ADR-0020, unaffected by whether a given attack was a hit, miss, crit, or fumble. Keeps the XP model simple and consistent with the rest of the skill system.
+
+### 5.4 Phase A (locked for v1) — small flavor table
+
+**Critical hit** (natural 20 that hits): damage dice rolled twice (doubled), **plus** one randomly-selected bonus effect:
+
+| Effect | Notes |
+|---|---|
+| Devastating Blow | Double damage only, no extra effect (most common) |
+| Precise Strike | Double damage + brief stun (interrupts target's current action) |
+| Bleeding Wound | Double damage + short damage-over-time bleed |
+| Sundering Hit | Double damage + brief reduction to target's ArmorValue |
+| Staggering Blow | Double damage + brief knockback/stagger |
+
+**Critical fumble** (natural 1 that would've missed anyway, per §5.2's asymmetry rule): miss, **plus** one randomly-selected complication — never self-damage:
+
+| Effect | Notes |
+|---|---|
+| Off-Balance | Miss + brief reduced accuracy on your own next attack (most common) |
+| Weapon Slip | Miss + brief disarm (quick recovery) |
+| Overextended | Miss + brief vulnerability window (bonus damage if hit during it) |
+| Stumble | Miss + brief movement-speed reduction |
+
+**Weighting: placeholder equal-ish across entries for v1** (confirmed) — real weighting is a balancing pass, not a launch blocker.
+
+### 5.5 Phase B (roadmap, not scheduled)
+
+Post-slice: separate tables per weapon damage type, richer location-based effects inspired by the historical Dragon Magazine table's structure, plus a parallel animal/monster-specific table. Add to `PRD.md` §6 roadmap when this document graduates from draft.
+
+---
+
+## 6. NPC and monster defense — flat authored values for beasts (resolved, verified against real AD&D precedent)
+
+**The historical convention, confirmed:** AD&D never computed monster Armor Class live from component stats — the original 1977 Monster Manual's own definition states AC represents *"the general type of protection worn... protection inherent to the creature due to its physical structure or magical nature, or the degree of difficulty of hitting a creature due to its speed, reflexes"* — all pre-baked into **one single designer-authored number** per monster type. Monster THAC0/attack bonus is likewise derived from Hit Dice and written directly into the stat block.
+
+**The one directly-relevant exception, from 2nd Edition's Monstrous Manual:** *"A human or demihuman always uses a player-character THAC0, regardless of whether they are player characters or monsters."*
+
+### 6.1 The rule we adopt
+
+**The split is "does this creature have equippable gear," not "player vs. NPC":**
+
+- **Humanoid / gear-bearing entities** — players, recruited villagers, Bandit, Goblin, Orc (all humanoid per `VERTICAL_SLICE.md` §3.6's bestiary) — use the **live formula** from §2.2: Dex modifier + whatever armor they happen to have equipped, exactly like a player.
+- **True beasts without gear slots** — Wolf, and any future non-humanoid monster — get a **flat, designer-authored Attack Bonus and Target Number** written directly into their monster data definition. No Dex/armor computation, no "natural armor" mechanic to invent — just two tuned numbers a designer sets once, exactly matching the original Monster Manual's approach.
+
+### 6.2 Example data entry (flat-authored beast)
+
+```json
+{
+  "id": "monster.wolf",
+  "attack_bonus": 3,
+  "target_number": 12,
+  "damage_dice": "1d6",
+  "damage_type": "piercing"
+}
+```
+
+### 6.3 Example data entry (gear-bearing humanoid — uses live formula, no flat numbers needed)
+
+```json
+{
+  "id": "monster.goblin.scout",
+  "stats": { "str": 10, "dex": 13, "con": 9 },
+  "melee_skill": 20,
+  "equipped_armor": "item.armor.leather",
+  "equipped_weapon": "item.weapon.shortsword"
+}
+```
+
+This resolves what was previously an open question — no new mechanic needed, just a data-authoring split already validated by 45+ years of the source material's own precedent.
+
+---
+
+## 7. Data model additions needed
+
+New fields on **armor** items in `docs/gdd/inventory.md`'s item schema:
+
+```json
+{
+  "id": "item.armor.chainmail",
+  "armor_value": 5,
+  "shield_bonus": 0
+}
+```
+
+New fields on **weapon** items:
+
+```json
+{
+  "id": "item.weapon.sword_iron",
+  "damage_dice": "1d8",
+  "damage_type": "slashing"
+}
+```
+
+`damage_type` is unused by Phase A's flat crit/fumble tables but included now so Phase B's weapon-type-specific tables don't require a schema migration later.
+
+New monster data fields (§6.2/6.3): `attack_bonus` and `target_number` for flat-authored beasts; nothing new needed for gear-bearing humanoids beyond what stats/skills/inventory already define.
+
+---
+
+## 8. Determinism and networking
+
+- All rolls (attack, damage, crit/fumble table selection) go through `world.Random`, the existing seeded RNG (ADR-0022, ARCHITECTURE.md §7).
+- Resolution is fully server-authoritative, consistent with ADR-0005 and ARCHITECTURE.md §4.4. Client shows the swing/fire animation immediately on input; the hit/miss/damage/crit result is only ever applied once the server resolves it, then communicated back as a floating combat text event (e.g. "MISS", "7 dmg", "CRITICAL — Bleeding Wound!").
+
+---
+
+## 9. Modding surface
+
+- Weapon dice, damage type, armor values, shield bonuses: data-driven per ADR-0009, extending the existing item schema.
+- Beast attack_bonus/target_number: data-driven per monster definition — modders can add new beasts by authoring two numbers, no formula to reverse-engineer.
+- Phase A's crit/fumble flavor tables: data-driven, weighted-random entries in `data/base/combat/crit_table.json` and `fumble_table.json`.
+- Phase B's location-based tables (when built): same data-driven pattern, split by weapon damage type.
+
+---
+
+## 10. Resolved — no remaining open questions from initial draft
+
+All five items flagged in the initial draft are now resolved:
+1. ~~Combat XP interaction~~ → §5.3: no effect, locked.
+2. ~~Crit/fumble table weighting~~ → §5.4: placeholder equal-ish confirmed, real tuning deferred to balancing pass.
+3. ~~NPC-specific Target Number defaults~~ → §6: resolved via verified AD&D precedent — flat authored values for gear-less beasts, live formula for gear-bearing humanoids.
+4. ~~Ranged range penalty~~ → §3: confirmed unnecessary, existing trajectory system suffices.
+5. ~~Stat modifier curve~~ → §2.3: gentler curve adopted, `floor((stat-10)/4)`.
+
+Future open questions, if any arise, should be added here rather than treated as blocking v1 implementation.
+
+---
+
+## 11. Armor categories, movement, and stealth (addition)
+
+**Status:** locked, added per Edu's direction. Confirms real D&D precedent: armor traits vary per-item, not strictly per broad category (verified against the SRD armor table — e.g. one light armor, roughly half of medium armors, and nearly all heavy armors carry a stealth penalty; movement penalty ties to a per-item Strength requirement, not armor weight class directly).
+
+### 11.1 Three armor categories (drives §2.2's Target Number Dex modifier)
+
+| Category | Dex modifier in Target Number |
+|---|---|
+| Light | Full Dex modifier applies (unchanged from §2.2) |
+| Medium | Dex modifier capped at +1, regardless of actual modifier |
+| Heavy | No Dex modifier applies (0, regardless of actual Dexterity) |
+
+### 11.2 Movement penalty — per-item Strength requirement, not category
+
+Each armor item carries a `str_requirement` field. If the wearer's Strength is below that value, apply a flat movement speed penalty (placeholder: −15%, tuned during balancing). Meeting the requirement means **no movement penalty from the armor itself**, regardless of how heavy the armor's category is. A high-Strength Fighter in full plate moves normally; a low-Strength character in the same armor is measurably slower.
+
+Light armor items typically have `str_requirement: 0` (never triggers). Medium and Heavy items have progressively higher requirements, authored per item.
+
+### 11.3 Stealth penalty — per-item flag, not category
+
+Each armor item carries a `stealth_disadvantage` boolean. If true, it interacts with the Stealth skill scaffold (`docs/gdd/skills.md` §2.1 — currently "movement noise reduction only" functionality): a `stealth_disadvantage` armor either imposes a flat penalty to effective detection-avoidance or negates the Stealth skill's noise-reduction benefit outright while worn. Exact severity is a balancing decision, not architectural.
+
+This is deliberately **not** derived from category — most Heavy armors will have `stealth_disadvantage: true`, but not strictly all; a rare Light armor could plausibly have it too (padding that rustles), and a well-designed Medium armor could avoid it. Authored per item, matching real precedent.
+
+### 11.4 Encumbrance — separate, parallel system
+
+Independent of armor category/per-item traits entirely. Ties to `docs/gdd/inventory.md`'s already-locked weight-cap system (`MaxCarryWeight`, Strength-derived).
+
+**Soft threshold below the hard cap:**
+
+| % of MaxCarryWeight carried | Movement effect |
+|---|---|
+| Below 50% | No penalty |
+| 50–80% | Minor movement penalty (placeholder: −10%) |
+| 80–100% | Moderate movement penalty (placeholder: −20%) |
+| At cap (100%) | Cannot carry more — existing hard block from `docs/gdd/inventory.md` §2.2 unchanged |
+
+**This stacks with §11.2's armor-based movement penalty** — a character can be simultaneously over-encumbered AND under-strength for their armor, suffering both penalties at once. They are tracked and applied independently, not merged into one formula, so future balancing can tune them separately.
+
+### 11.5 Updated armor item schema
+
+Extends `docs/gdd/inventory.md`'s item schema and this document's §7:
+
+```json
+{
+  "id": "item.armor.chainmail",
+  "armor_value": 5,
+  "shield_bonus": 0,
+  "armor_category": "heavy",
+  "str_requirement": 13,
+  "stealth_disadvantage": true
+}
+```
+
+```json
+{
+  "id": "item.armor.leather",
+  "armor_value": 1,
+  "shield_bonus": 0,
+  "armor_category": "light",
+  "str_requirement": 0,
+  "stealth_disadvantage": false
+}
+```
+
+### 11.6 Open questions
+
+1. Exact movement penalty percentages (§11.2's −15%, §11.4's −10%/−20%) — placeholders, real values are a balancing pass.
+2. Exact stealth-disadvantage severity (flat detection-range penalty vs. full negation of Stealth skill benefit) — balancing pass, not architectural.
+3. Whether encumbrance also affects stamina drain rate or attack speed, beyond movement — not yet specified, flagged for whenever the needs/stamina system (currently a v1 scaffold) is fleshed out further.

@@ -1,0 +1,20 @@
+{
+  "id": "item.weapon.trident",
+  "display_name_key": "item.weapon.trident.name",
+  "category": "weapon",
+  "damage_dice": "1d6",
+  "damage_type": "piercing",
+  "range": 1.7,
+  "swing_cooldown": 0.9,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["thrown", "versatile"],
+  "thrown_range_short": 20,
+  "thrown_range_long": 60,
+  "versatile_damage_dice": "1d8",
+  "weight": 4,
+  "stackable": false,
+  "shape": { "width": 1, "height": 3 },
+  "icon": "res://assets/items/trident.png"
+}

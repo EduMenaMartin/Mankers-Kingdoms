@@ -65,10 +65,10 @@ public partial class InventoryHUD : CanvasLayer
 				"resource.wood"        => "Wood",
 				"item.berry"           => "Berry",
 				"item.cooked_berry"    => "Cooked Berry",
-				"weapon.sword"         => "Sword",
-				"weapon.shield"        => "Shield",
-				"weapon.shortbow"      => "Shortbow",
-				"weapon.hunting_knife" => "Hunting Knife",
+				"item.weapon.longsword" => "Longsword",
+				"item.armor.shield"    => "Shield",
+				"item.weapon.shortbow" => "Shortbow",
+				"item.weapon.dagger"   => "Dagger",
 				"item.arrow"           => "Arrow",
 				_                      => id
 			};

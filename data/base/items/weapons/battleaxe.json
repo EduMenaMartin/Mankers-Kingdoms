@@ -1,0 +1,18 @@
+{
+  "id": "item.weapon.battleaxe",
+  "display_name_key": "item.weapon.battleaxe.name",
+  "category": "weapon",
+  "damage_dice": "1d8",
+  "damage_type": "slashing",
+  "range": 1.7,
+  "swing_cooldown": 0.9,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["versatile"],
+  "versatile_damage_dice": "1d10",
+  "weight": 4,
+  "stackable": false,
+  "shape": { "width": 1, "height": 2 },
+  "icon": "res://assets/items/battleaxe.png"
+}

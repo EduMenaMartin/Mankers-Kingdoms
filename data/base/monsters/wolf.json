@@ -1,0 +1,16 @@
+{
+  "id": "monster.wolf",
+  "display_name_key": "monster.wolf.name",
+  "max_hp": 40,
+  "attack_bonus": 3,
+  "target_number": 12,
+  "damage_dice": "1d6",
+  "damage_type": "piercing",
+  "move_speed": 5,
+  "aggro_range": 15,
+  "attack_range": 1.8,
+  "attack_cooldown": 1.2,
+  "is_ranged": false,
+  "loot_table": ["resource.wood"],
+  "note": "Flat authored stats per combat.md §6.2 example. TN 12 = natural agility, no armour."
+}

@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.greataxe",
+  "display_name_key": "item.weapon.greataxe.name",
+  "category": "weapon",
+  "damage_dice": "1d12",
+  "damage_type": "slashing",
+  "range": 1.8,
+  "swing_cooldown": 1.3,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["heavy", "two-handed"],
+  "weight": 7,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/greataxe.png"
+}

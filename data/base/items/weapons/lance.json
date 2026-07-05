@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.lance",
+  "display_name_key": "item.weapon.lance.name",
+  "category": "weapon",
+  "damage_dice": "1d12",
+  "damage_type": "piercing",
+  "range": 2.5,
+  "swing_cooldown": 1.5,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["reach", "special"],
+  "weight": 6,
+  "stackable": false,
+  "shape": { "width": 1, "height": 4 },
+  "icon": "res://assets/items/lance.png"
+}

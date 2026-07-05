@@ -1,0 +1,14 @@
+{
+  "id": "item.armor.chain_shirt",
+  "display_name_key": "item.armor.chain_shirt.name",
+  "category": "armor",
+  "armor_value": 3,
+  "armor_category": "medium",
+  "shield_bonus": 0,
+  "str_requirement": 0,
+  "stealth_disadvantage": false,
+  "weight": 20,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/chain_shirt.png"
+}

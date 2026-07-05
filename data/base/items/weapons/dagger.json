@@ -1,0 +1,20 @@
+{
+  "id": "item.weapon.dagger",
+  "display_name_key": "item.weapon.dagger.name",
+  "category": "weapon",
+  "damage_dice": "1d4",
+  "damage_type": "piercing",
+  "range": 1.5,
+  "swing_cooldown": 0.5,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["finesse", "light", "thrown"],
+  "thrown_range_short": 20,
+  "thrown_range_long": 60,
+  "weight": 1,
+  "stackable": false,
+  "shape": { "width": 1, "height": 2 },
+  "icon": "res://assets/items/dagger.png",
+  "note": "Ranger's secondary weapon — 'hunting knife' is flavor-text for Dagger (equipment.md §5)"
+}

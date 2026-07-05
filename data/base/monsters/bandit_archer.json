@@ -1,0 +1,17 @@
+{
+  "id": "monster.bandit_archer",
+  "display_name_key": "monster.bandit_archer.name",
+  "max_hp": 40,
+  "attack_bonus": 3,
+  "target_number": 12,
+  "damage_dice": "1d6",
+  "damage_type": "piercing",
+  "move_speed": 3,
+  "aggro_range": 20,
+  "attack_range": 18,
+  "attack_cooldown": 2.0,
+  "is_ranged": true,
+  "ranged_weapon_id": "item.weapon.shortbow",
+  "loot_table": ["item.arrow"],
+  "note": "TN 12 = 10 + 1 (leather) + 1 (Dex mod). Damage dice matches item.weapon.shortbow. Melee fallback uses same stats."
+}

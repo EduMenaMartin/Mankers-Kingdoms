@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.crossbow_light",
+  "display_name_key": "item.weapon.crossbow_light.name",
+  "category": "weapon",
+  "damage_dice": "1d8",
+  "damage_type": "piercing",
+  "range": 25,
+  "swing_cooldown": 2.5,
+  "is_ranged": true,
+  "projectile_speed": 30,
+  "ammo_item_id": "item.bolt",
+  "properties": ["ammunition", "loading", "two-handed"],
+  "weight": 5,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/crossbow_light.png"
+}

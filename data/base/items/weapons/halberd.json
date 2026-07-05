@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.halberd",
+  "display_name_key": "item.weapon.halberd.name",
+  "category": "weapon",
+  "damage_dice": "1d10",
+  "damage_type": "slashing",
+  "range": 2.0,
+  "swing_cooldown": 1.2,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["heavy", "reach", "two-handed"],
+  "weight": 6,
+  "stackable": false,
+  "shape": { "width": 1, "height": 4 },
+  "icon": "res://assets/items/halberd.png"
+}

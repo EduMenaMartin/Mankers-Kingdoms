@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.club",
+  "display_name_key": "item.weapon.club.name",
+  "category": "weapon",
+  "damage_dice": "1d4",
+  "damage_type": "bludgeoning",
+  "range": 1.5,
+  "swing_cooldown": 0.7,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["light"],
+  "weight": 2,
+  "stackable": false,
+  "shape": { "width": 1, "height": 2 },
+  "icon": "res://assets/items/club.png"
+}

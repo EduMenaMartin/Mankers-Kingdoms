@@ -44,7 +44,8 @@ If the answer to all three is yes, the slice succeeded regardless of graphics qu
 
 - **2 selectable classes:** Fighter (melee-primary) and Ranger (ranged-primary). Rationale in §7.
 - **4 stats** rolled on character creation: Strength, Dexterity, Constitution, Wisdom
-  - Stat generation: 3d6 straight down or 4d6-drop-lowest (final choice deferred; both trivial to implement)
+  - Stat generation: **3d6 straight** (resolved — same method as NPCs; see `docs/gdd/character-creation.md` §2)
+- **4 playable races:** Human, Dwarf, Elf, Halfling. Each applies a stat modifier (bonus + penalty per classic AD&D conventions) to rolled stats before they feed skill caps and combat formulas. See `docs/gdd/character-creation.md` for modifier table and data model. (ADR-0023)
 - **Class picks provide:** starting kit (2–3 items — Fighter: sword + shield; Ranger: shortbow + hunting knife), initial skill bumps (see §3.3), cosmetic differentiation (armor color or simple sprite variant)
 - Character rerolls unlimited pre-commit; character is permanent after entering world
 
@@ -245,7 +246,9 @@ Each milestone is small, demoable, and unambiguous. Each takes 1–4 weeks depen
 ### M4 — Combat and monsters (3–4 weeks)
 - Directional swing/block melee combat
 - Ranged combat: bow, arrow projectiles with trajectory, arrow crafting at Workbench
-- Fighter kit (sword + shield) and Ranger kit (shortbow + hunting knife)
+- Fighter kit (Longsword + Shield) and Ranger kit (Shortbow + Dagger / "hunting knife" flavor) — confirmed mapping in `docs/gdd/equipment.md` §5
+- Full SRD 5.1 weapon and armor catalog loaded as data (`data/base/items/`); schema includes `damage_dice`, `damage_type`, `armor_value`, `armor_category`, `str_requirement`, `stealth_disadvantage` — see `docs/gdd/equipment.md`
+- Dice-based combat resolution: d20 attack roll + damage dice vs. target number; AD&D hybrid model (d20 swinginess, no stored AC); see `docs/gdd/combat.md`
 - Wolves and goblins spawn on map, attack players (melee variant)
 - Bandit Archer variant on map (ranged AI, reuses same ranged code)
 - Player and NPC damage system with health persistence

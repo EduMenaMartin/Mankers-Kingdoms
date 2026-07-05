@@ -1,0 +1,19 @@
+{
+  "id": "item.weapon.longsword",
+  "display_name_key": "item.weapon.longsword.name",
+  "category": "weapon",
+  "damage_dice": "1d8",
+  "damage_type": "slashing",
+  "range": 1.8,
+  "swing_cooldown": 0.8,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["versatile"],
+  "versatile_damage_dice": "1d10",
+  "weight": 3,
+  "stackable": false,
+  "shape": { "width": 1, "height": 3 },
+  "icon": "res://assets/items/longsword.png",
+  "note": "Fighter's locked starting weapon (docs/gdd/equipment.md §5)"
+}

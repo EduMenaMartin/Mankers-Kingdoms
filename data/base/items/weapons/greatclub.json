@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.greatclub",
+  "display_name_key": "item.weapon.greatclub.name",
+  "category": "weapon",
+  "damage_dice": "1d8",
+  "damage_type": "bludgeoning",
+  "range": 1.8,
+  "swing_cooldown": 1.2,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["two-handed"],
+  "weight": 10,
+  "stackable": false,
+  "shape": { "width": 1, "height": 3 },
+  "icon": "res://assets/items/greatclub.png"
+}

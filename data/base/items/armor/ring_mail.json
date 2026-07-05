@@ -1,0 +1,15 @@
+{
+  "id": "item.armor.ring_mail",
+  "display_name_key": "item.armor.ring_mail.name",
+  "category": "armor",
+  "armor_value": 4,
+  "armor_category": "heavy",
+  "shield_bonus": 0,
+  "str_requirement": 0,
+  "stealth_disadvantage": true,
+  "weight": 40,
+  "stackable": false,
+  "shape": { "width": 2, "height": 4 },
+  "icon": "res://assets/items/ring_mail.png",
+  "note": "Heavy armor with no Str requirement — entry-level heavy option."
+}

@@ -1,0 +1,20 @@
+{
+  "id": "item.weapon.net",
+  "display_name_key": "item.weapon.net.name",
+  "category": "weapon",
+  "damage_dice": "",
+  "damage_type": "special",
+  "range": 5,
+  "swing_cooldown": 2.0,
+  "is_ranged": true,
+  "projectile_speed": 8,
+  "ammo_item_id": null,
+  "properties": ["thrown", "special"],
+  "thrown_range_short": 5,
+  "thrown_range_long": 15,
+  "weight": 3,
+  "stackable": false,
+  "shape": { "width": 2, "height": 2 },
+  "icon": "res://assets/items/net.png",
+  "note": "No damage — restrains on hit. Restraint mechanic is roadmap, not v1."
+}

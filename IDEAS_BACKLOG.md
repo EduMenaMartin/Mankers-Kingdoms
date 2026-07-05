@@ -55,6 +55,21 @@ Some foods are flagged `IsToxicRaw=true` in FoodData — eating raw inflicts poi
 
 Two ambient audio layers: daytime (birdsong) and nighttime (insects/crickets), crossfaded by DayNightClient on sunrise/sunset. A proximity check silences ambient audio when a hostile entity is within ~20 units — classic "audio tells you something is nearby" tension cue. Implementation: `client/AmbientAudioSystem.cs` — two AudioStreamPlayer nodes, volume tweened on day/night change, muted when enemy detection radius triggers. No new server-side logic needed.
 
+### 2026-07-04 — [slice-affecting] Minimap + world map (M key)
+
+Always-visible minimap (top-right corner, ~180×180 px) showing terrain heightmap as a grey texture, player position (white dot), nest positions (coloured skull icons by type), and Kingdom Marker territory ring. Separate full-screen world map opened with M key showing the same data at larger scale with a legend.
+
+**Why slice-affecting:** Functionally required for the M4 demo gate — "find bandit camp from nest placement" is impractical on a 256×256 map without any map. Also enables players to actually understand the world layout in coop.
+
+**Implementation sketch:**
+- `client/MinimapHUD.cs` — CanvasLayer (Layer 30, always visible); renders a SubViewport with orthographic top-down camera OR bakes the heightmap to a texture once on world load; overlays dot/icon sprites for entities
+- `client/WorldMapScreen.cs` — full-screen CanvasLayer (Layer 35); shown/hidden on M key; same data as minimap at 4× scale; B/M/Escape closes it
+- Nest positions sent to clients via NestSystem RPC on connect (clients need positions to draw icons)
+- Player positions from existing LocalState (own dot only; coop partner dots via existing UpdateState RPCs)
+- No server logic changes — purely client-side rendering
+
+**Recommend:** Pull into M4 as Phase 4.6. Without it the M4 demo gate cannot be demonstrated.
+
 ### 2026-07-02 — [post-slice] Full Godot headless build in CI
 
 CI currently only runs xUnit tests (pure .NET, no Godot). A headless Godot build step would catch C# compile errors in client/server scripts that reference Godot types. Requires `chickensoft-games/setup-godot` action on the runner. Worth adding in M1 once server scripts exist.

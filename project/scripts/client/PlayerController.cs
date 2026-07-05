@@ -58,6 +58,9 @@ public partial class PlayerController : CharacterBody3D
 	// Path to CombatSystem — used for untyped RPC (arrow crafting at workbench).
 	private const string COMBAT_SYSTEM_PATH = "/root/GameWorld/CombatSystem";
 
+	// Path to HealthSystem — used for untyped RPC (item drop pickup).
+	private const string HEALTH_SYSTEM_PATH = "/root/GameWorld/HealthSystem";
+
 	// Path to ProjectileSystem — used for untyped RPC (not used directly; BowController owns fire).
 	private const string PROJECTILE_SYSTEM_PATH = "/root/GameWorld/ProjectileSystem";
 
@@ -181,7 +184,7 @@ public partial class PlayerController : CharacterBody3D
 	private void TryInteract()
 	{
 		// Sphere overlap: mask covers terrain (1), trees (2), buildings (8),
-		// and berry bushes (16). We distinguish by name/parent-walk.
+		// berry bushes (16), and item drops (128). We distinguish by name/parent-walk.
 		var spaceState = GetWorld3D().DirectSpaceState;
 		var sphere     = new SphereShape3D { Radius = INTERACT_RANGE };
 		var shapeQuery = new PhysicsShapeQueryParameters3D
@@ -189,10 +192,22 @@ public partial class PlayerController : CharacterBody3D
 			Shape         = sphere,
 			Transform     = new Transform3D(Basis.Identity, GlobalPosition),
 			Exclude       = new Godot.Collections.Array<Rid> { GetRid() },
-			CollisionMask = 1u | 2u | 8u | 16u
+			CollisionMask = 1u | 2u | 8u | 16u | 128u
 		};
 
 		var hits = spaceState.IntersectShape(shapeQuery);
+
+		// Priority 0: Item drop pickup — always first so death loot is recoverable.
+		foreach (var hit in hits)
+		{
+			var collider = hit["collider"].As<Node>();
+			if (collider == null) continue;
+			var name = collider.Name.ToString();
+			if (!name.StartsWith("ItemDrop_")) continue;
+			if (!long.TryParse(name["ItemDrop_".Length..], out var dropId)) continue;
+			RequestPickupDrop(dropId);
+			return;
+		}
 
 		// Priority 1: Shelter → sleep.
 		foreach (var hit in hits)
@@ -299,6 +314,17 @@ public partial class PlayerController : CharacterBody3D
 			combatSystem.RpcId(1, "RequestCraftArrows");
 	}
 
+	private void RequestPickupDrop(long dropId)
+	{
+		var healthSystem = GetNodeOrNull(HEALTH_SYSTEM_PATH);
+		if (healthSystem == null) return;
+
+		if (Multiplayer.IsServer())
+			healthSystem.Call("RequestPickupDrop", dropId);
+		else
+			healthSystem.RpcId(1, "RequestPickupDrop", dropId);
+	}
+
 	private void EatFood()
 	{
 		// Quick client-side guard: skip the RPC if we have nothing edible.
@@ -307,7 +333,7 @@ public partial class PlayerController : CharacterBody3D
 		foreach (var food in FoodRegistry.All)
 		{
 			if ((food.CookedItemId is not null && LocalState.Inventory.Has(food.CookedItemId)) ||
-			    LocalState.Inventory.Has(food.RawItemId))
+				LocalState.Inventory.Has(food.RawItemId))
 			{
 				hasFood = true;
 				break;

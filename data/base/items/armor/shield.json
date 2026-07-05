@@ -1,0 +1,15 @@
+{
+  "id": "item.armor.shield",
+  "display_name_key": "item.armor.shield.name",
+  "category": "armor",
+  "armor_value": 0,
+  "armor_category": "shield",
+  "shield_bonus": 2,
+  "str_requirement": 0,
+  "stealth_disadvantage": false,
+  "weight": 6,
+  "stackable": false,
+  "shape": { "width": 2, "height": 2 },
+  "icon": "res://assets/items/shield.png",
+  "note": "Contributes ShieldBonus (+2) to Target Number, not ArmorValue. Fighter's starting equipment."
+}

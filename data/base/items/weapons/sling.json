@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.sling",
+  "display_name_key": "item.weapon.sling.name",
+  "category": "weapon",
+  "damage_dice": "1d4",
+  "damage_type": "bludgeoning",
+  "range": 20,
+  "swing_cooldown": 1.2,
+  "is_ranged": true,
+  "projectile_speed": 25,
+  "ammo_item_id": "item.bullet",
+  "properties": ["ammunition"],
+  "weight": 0,
+  "stackable": false,
+  "shape": { "width": 1, "height": 1 },
+  "icon": "res://assets/items/sling.png"
+}

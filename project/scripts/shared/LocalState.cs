@@ -129,4 +129,35 @@ public static class LocalState
 
     /// <summary>Flip the active weapon mode. Called by PlayerController on "toggle_weapon" input.</summary>
     public static void ToggleWeaponMode() => PreferRanged = !PreferRanged;
+
+    // ── Death drop marker ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// World XZ position of the local player's last death drop, or null if none active.
+    /// Shown as a red X on the minimap and world map.
+    /// Set by HealthSystem.ClientShowDeathMarker; cleared when the drop is picked up.
+    /// Stored as plain floats to avoid a Godot.Vector3 dependency in shared/.
+    /// </summary>
+    public static (float X, float Z)? DeathDropWorldPos { get; private set; }
+    private static long _deathDropId = -1L;
+
+    /// <summary>Called by HealthSystem when the server notifies this peer of their death drop.</summary>
+    public static void SetDeathDrop(long dropId, float worldX, float worldZ)
+    {
+        _deathDropId      = dropId;
+        DeathDropWorldPos = (worldX, worldZ);
+    }
+
+    /// <summary>
+    /// Clears the marker if dropId matches the tracked drop.
+    /// Called by HealthSystem.ClientRemoveItemDrop on pickup.
+    /// </summary>
+    public static void ClearDeathDrop(long dropId)
+    {
+        if (_deathDropId == dropId)
+        {
+            _deathDropId      = -1L;
+            DeathDropWorldPos = null;
+        }
+    }
 }

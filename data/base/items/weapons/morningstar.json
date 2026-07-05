@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.morningstar",
+  "display_name_key": "item.weapon.morningstar.name",
+  "category": "weapon",
+  "damage_dice": "1d8",
+  "damage_type": "piercing",
+  "range": 1.5,
+  "swing_cooldown": 0.9,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": [],
+  "weight": 4,
+  "stackable": false,
+  "shape": { "width": 1, "height": 2 },
+  "icon": "res://assets/items/morningstar.png"
+}

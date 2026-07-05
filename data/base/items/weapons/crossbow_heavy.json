@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.crossbow_heavy",
+  "display_name_key": "item.weapon.crossbow_heavy.name",
+  "category": "weapon",
+  "damage_dice": "1d10",
+  "damage_type": "piercing",
+  "range": 35,
+  "swing_cooldown": 3.0,
+  "is_ranged": true,
+  "projectile_speed": 35,
+  "ammo_item_id": "item.bolt",
+  "properties": ["ammunition", "heavy", "loading", "two-handed"],
+  "weight": 18,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/crossbow_heavy.png"
+}

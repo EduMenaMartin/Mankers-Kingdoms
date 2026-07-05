@@ -1,0 +1,18 @@
+{
+  "id": "item.weapon.shortbow",
+  "display_name_key": "item.weapon.shortbow.name",
+  "category": "weapon",
+  "damage_dice": "1d6",
+  "damage_type": "piercing",
+  "range": 30,
+  "swing_cooldown": 1.5,
+  "is_ranged": true,
+  "projectile_speed": 22,
+  "ammo_item_id": "item.arrow",
+  "properties": ["ammunition", "two-handed"],
+  "weight": 2,
+  "stackable": false,
+  "shape": { "width": 1, "height": 3 },
+  "icon": "res://assets/items/shortbow.png",
+  "note": "Ranger's locked starting weapon (docs/gdd/equipment.md §5)"
+}

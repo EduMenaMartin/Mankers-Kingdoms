@@ -1,0 +1,16 @@
+{
+  "id": "monster.goblin",
+  "display_name_key": "monster.goblin.name",
+  "max_hp": 30,
+  "attack_bonus": 2,
+  "target_number": 11,
+  "damage_dice": "1d6",
+  "damage_type": "slashing",
+  "move_speed": 3.5,
+  "aggro_range": 12,
+  "attack_range": 1.8,
+  "attack_cooldown": 1.0,
+  "is_ranged": false,
+  "loot_table": ["resource.wood"],
+  "note": "TN 11 = 10 + 1 (leather armour equivalent) + 0 (Dex mod). Flat-authored in Phase 4.8."
+}

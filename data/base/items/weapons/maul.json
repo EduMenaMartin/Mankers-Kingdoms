@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.maul",
+  "display_name_key": "item.weapon.maul.name",
+  "category": "weapon",
+  "damage_dice": "2d6",
+  "damage_type": "bludgeoning",
+  "range": 1.8,
+  "swing_cooldown": 1.4,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["heavy", "two-handed"],
+  "weight": 10,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/maul.png"
+}

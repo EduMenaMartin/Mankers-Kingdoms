@@ -38,7 +38,7 @@ public partial class BuildMenu : CanvasLayer
 		};
 		_warnLayer = new CanvasLayer { Layer = 21 };
 		_warnLayer.AddChild(_warnLabel);
-		GetTree().GetCurrentScene().AddChild(_warnLayer);
+		GetTree().GetCurrentScene().CallDeferred(Node.MethodName.AddChild, _warnLayer);
 
 		LocalState.CombatModeChanged += OnCombatModeChanged;
 	}

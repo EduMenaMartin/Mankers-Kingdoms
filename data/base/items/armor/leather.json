@@ -1,0 +1,14 @@
+{
+  "id": "item.armor.leather",
+  "display_name_key": "item.armor.leather.name",
+  "category": "armor",
+  "armor_value": 1,
+  "armor_category": "light",
+  "shield_bonus": 0,
+  "str_requirement": 0,
+  "stealth_disadvantage": false,
+  "weight": 10,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/leather.png"
+}

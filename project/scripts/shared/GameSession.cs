@@ -17,9 +17,17 @@ public static class GameSession
     /// <summary>World seed used for terrain and tree generation. Same value on all peers.</summary>
     public static uint WorldSeed { get; set; } = 42u;
 
+    /// <summary>
+    /// Class kit selected on ClassSelectScreen before entering the game world.
+    /// Set by ClassSelectScreen; read by HealthSystem.OnPlayerConnected to distribute
+    /// the starting kit. Defaults to Fighter so solo/debug entry still works.
+    /// </summary>
+    public static string ChosenClassId { get; set; } = "class.fighter";
+
     public static void Reset()
     {
-        Intent = SessionIntent.None;
-        JoinAddress = "127.0.0.1";
+        Intent        = SessionIntent.None;
+        JoinAddress   = "127.0.0.1";
+        ChosenClassId = "class.fighter";
     }
 }

@@ -1,0 +1,14 @@
+{
+  "id": "item.armor.scale_mail",
+  "display_name_key": "item.armor.scale_mail.name",
+  "category": "armor",
+  "armor_value": 4,
+  "armor_category": "medium",
+  "shield_bonus": 0,
+  "str_requirement": 0,
+  "stealth_disadvantage": true,
+  "weight": 45,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/scale_mail.png"
+}

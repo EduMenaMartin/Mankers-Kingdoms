@@ -1,0 +1,15 @@
+{
+  "id": "item.armor.padded",
+  "display_name_key": "item.armor.padded.name",
+  "category": "armor",
+  "armor_value": 1,
+  "armor_category": "light",
+  "shield_bonus": 0,
+  "str_requirement": 0,
+  "stealth_disadvantage": true,
+  "weight": 8,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/padded.png",
+  "note": "Rare case of light armor with a stealth penalty — padding rustles."
+}

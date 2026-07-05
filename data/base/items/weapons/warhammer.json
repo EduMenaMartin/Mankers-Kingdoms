@@ -1,0 +1,18 @@
+{
+  "id": "item.weapon.warhammer",
+  "display_name_key": "item.weapon.warhammer.name",
+  "category": "weapon",
+  "damage_dice": "1d8",
+  "damage_type": "bludgeoning",
+  "range": 1.6,
+  "swing_cooldown": 0.9,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["versatile"],
+  "versatile_damage_dice": "1d10",
+  "weight": 2,
+  "stackable": false,
+  "shape": { "width": 1, "height": 2 },
+  "icon": "res://assets/items/warhammer.png"
+}

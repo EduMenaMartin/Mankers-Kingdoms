@@ -1,0 +1,14 @@
+{
+  "id": "item.armor.half_plate",
+  "display_name_key": "item.armor.half_plate.name",
+  "category": "armor",
+  "armor_value": 5,
+  "armor_category": "medium",
+  "shield_bonus": 0,
+  "str_requirement": 0,
+  "stealth_disadvantage": true,
+  "weight": 40,
+  "stackable": false,
+  "shape": { "width": 2, "height": 3 },
+  "icon": "res://assets/items/half_plate.png"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "item.armor.chain_mail",
+  "display_name_key": "item.armor.chain_mail.name",
+  "category": "armor",
+  "armor_value": 6,
+  "armor_category": "heavy",
+  "shield_bonus": 0,
+  "str_requirement": 13,
+  "stealth_disadvantage": true,
+  "weight": 55,
+  "stackable": false,
+  "shape": { "width": 2, "height": 4 },
+  "icon": "res://assets/items/chain_mail.png"
+}

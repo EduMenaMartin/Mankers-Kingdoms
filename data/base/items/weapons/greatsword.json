@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.greatsword",
+  "display_name_key": "item.weapon.greatsword.name",
+  "category": "weapon",
+  "damage_dice": "2d6",
+  "damage_type": "slashing",
+  "range": 1.8,
+  "swing_cooldown": 1.2,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["heavy", "two-handed"],
+  "weight": 6,
+  "stackable": false,
+  "shape": { "width": 1, "height": 4 },
+  "icon": "res://assets/items/greatsword.png"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "item.armor.splint_mail",
+  "display_name_key": "item.armor.splint_mail.name",
+  "category": "armor",
+  "armor_value": 7,
+  "armor_category": "heavy",
+  "shield_bonus": 0,
+  "str_requirement": 15,
+  "stealth_disadvantage": true,
+  "weight": 60,
+  "stackable": false,
+  "shape": { "width": 2, "height": 4 },
+  "icon": "res://assets/items/splint_mail.png"
+}

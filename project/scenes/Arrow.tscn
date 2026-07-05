@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://bqlid1qk66um4"]
+
+[ext_resource type="PackedScene" uid="uid://dp6ll8ruw4ynv" path="res://assets/ExternalAssets/KayKit_Adventurers_2.0_FREE/Assets/gltf/arrow_bow.gltf" id="1_4yf74"]
+
+[node name="Node3D" type="Node3D" unique_id=1021015944]
+
+[node name="arrow_bow2" parent="." unique_id=1713372493 instance=ExtResource("1_4yf74")]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0)

@@ -1,0 +1,18 @@
+{
+  "id": "item.weapon.quarterstaff",
+  "display_name_key": "item.weapon.quarterstaff.name",
+  "category": "weapon",
+  "damage_dice": "1d6",
+  "damage_type": "bludgeoning",
+  "range": 1.7,
+  "swing_cooldown": 0.8,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["versatile"],
+  "versatile_damage_dice": "1d8",
+  "weight": 4,
+  "stackable": false,
+  "shape": { "width": 1, "height": 3 },
+  "icon": "res://assets/items/quarterstaff.png"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.rapier",
+  "display_name_key": "item.weapon.rapier.name",
+  "category": "weapon",
+  "damage_dice": "1d8",
+  "damage_type": "piercing",
+  "range": 1.7,
+  "swing_cooldown": 0.7,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": ["finesse"],
+  "weight": 2,
+  "stackable": false,
+  "shape": { "width": 1, "height": 3 },
+  "icon": "res://assets/items/rapier.png"
+}

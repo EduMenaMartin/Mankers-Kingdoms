@@ -18,8 +18,11 @@
 [ext_resource type="Script" uid="uid://hwvw17sbnlxn" path="res://scripts/client/NeedsHUD.cs" id="13_rpagb"]
 [ext_resource type="Script" uid="uid://bj4xfv1ftqccr" path="res://scripts/server/MonsterSystem.cs" id="14_i828f"]
 [ext_resource type="Script" uid="uid://bku8801n6s53u" path="res://scripts/server/BushSystem.cs" id="14_rpagb"]
+[ext_resource type="Script" uid="uid://whn1yqkbxxgg" path="res://scripts/server/NestSystem.cs" id="15_jfovg"]
 [ext_resource type="Script" uid="uid://cpy1uu1nbxbkn" path="res://scripts/client/HealthHUD.cs" id="18_2usp3"]
 [ext_resource type="Script" uid="uid://b3hmua34etwts" path="res://scripts/client/WeaponHUD.cs" id="20_5425a"]
+[ext_resource type="Script" uid="uid://qj6txy04yndl" path="res://scripts/client/WorldMapScreen.cs" id="21_l32dp"]
+[ext_resource type="Script" uid="uid://mek16gphnhqx" path="res://scripts/client/MinimapHUD.cs" id="22_jfovg"]
 
 [node name="GameWorld" type="Node3D" unique_id=1324218193]
 
@@ -72,6 +75,9 @@ script = ExtResource("13_5425a")
 [node name="MonsterSystem" type="Node" parent="." unique_id=1436809408]
 script = ExtResource("14_i828f")
 
+[node name="NestSystem" type="Node" parent="." unique_id=487482008]
+script = ExtResource("15_jfovg")
+
 [node name="NeedsSystem" type="Node" parent="." unique_id=1092178020]
 script = ExtResource("11_pcadl")
 
@@ -91,3 +97,9 @@ script = ExtResource("18_2usp3")
 
 [node name="WeaponHUD" type="CanvasLayer" parent="." unique_id=1185951150]
 script = ExtResource("20_5425a")
+
+[node name="WorldMapScreen" type="CanvasLayer" parent="." unique_id=2127593665]
+script = ExtResource("21_l32dp")
+
+[node name="MinimapHUD" type="CanvasLayer" parent="." unique_id=1937364690]
+script = ExtResource("22_jfovg")

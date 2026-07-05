@@ -301,7 +301,8 @@ Things we know we haven't decided yet. Tracked here so they don't get lost.
 5. **World hostility slider granularity.** Should difficulty settings expose individual toggles (enemy expansion on/off, raid frequency, monster respawn rate) or preset difficulty tiers (Peaceful/Standard/Hard/Nightmare)? Both is possible.
 6. **Save format.** Custom binary, JSON, or Godot's native `PackedScene` serialization? Trade-offs: mod-friendliness (JSON wins), performance (binary wins), robustness (native wins).
 7. **Modding metadata format.** Custom manifest schema vs. an existing one (BepInEx-style). Decide before mod loader is built.
-8. **Player character stat rolling.** Random like NPCs, point-buy, or hybrid? NPCs are random for variety; players may want more control.
+8. **Player character stat rolling.** ~~Random like NPCs, point-buy, or hybrid? NPCs are random for variety; players may want more control.~~ **RESOLVED (2026-07-05):** 3d6 straight, same as NPCs. See `docs/gdd/character-creation.md` §2.
+   - **Race system locked** per ADR-0023: Human, Dwarf, Elf, Halfling with classic AD&D stat modifiers applied after rolling, before skill caps and combat formulas. See `docs/gdd/character-creation.md`.
 9. **Dedicated server distribution.** Standalone binary in Steam tools, Docker image, or both? Decide before public dedicated server support ships.
 
 ---

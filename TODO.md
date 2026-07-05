@@ -176,7 +176,7 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `server/HealthSystem.cs` — HP map for all entities (players + monsters); Damage/Heal/Kill; death → drop inventory + broadcast; player death → RespawnAt shelter
 - [x] `client/HealthHUD.cs` — HP bar anchored top-left, fed by LocalState
 - [x] `shared/LocalState.cs` — add CurrentHp, MaxHp + SetHealth(float, float)
-- [ ] **Editor:** Add HealthSystem node to GameWorld.tscn; add HealthHUD CanvasLayer
+- [x] **Editor:** Add HealthSystem node to GameWorld.tscn; add HealthHUD CanvasLayer
 
 ### Phase 2 — Weapons & melee ✅
 - [x] `shared/WeaponData.cs` — record: Id, Damage, Range, SwingCooldown, IsRanged, ProjectileSpeed, AmmoItemId
@@ -185,7 +185,7 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `server/CombatSystem.cs` — RequestMeleeAttack RPC: validate weapon owned, cooldown, alive, distance; RequestSetBlocking; 50% flat block reduction
 - [x] `client/MeleeController.cs` — LMB swing; RMB hold block; sphere query nearest target; client-side cooldown guard
 - [x] `client/PlayerController.cs` — CollisionLayer |= 32u; AddChild(MeleeController)
-- [ ] **Editor:** Add CombatSystem node to GameWorld.tscn
+- [x] **Editor:** Add CombatSystem node to GameWorld.tscn
 
 ### Phase 3 — Ranged combat ✅
 - [x] `shared/ProjectileState.cs` — record: Id, OriginPeerId, WeaponId, flat PosX/Y/Z, VelX/Y/Z
@@ -200,7 +200,7 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `data/base/monsters/wolf.json`, `goblin.json`, `bandit.json`, `bandit_archer.json`
 - [x] `server/MonsterSystem.cs` — AI state machine (Idle/Aggro/Attack); position broadcast RPC; death → loot drop to nearest player; bandit_archer uses ProjectileSystem.FireFromMonster
 - [x] `client/MonsterNode.cs` — colour-coded CapsuleMesh; lerps toward server position; hit flash red; death hides mesh
-- [ ] **Editor:** Create `scenes/Monster.tscn`; add MonsterSystem node to GameWorld.tscn; add Monsters Node child to GameWorld
+- [x] **Editor:** Create `scenes/Monster.tscn`; add MonsterSystem node to GameWorld.tscn; add Monsters Node child to GameWorld
 
 ### Phase 4.5 — Combat mode state + weapon HUD ✅
 - [x] `shared/LocalState.cs` — add `InCombatMode` bool (default false = build mode), `ToggleCombatMode()`, `CombatModeChanged` event
@@ -213,24 +213,70 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `client/MainMenuController.cs` — register `toggle_combat` → key `C`
 - [x] **Editor:** Add WeaponHUD CanvasLayer node (script: `client/WeaponHUD.cs`) to GameWorld.tscn
 
-### Phase 5 — Nests & death penalty
-- [ ] `shared/NestData.cs` — record: Id, MonsterTypeId, WorldX, WorldZ, MaxSpawned, RespawnDelaySec
-- [ ] `server/NestSystem.cs` — deterministic nest positions (seeded), spawn timing, respawn after all monsters killed
-- [ ] Death penalty in HealthSystem: drop full inventory at death position (ItemDrop nodes via RPC), respawn at shelter
-- [ ] `client/PlayerController.cs` — pickup dropped items on E-interact with ItemDrop node
-- [ ] **Editor:** Create `scenes/MonsterNest.tscn`; add NestSystem node to GameWorld.tscn
+### Phase 4.6 — Minimap + world map ✅
+- [x] `shared/NestGenerator.cs` — extract nest placement logic from NestSystem; Generate(uint seed) → IReadOnlyList<NestData>; both server and client call it independently (same pattern as TreeGenerator/BushGenerator)
+- [x] `server/NestSystem.cs` — replace local GenerateNests() with NestGenerator.Generate()
+- [x] `client/MinimapHUD.cs` — CanvasLayer (Layer 30, top-right 150×150); terrain texture baked from CachedHeightmap; player dot; nest dots; Kingdom Marker ring; death drop red X
+- [x] `client/WorldMapScreen.cs` — CanvasLayer (Layer 31); M key / Escape toggles; 700×700 centred; legend; death drop red X + "DROP" label
+- [x] `client/MainMenuController.cs` — register "open_map" → M key
+- [x] **Editor:** MinimapHUD + WorldMapScreen CanvasLayer nodes added to GameWorld.tscn
 
-### Phase 6 — Class kit selection
-- [ ] `shared/ClassKitData.cs` — record: ClassId, DisplayNameKey, StartingItemIds
-- [ ] `client/ClassSelectScreen.cs` — two-button screen (Fighter / Ranger) shown before world join; sends chosen class ID in GameSession
-- [ ] `shared/GameSession.cs` — add ChosenClassId field
-- [ ] `server/HealthSystem.cs` or `PlayerSystem.cs` — distribute starting kit on peer connect based on ChosenClassId
-- [ ] **Editor:** Create `scenes/ClassSelectScreen.tscn`; wire into scene flow after MainMenu host/join
+### Phase 4.7 — Equipment catalog (schema + full data load) ✅
+> Prerequisite for Phase 4.8 — establishes stable weapon IDs, DamageDice/DamageType schema, and
+> ArmorData before CombatResolver is written. Full SRD 5.1 catalog loaded now per equipment.md §7
+> to avoid re-authoring when post-slice classes arrive.
+
+- [x] `shared/WeaponData.cs` — replace flat `Damage` with `DamageDice` (string), `DamageType` (string); update ID convention to `item.weapon.*`; remove `Damage`
+- [x] `shared/WeaponRegistry.cs` — update to load full weapon catalog (~37 entries per equipment.md §3); update all IDs to `item.weapon.*`
+- [x] `shared/ArmorData.cs` — record: Id, DisplayNameKey, ArmorValue, ArmorCategory (enum: Light/Medium/Heavy), StrRequirement (int), StealthDisadvantage (bool), ShieldBonus (int), Weight (float)
+- [x] `shared/ArmorRegistry.cs` — static registry; loads all entries from `data/base/items/armor/*.json`
+- [x] `data/base/items/weapons/*.json` — full catalog from equipment.md §3 (37 weapon files, stable `item.weapon.*` IDs)
+- [x] `data/base/items/armor/*.json` — full catalog from equipment.md §2 (13 entries: 3 light, 5 medium, 4 heavy, 1 shield, stable `item.armor.*` IDs)
+- [x] Migrate `data/base/weapons/*.json` → `data/base/items/weapons/` (old directory deleted; all 5 files superseded)
+- [x] Update all code referencing old weapon IDs (`"sword"` → `"item.weapon.longsword"`, `"hunting_knife"` → `"item.weapon.dagger"`, `"shortbow"` → `"item.weapon.shortbow"`, `"arrow"` → `"item.weapon.arrow"`, `"shield"` → `"item.armor.shield"`)
+- [x] `tests/Shared/ArmorRegistryTests.cs` — all 13 entries load; armor values match equipment.md §2; categories correct
+- [x] `tests/Shared/WeaponRegistryTests.cs` — updated for new IDs and schema (DamageDice/DamageType)
+
+### Phase 4.8 — Dice-based combat resolution ✅
+> **Decision 2026-07-05:** Using Option A — placeholder Str=13, Dex=12 for all players in M4.
+> Real stats will be wired when Phase 6 class kits land. See Phase 6 note for Option B.
+> Builds on Phase 4.7's schema (DamageDice, DamageType, ArmorData already in place).
+
+- [x] `shared/CombatResolver.cs` — `StatModifier(int stat)`, `RollDice(string notation)`, `ResolveAttack(int attackBonus, int targetNumber, string damageDice, int damageMod)` → `(bool hit, int damage)`, `PlayerAttackBonus`, `PlayerTargetNumber`, `PlayerDamageMod`; placeholder Str=13 / Dex=12 constants (Option A)
+- [x] `shared/MonsterData.cs` — removed flat `MeleeDamage`; added `AttackBonus`, `TargetNumber`, `DamageDice`, `DamageType`
+- [x] `shared/MonsterRegistry.cs` — authored combat stats for all 4 monsters; Wolf matches combat.md §6.2 example exactly
+- [x] `data/base/monsters/*.json` — updated all 4 files (attackBonus, targetNumber, damageDice, damageType; removed meleeDamage; bandit_archer ranged_weapon_id corrected to item.weapon.shortbow)
+- [x] `server/CombatSystem.cs` — block gate first (hard nullify per GDD §2.5), then ResolveAttack; GetMonsterData lookup for target TN; seeded _combatRng
+- [x] `server/MonsterSystem.cs` — monster melee uses ResolveAttack vs PlayerTargetNumber(); GetMonsterData() public API; seeded _monsterRng
+- [x] `server/ProjectileSystem.cs` — RollDice on confirmed physical hit; player adds Dex damageMod, monster adds 0; ParseFlatDamage removed; seeded _projectileRng
+- [x] `tests/Shared/CombatResolverTests.cs` — StatModifier table (all 15 values), RollDice bounds (5 notations), ResolveAttack hit/miss/boundary, player helper values
+- [x] `tests/Shared/MonsterRegistryTests.cs` — replaced MeleeDamage tests with AttackBonus/TargetNumber/DamageDice tests; Wolf stats verified against GDD example
+
+### Phase 5 — Nests & death penalty ✅
+- [x] `shared/NestData.cs` — record: Id, MonsterTypeIds[], WorldX, WorldZ, RespawnDelaySec
+- [x] `server/NestSystem.cs` — seeded scatter (WorldSeed ^ 0xDEAD1234); 5 nests (2 wolf, 2 goblin, 1 bandit camp); respawn after all monsters killed
+- [x] `server/MonsterSystem.cs` — SpawnMonster() public + returns ID; NestId field on MutableMonster; NestMonsterDied static event; monster loot → SpawnItemDrop instead of direct AddItem; removed hardcoded SPAWNS table
+- [x] `server/HealthSystem.cs` — KillPlayer drops inventory as ItemDrop node; SpawnItemDrop() public API; RequestPickupDrop RPC; ClientSpawnItemDrop / ClientRemoveItemDrop RPCs; golden sphere visual (Layer 8 = 128u)
+- [x] `client/PlayerController.cs` — E-interact mask adds 128u; Priority 0: ItemDrop pickup → RequestPickupDrop RPC
+- [x] **Editor:** Add NestSystem node to GameWorld.tscn (after MonsterSystem); `scenes/MonsterNest.tscn` visual deferred
+
+### Phase 6 — Class kit selection ✅ (code complete; editor task pending)
+> **Option B note (2026-07-05):** Phase 6 could precede Phase 4.8 to give dice resolution real player stats from the start instead of placeholders. Chosen not to block on this — revisit when wiring real stats into `CombatResolver`.
+
+- [x] `shared/ClassKitData.cs` — record: ClassId, DisplayNameKey, ClassKitItem[] StartingItems (ClassKitItem = top-level record, not nested — avoids C# primary-constructor scope issue)
+- [x] `shared/ClassKitRegistry.cs` — Fighter (longsword + shield) and Ranger (shortbow + 20 arrows) kits
+- [x] `shared/GameSession.cs` — ChosenClassId field added; defaults to "class.fighter"; Reset() clears it
+- [x] `client/ClassSelectScreen.cs` — two-button picker; TooltipText shows class description; sets ChosenClassId → transitions to GameWorld
+- [x] `client/MainMenuController.cs` — all three paths (Solo/Host/Join) now route through ClassSelectScreen.tscn
+- [x] `server/HealthSystem.cs` — debug kit removed; replaced with ClassKitRegistry.Find(ChosenClassId) loop; falls back to Fighter if classId unrecognised
+- [x] `data/lang/en.json` — class.select.title/subtitle, class.fighter/ranger .name/.desc
+- [x] `tests/Shared/ClassKitRegistryTests.cs` — 14 tests: catalog count, item IDs, Fighter has longsword+shield not bow, Ranger has bow+arrows not sword, default classId recognised
+- [ ] **Editor:** Create `scenes/ClassSelectScreen.tscn` — Control + VBoxContainer + %TitleLabel + %SubtitleLabel + HBoxContainer with %FighterButton + %RangerButton; attach script client/ClassSelectScreen.cs
 
 ### Tests
 - [x] `tests/Shared/WeaponRegistryTests.cs`
 - [x] `tests/Shared/MonsterRegistryTests.cs`
-- [ ] `tests/Shared/HealthDataTests.cs`
+- [x] `tests/Shared/HealthDataTests.cs`
 - [x] `tests/Shared/ProjectileStateTests.cs`
 
 ### Demo gate

@@ -1,0 +1,17 @@
+{
+  "id": "item.weapon.mace",
+  "display_name_key": "item.weapon.mace.name",
+  "category": "weapon",
+  "damage_dice": "1d6",
+  "damage_type": "bludgeoning",
+  "range": 1.5,
+  "swing_cooldown": 0.8,
+  "is_ranged": false,
+  "projectile_speed": 0,
+  "ammo_item_id": null,
+  "properties": [],
+  "weight": 4,
+  "stackable": false,
+  "shape": { "width": 1, "height": 2 },
+  "icon": "res://assets/items/mace.png"
+}

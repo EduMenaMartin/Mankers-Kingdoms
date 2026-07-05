@@ -42,14 +42,14 @@ public partial class MainMenuController : Control
 	private void OnStartSolo()
 	{
 		GameSession.Intent = GameSession.SessionIntent.Solo;
-		GetTree().ChangeSceneToFile("res://scenes/GameWorld.tscn");
+		GetTree().ChangeSceneToFile("res://scenes/ClassSelectScreen.tscn");
 	}
 
 	private void OnHost()
 	{
 		GameSession.Intent = GameSession.SessionIntent.Host;
 		SetStatus(Loc.T("menu.status.hosting"));
-		GetTree().ChangeSceneToFile("res://scenes/GameWorld.tscn");
+		GetTree().ChangeSceneToFile("res://scenes/ClassSelectScreen.tscn");
 	}
 
 	private void OnJoin()
@@ -59,7 +59,7 @@ public partial class MainMenuController : Control
 		GameSession.Intent = GameSession.SessionIntent.Join;
 		GameSession.JoinAddress = address;
 		SetStatus(Loc.T("menu.status.joining"));
-		GetTree().ChangeSceneToFile("res://scenes/GameWorld.tscn");
+		GetTree().ChangeSceneToFile("res://scenes/ClassSelectScreen.tscn");
 	}
 
 	private void OnOptions() =>
@@ -84,6 +84,7 @@ public partial class MainMenuController : Control
 		AddKeyAction("eat_food",        Key.Tab);
 		AddKeyAction("toggle_weapon",   Key.Q);
 		AddKeyAction("toggle_combat",   Key.C);
+		AddKeyAction("open_map",        Key.M);
 	}
 
 	private static void AddKeyAction(string action, Key key)

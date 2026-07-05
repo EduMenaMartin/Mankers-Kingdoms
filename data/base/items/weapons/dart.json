@@ -1,0 +1,19 @@
+{
+  "id": "item.weapon.dart",
+  "display_name_key": "item.weapon.dart.name",
+  "category": "weapon",
+  "damage_dice": "1d4",
+  "damage_type": "piercing",
+  "range": 15,
+  "swing_cooldown": 0.7,
+  "is_ranged": true,
+  "projectile_speed": 18,
+  "ammo_item_id": null,
+  "properties": ["finesse", "thrown"],
+  "thrown_range_short": 20,
+  "thrown_range_long": 60,
+  "weight": 0.25,
+  "stackable": true,
+  "shape": { "width": 1, "height": 1 },
+  "icon": "res://assets/items/dart.png"
+}

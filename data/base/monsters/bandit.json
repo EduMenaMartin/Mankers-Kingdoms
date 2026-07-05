@@ -1,0 +1,16 @@
+{
+  "id": "monster.bandit",
+  "display_name_key": "monster.bandit.name",
+  "max_hp": 60,
+  "attack_bonus": 3,
+  "target_number": 13,
+  "damage_dice": "1d8",
+  "damage_type": "slashing",
+  "move_speed": 3.5,
+  "aggro_range": 18,
+  "attack_range": 2.0,
+  "attack_cooldown": 1.5,
+  "is_ranged": false,
+  "loot_table": ["resource.wood", "item.arrow"],
+  "note": "TN 13 = 10 + 2 (studded leather) + 1 (Dex mod). Longsword-equivalent damage."
+}
