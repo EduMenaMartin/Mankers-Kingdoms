@@ -6,6 +6,78 @@ Follows [Keep a Changelog](https://keepachangelog.com/) conventions loosely.
 
 ---
 
+## [M4] — 2026-07-05 — Combat and monsters
+
+Two players (Fighter + Ranger) can cooperatively find and clear a bandit camp using melee and ranged combat, with full AD&D-flavored dice resolution, floating combat text, a minimap, and a death/respawn loop.
+
+### Added
+
+**Combat system**
+- Dice-based hit resolution: 1d20 + Attack Bonus vs Target Number (combat.md §2.2). Natural 20 = critical hit (roll damage dice twice). Natural 1 = always miss.
+- Stat modifier curve: `floor((stat − 10) / 4)` (combat.md §2.3) — gentler than classic AD&D to avoid double-counting stat significance alongside the skill-cap formula
+- Melee: LMB swing, server-authoritative range + cooldown validation, `CombatSystem.RequestMeleeAttack`
+- Ranged: shortbow with parabolic arrow physics (gravity applied each tick), mouse-aim via horizontal-plane raycast, arrow ghost orbs on clients, `ProjectileSystem`
+- Shield blocking: RMB hold blocks both melee swings and incoming arrows (geometry gate — attack never reaches dice roll, combat.md §2.5)
+- Block-and-attack penalty: swinging while blocking applies −3 to Attack Bonus for that roll only (combat.md §12.2)
+- Damage formula: WeaponDice + StatModifier(GoverningStat). Melee → Strength; Ranged → Dexterity (combat.md §4)
+
+**Weapons and armor catalog**
+- 37 weapons and 13 armor pieces loaded from `data/base/items/` JSON (ADR-0009 stable IDs)
+- `ArmorData`: ArmorValue, ArmorCategory (Light/Medium/Heavy), StrRequirement, StealthDisadvantage, ShieldBonus
+- `WeaponData`: DamageDice, DamageType, IsRanged, ProjectileSpeed, AmmoItemId, SwingCooldown
+
+**Monster AI**
+- Four monster types: Wolf (beast, flat authored AB=3/TN=12/1d6), Goblin Scout, Bandit (melee humanoid), Bandit Archer (ranged, fires via `ProjectileSystem.FireFromMonster`)
+- Three-state AI per monster: Idle (wander circle) → Aggro (move toward player) → Attack (melee or ranged)
+- Monsters snap Y position to terrain height each tick (no sinking into hills)
+
+**Faction allegiance system** (ADR-0024)
+- `FactionService`: two-layer model — type-level defaults (MonsterNest × MonsterNest = Hostile; MonsterNest × PlayerSettlement = Hostile; etc.) and per-instance overrides
+- §4 hard rule enforced in code: two PlayerSettlement factions can never be set Hostile (no PvP in v1)
+- Each nest gets a unique `faction.nest.{id}` — different nests of the same species are different factions
+- Projectile and aggro gates replaced ad-hoc `MONSTER_ID_THRESHOLD` patch with `FactionService.IsHostile()`
+
+**Nests and respawn**
+- Five seeded nests: 2× wolf pack (respawn 45 s), 2× goblin group (60 s), 1× bandit camp (90 s)
+- Nest positions deterministic from WorldSeed; `NestGenerator` shared between server and client (same pattern as TreeGenerator)
+- Respawn timer starts when the last monster in a nest dies
+
+**Class kit selection**
+- Class select screen before joining: Fighter (longsword + shield, Str=16) or Ranger (shortbow + 20 arrows, Dex=15)
+- Stats flow end-to-end: `ClassKitData.Str/Dex` → `CombatSystem._playerStats` → `CombatResolver` helpers → attack/damage rolls
+- `HealthSystem.RequestSetClass` RPC: remote clients announce their class on spawn, server re-distributes the correct kit and stats (fixes joining clients always receiving the host's class)
+
+**HUD and feedback**
+- `HealthHUD`: HP bar top-left
+- `WeaponHUD`: bottom-centre label shows `[Build Mode]` or `[Combat · Melee · Longsword]`; C key toggles mode, Q key toggles melee/ranged
+- `CombatFeedbackHUD`: floating Label3D over attacked entities — yellow number (hit), red enlarged number + `!` (crit), white "Miss", cyan "Block!"; float-up + fade Tween
+- `MinimapHUD`: always-visible 150×150 top-right; terrain texture, nest dots (wolf=orange, goblin=green, bandit=red), player dot, Kingdom Marker ring, death drop red X
+- `WorldMapScreen`: M key full-screen world map with legend, same data at larger scale
+
+**Death loop**
+- Combat death: inventory dropped as gold sphere pickup at death position; death drop red X on minimap/world map; player respawns at shelter with full HP, hunger, and rest
+- Death drop recoverable with E key (priority pickup over all other interactions)
+
+### Fixed
+- Bandit archer arrows were invisible — shooter exclusion in `ProjectileSystem` only looked up player nodes; extended to also exclude the firing monster node
+- Shield blocking had no effect against monster melee — `MonsterSystem.TickAttack` now checks `CombatSystem.IsBlocking` before the dice roll
+- Floating combat text font sizes halved after in-game review (Block!=13, Miss=12, Crit=16, Normal=12)
+- `BuildMenu.AddChild` during `_Ready()` caused "parent busy" error — fixed with `CallDeferred`
+- Monsters sinking into terrain hills — Y position snapped to `CachedHeightmap` each AI tick
+
+### Design decisions locked
+- Combat resolution: hybrid d20 model — no persistent Armor Class stat for gear-bearing entities (combat.md §2.1)
+- Beast defense: flat authored Attack Bonus + Target Number per monster definition; humanoids use live formula (combat.md §6.1, verified against original Monster Manual precedent)
+- No ranged range penalty — arrow trajectory physics already makes long shots harder (combat.md §3)
+- Simultaneous block-and-attack allowed with −3 Attack Bonus penalty, not a hard state-lock (combat.md §12.1)
+- Faction system: per-nest not per-species; §4 no-PvP rule enforced in code (ADR-0024)
+
+### Tests
+- 170 tests, 0 failures
+- New test suites: `CombatResolverTests`, `ArmorRegistryTests`, `WeaponRegistryTests`, `ClassKitRegistryTests`, `FactionServiceTests`, `HealthDataTests`, `ProjectileStateTests`
+
+---
+
 ## [M0] — 2026-07-02 — Project scaffolded
 
 ### Added

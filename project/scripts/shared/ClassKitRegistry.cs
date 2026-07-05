@@ -8,11 +8,11 @@ namespace MankersKingdoms.Shared;
 ///
 /// Fighter: sword-and-board melee archetype.
 ///   Longsword (1d8 slashing, 1.8 m range) + Shield (+2 TN block bonus).
-///   Attack bonus: Strength. Target Number raised by Shield when blocking.
+///   Skill bumps: Melee +5, Athletics +3 (docs/gdd/character-creation.md §4).
 ///
 /// Ranger: mobile ranged archetype.
 ///   Shortbow (1d6 piercing, 30 m range) + 20 arrows to open with.
-///   Attack bonus: Dexterity. Keeps distance, fires from safety.
+///   Skill bumps: Ranged +5, Foraging +3 (docs/gdd/character-creation.md §4).
 ///
 /// See docs/gdd/character-creation.md §4 and VERTICAL_SLICE.md §3.5.
 /// </summary>
@@ -23,8 +23,11 @@ public static class ClassKitRegistry
         new ClassKitData(
             ClassId:        "class.fighter",
             DisplayNameKey: "class.fighter.name",
-            Str:            16,   // combat.md §2.4 Fighter example: Str 16 → mod +1
-            Dex:            10,
+            SkillBumps:
+            [
+                new ClassSkillBump("skill.melee",     5),
+                new ClassSkillBump("skill.athletics", 3),
+            ],
             StartingItems:
             [
                 new ClassKitItem("item.weapon.longsword", 1),
@@ -34,8 +37,11 @@ public static class ClassKitRegistry
         new ClassKitData(
             ClassId:        "class.ranger",
             DisplayNameKey: "class.ranger.name",
-            Str:            10,
-            Dex:            15,   // combat.md §4.2 Ranger example: Dex 15 → mod +1
+            SkillBumps:
+            [
+                new ClassSkillBump("skill.ranged",   5),
+                new ClassSkillBump("skill.foraging", 3),
+            ],
             StartingItems:
             [
                 new ClassKitItem("item.weapon.shortbow", 1),

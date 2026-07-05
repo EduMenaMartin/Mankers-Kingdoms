@@ -51,6 +51,10 @@ Spatial audio for all player and NPC actions: footsteps (surface-sensitive — d
 
 Some foods are flagged `IsToxicRaw=true` in FoodData — eating raw inflicts poison for `PoisonDuration` seconds (HP drain over time). Cooked form is safe. Data fields already in `FoodData` and `FoodRegistry`. Implementation blocked on M4's health/damage system. When ready: `NeedsSystem` tracks `PoisonedUntil` timestamp and drains HP per tick; `LocalState` exposes poison state; `NeedsHUD` shows purple indicator. Log server-side already prints `[TOXIC]` warning as a placeholder.
 
+### 2026-07-06 — [slice-affecting] Character creation screen before skill system
+
+User asked whether Phase 5 (CharacterCreateScreen — roll stats, pick race/class) should be built before Phases 2–4 (skill system, inventory panel, char sheet). Argument for jumping to Phase 5 first: players can see and feel their rolled stats immediately, and the char creation UX is the one visible gap right now (`GameSession.RolledStats` is always null so server falls back to StatBlock(13,12,10,10)). Argument against: skills depend on stats so Phase 2 needs Phase 1 complete anyway (it is), but Phase 5 (the screen) is independent of Phases 2–4. Decision deferred to next session.
+
 ### 2026-07-03 — [post-slice] Ambient audio tied to day/night and monster proximity
 
 Two ambient audio layers: daytime (birdsong) and nighttime (insects/crickets), crossfaded by DayNightClient on sunrise/sunset. A proximity check silences ambient audio when a hostile entity is within ~20 units — classic "audio tells you something is nearby" tension cue. Implementation: `client/AmbientAudioSystem.cs` — two AudioStreamPlayer nodes, volume tweened on day/night change, muted when enemy detection radius triggers. No new server-side logic needed.

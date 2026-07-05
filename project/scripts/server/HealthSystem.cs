@@ -54,18 +54,17 @@ public partial class HealthSystem : Node
         SendHealthTo(peerId);
         GD.Print($"[Health] peer {peerId} registered ({PLAYER_MAX_HP}/{PLAYER_MAX_HP} hp)");
 
-        // Distribute starting kit from the class the player selected in ClassSelectScreen.
+        // Distribute starting kit from the class the player selected.
         // For the host/solo player this is always correct. Remote clients will call
         // RequestSetClass immediately after spawning to override with their own choice.
+        // Stats (StatBlock) arrive separately via CombatSystem.RequestSetStats.
         var kit = ClassKitRegistry.Find(GameSession.ChosenClassId)
                   ?? ClassKitRegistry.Find("class.fighter");
         if (kit != null)
         {
             foreach (var item in kit.StartingItems)
                 InventorySystem.Instance.AddItem(peerId, item.ItemId, item.Count);
-            CombatSystem.Instance?.SetPlayerStats(peerId, kit.Str, kit.Dex);
-            GD.Print($"[Health] peer {peerId} received {kit.ClassId} kit " +
-                     $"(Str={kit.Str}, Dex={kit.Dex}, {kit.StartingItems.Length} stacks)");
+            GD.Print($"[Health] peer {peerId} received {kit.ClassId} kit ({kit.StartingItems.Length} stacks)");
         }
     }
 
@@ -102,9 +101,8 @@ public partial class HealthSystem : Node
         foreach (var item in kit.StartingItems)
             InventorySystem.Instance.AddItem(sender, item.ItemId, item.Count);
 
-        CombatSystem.Instance?.SetPlayerStats(sender, kit.Str, kit.Dex);
-        GD.Print($"[Health] peer {sender} confirmed class {classId} " +
-                 $"(Str={kit.Str}, Dex={kit.Dex})");
+        // Stats (StatBlock) are managed separately by CombatSystem.RequestSetStats.
+        GD.Print($"[Health] peer {sender} confirmed class {classId} ({kit.StartingItems.Length} stacks)");
     }
 
     // ── Server API ────────────────────────────────────────────────────────────

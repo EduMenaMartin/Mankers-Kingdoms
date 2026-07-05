@@ -38,7 +38,7 @@ public partial class CombatSystem : Node
     // Value = elapsed time at which the next swing is allowed.
     private readonly SortedDictionary<long, double>      _swingReady   = new();
     private readonly SortedDictionary<long, bool>        _blocking     = new();
-    private readonly SortedDictionary<long, (int str, int dex)> _playerStats = new();
+    private readonly SortedDictionary<long, StatBlock> _playerStats = new();
     private double _elapsed;
 
     // Seeded per ADR-0022. Initialised in _Ready() once GameSession.WorldSeed is set.
@@ -65,7 +65,7 @@ public partial class CombatSystem : Node
     {
         _swingReady[peerId]   = 0.0;
         _blocking[peerId]     = false;
-        _playerStats[peerId]  = (13, 12); // overwritten by RequestSetClass when client announces class
+        _playerStats[peerId]  = new StatBlock(13, 12, 10, 10); // overwritten by RequestSetStats when client announces stats
     }
 
     private void OnPlayerDisconnected(long peerId)
@@ -81,27 +81,44 @@ public partial class CombatSystem : Node
     public bool IsBlocking(long peerId) =>
         _blocking.TryGetValue(peerId, out bool b) && b;
 
-    // ── Player stats API (called by HealthSystem and MonsterSystem) ───────────
+    // ── Player stats API (called by HealthSystem, MonsterSystem, ProjectileSystem) ──
+
+    private static readonly StatBlock _defaultStats = new(13, 12, 10, 10);
 
     /// <summary>
-    /// Stores the class stats for a peer. Called by HealthSystem.RequestSetClass
-    /// after distributing the starting kit.
+    /// Stores the full stat block for a peer. Called by RequestSetStats RPC when a
+    /// client announces their rolled+race-modified stats after character creation.
     /// </summary>
-    public void SetPlayerStats(long peerId, int str, int dex)
+    public void SetPlayerStats(long peerId, StatBlock stats)
     {
-        _playerStats[peerId] = (str, dex);
+        _playerStats[peerId] = stats;
     }
 
     /// <summary>Returns the Target Number for a player peer (combat.md §2.2).</summary>
     public int GetPlayerTargetNumber(long peerId)
     {
-        var (_, dex) = _playerStats.TryGetValue(peerId, out var s) ? s : (13, 12);
-        return CombatResolver.PlayerTargetNumber(dex);
+        var s = _playerStats.TryGetValue(peerId, out var st) ? st : _defaultStats;
+        return CombatResolver.PlayerTargetNumber(s.Dex);
     }
 
-    /// <summary>Returns the stored (str, dex) for a player peer, or safe defaults.</summary>
-    public (int str, int dex) GetPlayerStats(long peerId) =>
-        _playerStats.TryGetValue(peerId, out var s) ? s : (13, 12);
+    /// <summary>Returns the stored StatBlock for a player peer, or safe defaults.</summary>
+    public StatBlock GetPlayerStats(long peerId) =>
+        _playerStats.TryGetValue(peerId, out var s) ? s : _defaultStats;
+
+    /// <summary>
+    /// RPC: client announces their rolled+race-modified stats after character creation.
+    /// Server stores the StatBlock and uses it for all subsequent combat calculations.
+    /// </summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RequestSetStats(int str, int dex, int con, int wis)
+    {
+        if (!Multiplayer.IsServer()) return;
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+        SetPlayerStats(sender, new StatBlock(str, dex, con, wis));
+        GD.Print($"[Combat] peer {sender} stats set: Str={str} Dex={dex} Con={con} Wis={wis}");
+    }
 
     // ── RPCs ──────────────────────────────────────────────────────────────────
 
@@ -176,12 +193,12 @@ public partial class CombatSystem : Node
         }
 
         // ── Attack roll (combat.md §2.2 + §12.2) ────────────────────────────
-        var (sStr, sDex) = GetPlayerStats(sender);
-        int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId, sStr, sDex);
+        var stats        = GetPlayerStats(sender);
+        int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId, stats.Str, stats.Dex);
         // §12.2: fighting defensively lowers hit chance for that swing only.
         if (IsBlocking(sender)) attackBonus -= 3;
         int targetNumber = GetEntityTargetNumber(targetEntityId);
-        int damageMod    = CombatResolver.PlayerDamageMod(weaponId, sStr, sDex);
+        int damageMod    = CombatResolver.PlayerDamageMod(weaponId, stats.Str, stats.Dex);
 
         var (hit, damage, isCrit) = CombatResolver.ResolveAttack(
             attackBonus, targetNumber, weapon.DamageDice, damageMod, _combatRng);

@@ -113,32 +113,49 @@ public class ClassKitRegistryTests
             Assert.NotEqual("item.weapon.longsword", item.ItemId);
     }
 
-    // ── Stats ─────────────────────────────────────────────────────────────────
+    // ── Skill bumps (M5: stats are player-rolled; class gives skill bumps) ───
 
     [Fact]
-    public void Fighter_Stats_MatchGddExample()
+    public void Fighter_HasMeleeSkillBump()
     {
-        // combat.md §2.4: Fighter Str 16 → mod +1.
         var kit = ClassKitRegistry.Find("class.fighter")!;
-        Assert.Equal(16, kit.Str);
+        Assert.Contains(kit.SkillBumps, b => b.SkillId == "skill.melee" && b.Amount == 5);
     }
 
     [Fact]
-    public void Ranger_Stats_MatchGddExample()
+    public void Fighter_HasAthleticsSkillBump()
     {
-        // combat.md §4.2: Ranger Dex 15 → mod +1.
-        var kit = ClassKitRegistry.Find("class.ranger")!;
-        Assert.Equal(15, kit.Dex);
+        var kit = ClassKitRegistry.Find("class.fighter")!;
+        Assert.Contains(kit.SkillBumps, b => b.SkillId == "skill.athletics" && b.Amount == 3);
     }
 
     [Fact]
-    public void AllKits_StatsArePositive()
+    public void Ranger_HasRangedSkillBump()
+    {
+        var kit = ClassKitRegistry.Find("class.ranger")!;
+        Assert.Contains(kit.SkillBumps, b => b.SkillId == "skill.ranged" && b.Amount == 5);
+    }
+
+    [Fact]
+    public void Ranger_HasForagingSkillBump()
+    {
+        var kit = ClassKitRegistry.Find("class.ranger")!;
+        Assert.Contains(kit.SkillBumps, b => b.SkillId == "skill.foraging" && b.Amount == 3);
+    }
+
+    [Fact]
+    public void AllKits_HaveAtLeastOneSkillBump()
     {
         foreach (var kit in ClassKitRegistry.All)
-        {
-            Assert.True(kit.Str > 0, $"{kit.ClassId} has non-positive Str");
-            Assert.True(kit.Dex > 0, $"{kit.ClassId} has non-positive Dex");
-        }
+            Assert.True(kit.SkillBumps.Length > 0, $"{kit.ClassId} has no skill bumps");
+    }
+
+    [Fact]
+    public void AllKits_SkillBumpAmounts_ArePositive()
+    {
+        foreach (var kit in ClassKitRegistry.All)
+            foreach (var bump in kit.SkillBumps)
+                Assert.True(bump.Amount > 0, $"{kit.ClassId}: skill bump {bump.SkillId} has non-positive amount");
     }
 
     // ── Lookup ────────────────────────────────────────────────────────────────

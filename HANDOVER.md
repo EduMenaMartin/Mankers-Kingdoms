@@ -6,10 +6,58 @@
 
 ## Current status
 
-**Milestone:** M4 — Combat and monsters (in progress)
-**Last session:** 2026-07-05 — Faction allegiance system (ADR-0024), combat text font tuning, three combat bugs fixed, §12 block-and-attack penalty + shield-blocks-projectiles implemented. 163 tests passing.
+**Milestone:** M5 — in progress (Phase 1 complete, Phases 2–5 pending)
+**Last session:** 2026-07-06 — M5 Phase 1 complete: StatBlock, RaceRegistry (4 races), GameSession race/stats fields, CombatSystem upgraded to StatBlock, ClassKitData Str/Dex removed → SkillBumps added, PlayerController AnnounceStats(), loc keys for races + char creation. 196 tests, 0 failures.
 **Blockers:** None.
-**Awaiting:** M4 demo gate run — two players, Fighter + Ranger, find and clear bandit camp cooperatively.
+**Awaiting:** Decision on phase order — user asked whether char creation screen (Phase 5) should come before skills/UI (Phases 2–4). Not resolved yet.
+
+---
+
+## What was done this session (2026-07-06 — M5 Phase 1)
+
+### M5 Phase 1 — Stat foundation + race system ✅
+
+- `shared/StatBlock.cs` — record: Str/Dex/Con/Wis; `SkillCap(stat)` = floor(99×stat/18) (ADR-0019); `Clamped()` enforces 3–18
+- `shared/RaceData.cs` — immutable record with stat modifier dict; `Apply(rolled, chosenStat?)` applies mods and clamps
+- `shared/RaceRegistry.cs` — 4 races hardcoded: Human (+1 choice), Dwarf (Con+1/Wis−1), Elf (Dex+1/Con−1), Halfling (Dex+1/Str−1)
+- `shared/GameSession.cs` — added `ChosenRaceId`, `RolledStats (StatBlock?)`, `HumanChosenStat`; Reset() clears all
+- `shared/ClassKitData.cs` — removed `Str`/`Dex` (stats now player-rolled); added `ClassSkillBump[]` and `SkillBumps`
+- `shared/ClassKitRegistry.cs` — Fighter: Melee+5/Athletics+3; Ranger: Ranged+5/Foraging+3 (skill bumps replace stat fields)
+- `server/CombatSystem.cs` — `_playerStats` upgraded from `(int str, int dex)` tuple to `StatBlock`; `SetPlayerStats(long, StatBlock)` updated; `GetPlayerStats` now returns `StatBlock`; `RequestSetStats(int,int,int,int)` RPC added; default fallback `StatBlock(13,12,10,10)`
+- `server/HealthSystem.cs` — removed all `kit.Str`/`kit.Dex` references; comment notes stats arrive via `CombatSystem.RequestSetStats`
+- `server/ProjectileSystem.cs` — `GetPlayerStats` destructure updated from tuple to `StatBlock` (`.Str`/`.Dex`)
+- `client/PlayerController.cs` — `AnnounceStats()` added alongside `AnnounceClass()`, both deferred in `_Ready()`; if `RolledStats == null` (no char creation yet), skips silently
+- `data/lang/en.json` — race loc keys (human/dwarf/elf/halfling .name/.desc) + charCreate keys
+- `tests/Shared/StatBlockTests.cs` — 7 tests: SkillCap table (stat 3/10/16/18), Clamped behaviour
+- `tests/Shared/RaceRegistryTests.cs` — 19 tests: catalog completeness, per-race stat deltas, clamp edges, ClassKit SkillBumps regression
+- `tests/Shared/ClassKitRegistryTests.cs` — Str/Dex stat tests replaced with SkillBumps tests
+- **196 tests, 0 failures** (up from 170)
+
+### User question at session end
+- User asked "is there a roll feature, are stats shown anywhere on screen?" → No: `CharacterCreateScreen.cs` is M5 Phase 5, not yet built. `GameSession.RolledStats` is always `null` right now; server uses `StatBlock(13,12,10,10)` fallback.
+
+---
+
+## What was done this session (2026-07-05, session 4)
+
+### M4 demo gate — PASSED
+- All checklist items green: setup, minimap/nav, melee, block, ranged, death & respawn
+- One post-gate fix: hunger/rest now resets on combat death (`HealthSystem.KillPlayer` calls `NeedsSystem.ResetNeeds`)
+
+### Real player stats wired (M4 close-out)
+- `ClassKitData` gains `Str`/`Dex` fields; Fighter: Str=16/Dex=10, Ranger: Str=10/Dex=15 (combat.md §2.4/§4.2)
+- `CombatResolver` player helpers now take explicit `(str, dex)` params — constants removed
+- `CombatSystem` stores `_playerStats` per peer; exposes `SetPlayerStats`, `GetPlayerTargetNumber`, `GetPlayerStats`
+- `HealthSystem.RequestSetClass` RPC added — remote clients call it on spawn to announce their class; server re-distributes correct kit and stats. Fixes pre-existing gap where joining clients always got the host's class
+- `PlayerController._Ready()` calls `AnnounceClass()` deferred for the local player
+- `MonsterSystem.TickAttack` uses `CombatSystem.GetPlayerTargetNumber` (real Dex-derived TN)
+- `ProjectileSystem` uses `CombatSystem.GetPlayerStats` for player ranged damage mod
+- 7 new `CombatResolverTests` stat tests, 3 new `ClassKitRegistryTests` stat tests
+
+### Style cleanup
+- `CLAUDE.md` C# style section updated: K&R → Allman, added `partial` requirement, property-over-field, Godot.Collections boundary rule, modifier ordering
+- Full 71-file codebase audit: 0 violations on `partial`, public fields, modifier ordering, Godot.Collections; 5 inline K&R blocks fixed in MeleeController, PlayerController, MonsterSystem (×2), NestGenerator
+- **170 tests, 0 failures**
 
 ---
 
@@ -151,11 +199,11 @@
 
 ## What's next (top 3)
 
-1. **M4 demo gate** — two players, Fighter + Ranger, find bandit camp from minimap, clear cooperatively. Full checklist: melee hit/miss/crit visible, block works vs both melee and arrows, ranged arrows visible, death drop + respawn, floating combat text readable.
+1. **Decide M5 phase order** — user asked whether char creation UI (Phase 5) should come before skill system (Phase 2) and inventory/char sheet panels (Phases 3–4). Phase 5 first makes the game playable end-to-end with rolled stats immediately; Phases 2–4 first means the skill wiring is in place before the UI. Confirm preference before starting next session.
 
-2. **Wire real player stats into CombatResolver** — Phase 6 class kits give Fighter Str 16 / Ranger Dex 15, but CombatResolver still uses placeholder Str=13/Dex=12 constants. Replacing these makes combat resolution match the GDD's worked examples exactly.
+2. **M5 Phase 2 — Skill system** (if going in order): `SkillData`, `SkillRegistry`, `SkillSystem`, XP wiring into melee/ranged/chop/harvest/cook; `LocalState.SkillLevels`; class skill bumps applied in `RequestSetClass`.
 
-3. **M4 completion review** — once demo gate passes, write M4 CHANGELOG entry, tag, move to M5 planning.
+3. **M5 Phase 5 — Character creation screen** (if jumping ahead): `CharacterCreateScreen.cs` + scene; 3d6 roll button, race picker, Human stat choice, class picker, reroll, confirm → populates `GameSession.RolledStats`; route Solo/Host/Join through it.
 
 ---
 
@@ -167,11 +215,28 @@ Nothing.
 
 ## Decisions needed from Edu
 
-None outstanding.
+- **M5 phase order:** implement Phase 5 (char creation screen) first so stats are visibly rolling in-game, or follow the plan order (Phase 2 skills → Phase 3 inventory panel → Phase 4 char sheet → Phase 5 screen)?
 
 ---
 
 ## Session log
+
+### 2026-07-06 — M5 Phase 1: stat foundation + race system (196 tests)
+- StatBlock, RaceRegistry (4 races + Apply()), GameSession race/stats fields
+- ClassKitData Str/Dex removed → SkillBumps (Fighter Melee+5/Athletics+3, Ranger Ranged+5/Foraging+3)
+- CombatSystem._playerStats upgraded from tuple to StatBlock; RequestSetStats RPC added
+- PlayerController.AnnounceStats() deferred — no-op until CharacterCreateScreen sets RolledStats
+- 26 new tests (StatBlockTests + RaceRegistryTests + updated ClassKitRegistryTests); 196 total, 0 failures
+- User asked about char creation UI → confirmed Phase 5 not yet built; phase order decision pending
+
+### 2026-07-05 — M4 complete: stats wired, demo gate passed, style cleanup (170 tests)
+- M4 demo gate passed (all sections green)
+- Hunger/rest reset on combat death
+- Real player stats (Fighter Str=16, Ranger Dex=15) wired end-to-end through CombatResolver, CombatSystem, MonsterSystem, ProjectileSystem
+- RequestSetClass RPC fixes remote-client class selection gap
+- CLAUDE.md style rules updated (Allman, partial, modifier ordering, Godot.Collections)
+- 71-file style audit: 5 K&R blocks fixed, no other drift found
+- 170 tests, 0 failures
 
 ### 2026-07-05 — Faction system, block-and-attack §12, three P1 bug fixes (163 tests)
 - Faction allegiance system (ADR-0024): FactionService two-layer model, per-nest faction IDs, ProjectileSystem + MonsterSystem faction gates replace MONSTER_ID_THRESHOLD patch

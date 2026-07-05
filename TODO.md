@@ -301,10 +301,65 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `tests/Shared/ProjectileStateTests.cs`
 - [x] `tests/Shared/FactionServiceTests.cs`
 
+### Demo gate ✅ PASSED (2026-07-05)
+- [x] M4 demo: two ENet players, one Fighter (sword + shield), one Ranger (shortbow + arrows); find bandit camp from nest placement; clear it cooperatively; both combat styles functional; death drops inventory, player respawns at shelter
+- [x] Verify: block reduces hit rate when swinging while guarding (−3 AB penalty)
+- [x] Verify: RMB shield intercepts both melee and arrow attacks
+
+---
+
+## M4 ✅ COMPLETE (2026-07-05)
+
+---
+
+## M5 — Class, stats, skills, and inventory panel (in progress)
+
+**Goal:** Ranger player rolls stats, picks race, enters world, chops wood, watches Woodcutting level up, unlocks bronze axe at level 15, hits stat ceiling and stops.
+
+### Phase 1 — Stat foundation + race system ✅
+- [x] `shared/StatBlock.cs` — record: Str, Dex, Con, Wis; `SkillCap(int stat)` = floor(99×stat/18)
+- [x] `shared/RaceData.cs` — record: Id, DisplayNameKey, stat modifier dict, PlayerChoiceModifier; Apply() clamps to 3–18
+- [x] `shared/RaceRegistry.cs` — 4 races hardcoded (Human/Dwarf/Elf/Halfling); Find(id)
+- [x] `data/base/races/` — not needed (registry is hardcoded for v1, same as ClassKitRegistry)
+- [x] `shared/GameSession.cs` — add RolledStats (StatBlock?), ChosenRaceId, HumanChosenStat
+- [x] `server/CombatSystem.cs` — upgrade `_playerStats` from `(str,dex)` to StatBlock; `RequestSetStats` RPC
+- [x] `shared/ClassKitData.cs` — remove Str/Dex (now rolled); add ClassSkillBump record + SkillBumps[]
+- [x] `shared/ClassKitRegistry.cs` — Fighter: Melee+5, Athletics+3; Ranger: Ranged+5, Foraging+3
+- [x] `client/PlayerController.cs` — AnnounceStats() deferred call alongside AnnounceClass()
+- [x] `data/lang/en.json` — race loc keys + charCreate loc keys
+- [x] `tests/Shared/StatBlockTests.cs` — 7 tests
+- [x] `tests/Shared/RaceRegistryTests.cs` — 19 tests (incl. ClassKitRegistry SkillBumps regression)
+
+### Phase 2 — Skill system
+- [ ] `shared/ToolTierData.cs` — record: MinLevel, GrantedItemId
+- [ ] `shared/SkillData.cs` — record: Id, DisplayNameKey, GoverningStats[], ToolTiers[]
+- [ ] `shared/SkillRegistry.cs` — loads 6 skills from `data/base/skills/*.json`
+- [ ] `data/base/skills/melee.json`, `ranged.json`, `athletics.json`, `woodcutting.json`, `foraging.json`, `cooking.json`
+- [ ] `shared/LocalState.cs` — add SkillLevels dict (skill id → level)
+- [ ] `server/SkillSystem.cs` — per-peer XP tracking; `NotifyAction(peerId, skillId)`; level-up with stat cap; tool tier grants on threshold; broadcasts level to client
+- [ ] Wire growth triggers: melee hit → Melee; ranged hit → Ranged; chop → Woodcutting; harvest → Foraging; cook → Cooking
+- [ ] `shared/HealthSystem.cs` — apply class skill bumps in RequestSetClass
+- [ ] `data/lang/en.json` — skill loc keys
+- [ ] `tests/Shared/SkillRegistryTests.cs`
+
+### Phase 3 — Inventory UI panel
+- [ ] `client/InventoryPanel.cs` — CanvasLayer; I key open/close; scrollable slot list from LocalState.Inventory
+- [ ] `data/lang/en.json` — inventory panel loc keys
+- [ ] **Editor:** Add InventoryPanel CanvasLayer to GameWorld.tscn; attach script
+
+### Phase 4 — Character sheet UI
+- [ ] `client/CharacterSheet.cs` — K key open/close (Tab already eat_food); race, class, stats (Str/Dex/Con/Wis), 6 skill levels + stat caps
+- [ ] `shared/LocalState.cs` — add RaceId, ClassName, full StatBlock
+- [ ] **Editor:** Add CharacterSheet CanvasLayer to GameWorld.tscn; attach script
+
+### Phase 5 — Character creation screen
+- [ ] `client/CharacterCreateScreen.cs` — rolls 3d6×4; race picker (Human/Dwarf/Elf/Halfling applies modifier); class picker; reroll button; confirm → GameWorld
+- [ ] `scenes/CharacterCreateScreen.tscn` — editor task
+- [ ] `client/MainMenuController.cs` — route Solo/Host/Join through CharacterCreateScreen instead of ClassSelectScreen
+- [ ] `data/lang/en.json` — character creation loc keys
+
 ### Demo gate
-- [ ] M4 demo: two ENet players, one Fighter (sword + shield), one Ranger (shortbow + arrows); find bandit camp from nest placement; clear it cooperatively; both combat styles functional; death drops inventory, player respawns at shelter
-- [ ] Verify: block reduces hit rate when swinging while guarding (−3 AB penalty)
-- [ ] Verify: RMB shield intercepts both melee and arrow attacks
+- [ ] Player creates Ranger (any race), enters world, chops 75 trees, watches Woodcutting reach level 15, receives bronze axe, stat ceiling stops further progress
 
 ---
 

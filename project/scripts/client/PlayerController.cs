@@ -87,9 +87,10 @@ public partial class PlayerController : CharacterBody3D
 			AddChild(new MeleeController());
 			// BowController handles LMB fire (ranged) and arrow ghost management.
 			AddChild(new BowController());
-			// Tell the server our chosen class so it distributes the right kit and stats.
-			// Deferred so the node tree is fully ready before the RPC fires.
+			// Tell the server our chosen class and stats.
+			// Deferred so the node tree is fully ready before the RPCs fire.
 			Callable.From(AnnounceClass).CallDeferred();
+			Callable.From(AnnounceStats).CallDeferred();
 		}
 	}
 
@@ -120,7 +121,7 @@ public partial class PlayerController : CharacterBody3D
 			LocalState.ToggleCombatMode();
 	}
 
-	// ── Class announcement ────────────────────────────────────────────────────
+	// ── Class and stats announcement ─────────────────────────────────────────
 
 	private void AnnounceClass()
 	{
@@ -131,6 +132,22 @@ public partial class PlayerController : CharacterBody3D
 			hs.Call("RequestSetClass", GameSession.ChosenClassId);
 		else
 			hs.RpcId(1, "RequestSetClass", GameSession.ChosenClassId);
+	}
+
+	private void AnnounceStats()
+	{
+		// RolledStats is null when bypassing character creation (e.g. debug entry).
+		// In that case, the server keeps its default StatBlock(13,12,10,10).
+		var stats = GameSession.RolledStats;
+		if (stats == null) return;
+
+		var cs = GetNodeOrNull("/root/GameWorld/CombatSystem");
+		if (cs == null) return;
+
+		if (Multiplayer.IsServer())
+			cs.Call("RequestSetStats", stats.Str, stats.Dex, stats.Con, stats.Wis);
+		else
+			cs.RpcId(1, "RequestSetStats", stats.Str, stats.Dex, stats.Con, stats.Wis);
 	}
 
 	// ── Movement ─────────────────────────────────────────────────────────────

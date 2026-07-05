@@ -93,5 +93,26 @@
   "class.fighter.name": "Fighter",
   "class.fighter.desc": "Sword and shield. Excel in melee combat and blocking.",
   "class.ranger.name": "Ranger",
-  "class.ranger.desc": "Shortbow and arrows. Attack from range and stay mobile."
+  "class.ranger.desc": "Shortbow and arrows. Attack from range and stay mobile.",
+
+  "race.human.name": "Human",
+  "race.human.desc": "Adaptable and driven. Gain +1 to any stat of your choice.",
+  "race.dwarf.name": "Dwarf",
+  "race.dwarf.desc": "Stoic and enduring. Con +1, Wis −1.",
+  "race.elf.name": "Elf",
+  "race.elf.desc": "Graceful but fragile. Dex +1, Con −1.",
+  "race.halfling.name": "Halfling",
+  "race.halfling.desc": "Nimble but slight. Dex +1, Str −1.",
+
+  "charCreate.title": "Create Your Character",
+  "charCreate.roll": "Roll Stats",
+  "charCreate.reroll": "Reroll",
+  "charCreate.confirm": "Begin Adventure",
+  "charCreate.stat.str": "Strength",
+  "charCreate.stat.dex": "Dexterity",
+  "charCreate.stat.con": "Constitution",
+  "charCreate.stat.wis": "Wisdom",
+  "charCreate.race.label": "Race",
+  "charCreate.class.label": "Class",
+  "charCreate.human.choice": "Choose bonus stat:"
 }

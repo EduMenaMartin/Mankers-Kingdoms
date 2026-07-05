@@ -149,9 +149,9 @@ public partial class ProjectileSystem : Node
 					int damageMod = 0;
 					if (proj.OriginPeerId < MONSTER_ID_THRESHOLD)
 					{
-						var (pStr, pDex) = CombatSystem.Instance?.GetPlayerStats(proj.OriginPeerId)
-						                   ?? (13, 12);
-						damageMod = CombatResolver.PlayerDamageMod(proj.WeaponId, pStr, pDex);
+						var pStats = CombatSystem.Instance?.GetPlayerStats(proj.OriginPeerId)
+						             ?? new StatBlock(13, 12, 10, 10);
+						damageMod = CombatResolver.PlayerDamageMod(proj.WeaponId, pStats.Str, pStats.Dex);
 					}
 					int dmg = System.Math.Max(1,
 						CombatResolver.RollDice(weapon.DamageDice, _projectileRng) + damageMod);

@@ -18,16 +18,38 @@ public static class GameSession
     public static uint WorldSeed { get; set; } = 42u;
 
     /// <summary>
-    /// Class kit selected on ClassSelectScreen before entering the game world.
-    /// Set by ClassSelectScreen; read by HealthSystem.OnPlayerConnected to distribute
+    /// Class kit selected on CharacterCreateScreen before entering the game world.
+    /// Set by CharacterCreateScreen; read by HealthSystem.OnPlayerConnected to distribute
     /// the starting kit. Defaults to Fighter so solo/debug entry still works.
     /// </summary>
     public static string ChosenClassId { get; set; } = "class.fighter";
 
+    /// <summary>
+    /// Race selected on CharacterCreateScreen. Defaults to Human.
+    /// Applied to RolledStats by RaceRegistry before the StatBlock is sent to the server.
+    /// </summary>
+    public static string ChosenRaceId { get; set; } = "race.human";
+
+    /// <summary>
+    /// Stats rolled on CharacterCreateScreen (3d6 straight, race modifiers applied).
+    /// Null until the player completes character creation.
+    /// Sent to the server via HealthSystem.RequestSetStats on game entry.
+    /// </summary>
+    public static StatBlock? RolledStats { get; set; } = null;
+
+    /// <summary>
+    /// For Human race: the stat the player chose to boost (+1).
+    /// Null for all other races.
+    /// </summary>
+    public static string? HumanChosenStat { get; set; } = null;
+
     public static void Reset()
     {
-        Intent        = SessionIntent.None;
-        JoinAddress   = "127.0.0.1";
-        ChosenClassId = "class.fighter";
+        Intent          = SessionIntent.None;
+        JoinAddress     = "127.0.0.1";
+        ChosenClassId   = "class.fighter";
+        ChosenRaceId    = "race.human";
+        RolledStats     = null;
+        HumanChosenStat = null;
     }
 }
