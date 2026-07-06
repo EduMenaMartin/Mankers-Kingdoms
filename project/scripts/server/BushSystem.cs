@@ -112,6 +112,7 @@ public partial class BushSystem : Node
         Rpc(MethodName.SetBushVisible, bushId, false);
 
         InventorySystem.Instance.AddItem(sender, "item.berry", 1);
+        SkillSystem.Instance?.NotifyAction(sender, "skill.foraging");
         GD.Print($"[Bush] peer {sender} harvested {bushId} → +1 berry");
     }
 
@@ -133,6 +134,7 @@ public partial class BushSystem : Node
 
         InventorySystem.Instance.RemoveItems(sender, "item.berry", 1);
         InventorySystem.Instance.AddItem(sender, "item.cooked_berry", 1);
+        SkillSystem.Instance?.NotifyAction(sender, "skill.cooking");
         GD.Print($"[Food] peer {sender} cooked 1 berry → 1 cooked berry");
     }
 

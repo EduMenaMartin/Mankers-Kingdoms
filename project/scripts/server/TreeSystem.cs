@@ -21,9 +21,6 @@ public partial class TreeSystem : Node
 
     private TreeConfig _treeCfg = TreeConfig.Default;
 
-    // Woodcutting XP per player (server-only, logged for M2; real system in M5).
-    private readonly SortedDictionary<long, int> _playerXp = new();
-
     public override void _Ready()
     {
         _treeCfg      = TreeConfig.Default;
@@ -82,12 +79,9 @@ public partial class TreeSystem : Node
     {
         _treeHp.Remove(treeId);
 
-        // Award XP (logged only — real skill system in M5).
-        _playerXp.TryGetValue(byPeer, out int xp);
-        xp += _treeCfg.WoodcuttingXp;
-        _playerXp[byPeer] = xp;
-        GD.Print($"[TreeSystem] peer {byPeer} felled {treeId} — " +
-                 $"+{_treeCfg.WoodcuttingXp} Woodcutting XP (total: {xp})");
+        // Award woodcutting XP via the real skill system (M5).
+        SkillSystem.Instance?.NotifyAction(byPeer, "skill.woodcutting");
+        GD.Print($"[TreeSystem] peer {byPeer} felled {treeId} → +1 woodcutting XP");
 
         // Give wood directly to the chopper's inventory.
         InventorySystem.Instance.AddItem(byPeer, "resource.wood", _treeCfg.WoodYield);

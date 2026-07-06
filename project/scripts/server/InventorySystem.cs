@@ -51,6 +51,18 @@ public partial class InventorySystem : Node
         return true;
     }
 
+    /// <summary>
+    /// Removes all of <paramref name="itemId"/> for a peer regardless of quantity.
+    /// Used by kit-clearing logic in RequestSetClass; not for crafting.
+    /// </summary>
+    public void ClearItem(long peerId, string itemId)
+    {
+        if (!Multiplayer.IsServer()) return;
+        if (!_inventories.TryGetValue(peerId, out var inv)) return;
+        inv.ForceRemove(itemId);
+        SyncTo(peerId, inv);
+    }
+
     public bool HasItems(long peerId, string itemId, int count = 1)
     {
         if (!_inventories.TryGetValue(peerId, out var inv)) return false;

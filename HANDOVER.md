@@ -6,12 +6,94 @@
 
 ## Current status
 
-**Milestone:** M5 — in progress (Phase 1 complete, Phases 2–5 pending)
-**Last session:** 2026-07-06 — M5 Phase 1 complete: StatBlock, RaceRegistry (4 races), GameSession race/stats fields, CombatSystem upgraded to StatBlock, ClassKitData Str/Dex removed → SkillBumps added, PlayerController AnnounceStats(), loc keys for races + char creation. 196 tests, 0 failures.
+**Milestone:** M5 — in progress (Phases 1–5 code complete; editor tasks + demo gate pending)
+**Last session:** 2026-07-06 — M5 Phase 4: CharacterSheet implemented (K key modal, race/class/stats/skills+caps, live skill level refresh). 213 tests, 0 failures.
 **Blockers:** None.
-**Awaiting:** Decision on phase order — user asked whether char creation screen (Phase 5) should come before skills/UI (Phases 2–4). Not resolved yet.
+**Awaiting:** Edu to add CharacterSheet + InventoryPanel CanvasLayer nodes to GameWorld.tscn (editor tasks).
 
 ---
+
+## What was done this session (2026-07-06 — M5 Phase 4)
+
+### M5 Phase 4 — Character sheet UI ✅ (code complete; editor task pending)
+
+- `client/CharacterSheet.cs` — new CanvasLayer (Layer 26); **K** toggles, **Escape** closes; rebuilds the entire UI tree on each open (so race/class changes during debugging are always fresh); panel 460×500; sections:
+  - Race/class line: resolved via `RaceRegistry.Find` + `ClassKitRegistry.Find` → `Loc.T(displayNameKey)`
+  - Stats: two lines (Str/Dex, Con/Wis) showing effective values after race modifiers; shows "—" if `GameSession.RolledStats` is null (no char creation done)
+  - Skills table: Skill | Level | Cap for all 6 skills; Cap derived from `SkillData.GetCap(effectiveStats)`; cap cell turns orange when `level >= cap` (ceiling reached), green otherwise
+- Data sources: all client-side — `GameSession` for race/class/rolled stats, `LocalState.SkillLevels` for current levels, `SkillRegistry` for caps. No new RPCs needed.
+- Subscribes to `LocalState.SkillLevelChanged` to refresh skill rows in-place while open.
+- `client/MainMenuController.cs` — registered `"char_sheet"` → `Key.K`
+- `data/lang/en.json` — 9 new charSheet.* keys
+- **213 tests, 0 failures**
+
+**Editor task — add CharacterSheet node to GameWorld.tscn:**
+1. Open `GameWorld.tscn`
+2. Add a `CanvasLayer` as a child of the root
+3. Rename it exactly `CharacterSheet`
+4. Attach script: `res://scripts/client/CharacterSheet.cs`
+5. Save the scene (no Inspector settings — Layer and Visible are set in `_Ready()`)
+
+---
+
+## What was done this session (2026-07-06 — M5 Phase 3)
+
+### M5 Phase 3 — Inventory UI panel ✅ (code complete; editor task pending)
+
+- `shared/LocalState.cs` — added `InventoryChanged` event; `SetInventory` now fires it after replacing the snapshot
+- `client/InventoryPanel.cs` — new CanvasLayer (Layer 25); I key toggles open/closed; Escape closes when open; centred modal panel (380×480) with semi-transparent backdrop, title, scrollable item list, footer hint; each row shows `ItemName × count`; item names resolved via `Loc.T(itemId + ".name")`; refreshes on `LocalState.InventoryChanged` (only when visible)
+- `client/MainMenuController.cs` — registered `"open_inventory"` → `Key.I`
+- `data/lang/en.json` — added `inventory.title/empty/close_hint`; added `resource.wood.name` (was missing — `.name` suffix pattern now consistent for all item IDs)
+- **213 tests, 0 failures** (no new tests; InventoryPanel is pure UI, no testable logic beyond what LocalState already covers)
+
+**Editor task — add InventoryPanel node to GameWorld.tscn:**
+1. Open `GameWorld.tscn` in the Godot editor
+2. Add a `CanvasLayer` as a child of the root
+3. Rename it exactly `InventoryPanel`
+4. Attach script: `res://scripts/client/InventoryPanel.cs`
+5. Save the scene (no properties to set — Layer and Visible are set in `_Ready()`)
+
+---
+
+## What was done this session (2026-07-06 — M5 Phase 2)
+
+### M5 Phase 2 — Skill system ✅ (code complete; SkillSystem node editor task pending)
+
+- `shared/ToolTierData.cs` — record: MinLevel, GrantedItemId
+- `shared/SkillData.cs` — record: Id, DisplayNameKey, GoverningStats[], XpPerAction, XpPerLevel, ToolTiers[]; `GetCap(StatBlock)` returns best cap across governing stats (Athletics uses max of Str/Con)
+- `shared/SkillRegistry.cs` — 6 hardcoded skills: skill.melee (Str), skill.ranged (Dex), skill.athletics (max(Str,Con)), skill.woodcutting (Str), skill.foraging (Wis), skill.cooking (Wis); XpPerLevel=5, XpPerAction=1; Woodcutting tier: level 15 → item.tool.bronze_axe
+- `shared/LocalState.cs` — `SkillLevels` read-only dict, `SetSkillLevel`, `SkillLevelChanged` event
+- `server/SkillSystem.cs` — new Node; per-peer SortedDictionary<skillId, xp> + bump; `NotifyAction` awards XP, levels up, grants tool tiers, sends level RPC; `ApplyBump` clears + resets class bumps on class re-selection; `BroadcastAllLevels` on connect; `ClientApplySkillLevel` RPC → LocalState
+- Level formula: effectiveLevel = min(statCap, rawXp/XpPerLevel + classBump). Demo gate: 75 chops = 75 XP / 5 = level 15.
+- Wired triggers:
+  - `server/CombatSystem.cs` — melee hit → `SkillSystem.Instance?.NotifyAction(sender, "skill.melee")`
+  - `server/ProjectileSystem.cs` — player ranged hit → `NotifyAction(proj.OriginPeerId, "skill.ranged")` (monster shots excluded by `< MONSTER_ID_THRESHOLD` guard)
+  - `server/BushSystem.cs` — harvest → skill.foraging; cook → skill.cooking
+  - `server/TreeSystem.cs` — FellTree: placeholder `_playerXp` dict removed; replaced with `SkillSystem.Instance?.NotifyAction(byPeer, "skill.woodcutting")`
+- `server/HealthSystem.cs` — `SkillSystem.Instance?.ApplyBump(sender, kit.SkillBumps)` called in RequestSetClass after kit distribution
+- `data/lang/en.json` — added 6 skill name keys + item.tool.bronze_axe name/desc
+- `tests/Shared/SkillRegistryTests.cs` — 10 tests: catalog count, Find roundtrip, GetCap per skill, Athletics max(Str,Con) verified, XP demo gate (75 chops → level 15), Woodcutting bronze axe tier
+- **213 tests, 0 failures** (up from 198)
+
+**Editor task — add SkillSystem node to GameWorld.tscn:**
+1. Open `GameWorld.tscn` in the Godot editor
+2. Add a `Node` as a child of the root (after InventorySystem and CombatSystem, since SkillSystem depends on both)
+3. Rename it exactly `SkillSystem`
+4. Attach script: `res://scripts/server/SkillSystem.cs`
+5. Save the scene
+
+---
+
+## What was done this session (2026-07-06 — M5 Phase 5)
+
+### M5 Phase 5 — Character creation screen (code complete; editor task pending)
+
+- Phase order decision: B (Phase 5 first, then Phases 2→3→4)
+- `client/CharacterCreateScreen.cs` — new file; 3d6 roll per stat on load; race picker (4 races, tooltip = desc); Human choice row (hidden for non-Human, Confirm disabled until choice made); class picker; Reroll clears human choice; Confirm writes all four GameSession fields → GameWorld.tscn. Stat labels show "Label: raw → effective" when race changes the value.
+- `client/MainMenuController.cs` — all three paths (Solo/Host/Join) now route to `CharacterCreateScreen.tscn` (was `ClassSelectScreen.tscn`)
+- `data/lang/en.json` — no changes needed; all charCreate.* and race.* keys were already present from Phase 1
+- **Editor task pending:** `scenes/CharacterCreateScreen.tscn` (see "What's next" below)
+- **196 tests, 0 failures** (no new tests needed — all logic is in existing tested types: StatBlock, RaceData, RaceRegistry, GameSession)
 
 ## What was done this session (2026-07-06 — M5 Phase 1)
 
@@ -199,11 +281,14 @@
 
 ## What's next (top 3)
 
-1. **Decide M5 phase order** — user asked whether char creation UI (Phase 5) should come before skill system (Phase 2) and inventory/char sheet panels (Phases 3–4). Phase 5 first makes the game playable end-to-end with rolled stats immediately; Phases 2–4 first means the skill wiring is in place before the UI. Confirm preference before starting next session.
+1. **Editor tasks (3 nodes to add to GameWorld.tscn):**
+   - `InventoryPanel` CanvasLayer → script `res://scripts/client/InventoryPanel.cs`
+   - `CharacterSheet` CanvasLayer → script `res://scripts/client/CharacterSheet.cs`
+   - (SkillSystem Node from Phase 2 — may already be done)
 
-2. **M5 Phase 2 — Skill system** (if going in order): `SkillData`, `SkillRegistry`, `SkillSystem`, XP wiring into melee/ranged/chop/harvest/cook; `LocalState.SkillLevels`; class skill bumps applied in `RequestSetClass`.
+2. **Editor task: `scenes/CharacterCreateScreen.tscn`** — build the scene (instructions below). Once done, the full M5 char-creation flow is playable end-to-end.
 
-3. **M5 Phase 5 — Character creation screen** (if jumping ahead): `CharacterCreateScreen.cs` + scene; 3d6 roll button, race picker, Human stat choice, class picker, reroll, confirm → populates `GameSession.RolledStats`; route Solo/Host/Join through it.
+3. **M5 demo gate:** Player creates Ranger, chops 75 trees → Woodcutting 15 → bronze axe granted → K key shows cap reached in orange. Verify CharacterSheet shows correct race/class/stats.
 
 ---
 
@@ -215,11 +300,40 @@ Nothing.
 
 ## Decisions needed from Edu
 
-- **M5 phase order:** implement Phase 5 (char creation screen) first so stats are visibly rolling in-game, or follow the plan order (Phase 2 skills → Phase 3 inventory panel → Phase 4 char sheet → Phase 5 screen)?
+Nothing blocked.
+
+## Important: localization file
+
+**Always edit `project/data/lang/en.json`** — that is the file Godot loads via `res://data/lang/en.json`.
+The root `data/lang/en.json` was a stale duplicate and has been deleted. Do not recreate it.
 
 ---
 
 ## Session log
+
+### 2026-07-06 — M5 Phase 4: character sheet (213 tests)
+- CharacterSheet.cs: Layer 26, K key, race/class/stats/skills+caps, orange cap indicator
+- char_sheet K key registered; charSheet.* loc keys added
+- Editor task pending: add CharacterSheet CanvasLayer to GameWorld.tscn
+
+### 2026-07-06 — M5 Phase 3: inventory panel (213 tests)
+- InventoryPanel.cs: Layer 25 modal, I key, Escape, scrollable item list, InventoryChanged event
+- LocalState.InventoryChanged event; resource.wood.name loc key added; open_inventory I key registered
+- Editor task pending: add InventoryPanel CanvasLayer to GameWorld.tscn
+
+### 2026-07-06 — M5 Phase 2: skill system (213 tests)
+- ToolTierData, SkillData, SkillRegistry (6 skills), SkillSystem (Node, XP+bump, level-up, RPC)
+- LocalState: SkillLevels dict + SetSkillLevel + SkillLevelChanged event
+- Triggers wired: melee hit, player ranged hit, harvest, cook, tree fell
+- TreeSystem placeholder _playerXp dict removed; HealthSystem.RequestSetClass calls ApplyBump
+- en.json: 6 skill keys + bronze_axe; 10 new tests; 213 total, 0 failures
+
+### 2026-07-06 — M5 Phase 5: character creation screen (196 tests)
+- Phase order decision: B (Phase 5 first)
+- CharacterCreateScreen.cs: 3d6 roll, 4 races, Human bonus stat, class picker, reroll, confirm → GameWorld
+- MainMenuController: all three paths rerouted to CharacterCreateScreen.tscn
+- Editor task pending: CharacterCreateScreen.tscn
+- 196 tests, 0 failures
 
 ### 2026-07-06 — M5 Phase 1: stat foundation + race system (196 tests)
 - StatBlock, RaceRegistry (4 races + Apply()), GameSession race/stats fields

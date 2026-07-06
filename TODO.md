@@ -330,33 +330,35 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `tests/Shared/StatBlockTests.cs` — 7 tests
 - [x] `tests/Shared/RaceRegistryTests.cs` — 19 tests (incl. ClassKitRegistry SkillBumps regression)
 
-### Phase 2 — Skill system
-- [ ] `shared/ToolTierData.cs` — record: MinLevel, GrantedItemId
-- [ ] `shared/SkillData.cs` — record: Id, DisplayNameKey, GoverningStats[], ToolTiers[]
-- [ ] `shared/SkillRegistry.cs` — loads 6 skills from `data/base/skills/*.json`
-- [ ] `data/base/skills/melee.json`, `ranged.json`, `athletics.json`, `woodcutting.json`, `foraging.json`, `cooking.json`
-- [ ] `shared/LocalState.cs` — add SkillLevels dict (skill id → level)
-- [ ] `server/SkillSystem.cs` — per-peer XP tracking; `NotifyAction(peerId, skillId)`; level-up with stat cap; tool tier grants on threshold; broadcasts level to client
-- [ ] Wire growth triggers: melee hit → Melee; ranged hit → Ranged; chop → Woodcutting; harvest → Foraging; cook → Cooking
-- [ ] `shared/HealthSystem.cs` — apply class skill bumps in RequestSetClass
-- [ ] `data/lang/en.json` — skill loc keys
-- [ ] `tests/Shared/SkillRegistryTests.cs`
+### Phase 2 — Skill system ✅
+- [x] `shared/ToolTierData.cs` — record: MinLevel, GrantedItemId
+- [x] `shared/SkillData.cs` — record: Id, DisplayNameKey, GoverningStats[], XpPerAction, XpPerLevel, ToolTiers[]
+- [x] `shared/SkillRegistry.cs` — 6 hardcoded skills (melee/ranged/athletics/woodcutting/foraging/cooking)
+- [x] `shared/LocalState.cs` — added SkillLevels dict + SetSkillLevel + SkillLevelChanged event
+- [x] `server/SkillSystem.cs` — per-peer XP+bump tracking; NotifyAction; level-up with stat cap; tool tier grants; broadcasts level to client
+- [x] Wire triggers: CombatSystem melee hit → skill.melee; ProjectileSystem ranged hit → skill.ranged; BushSystem harvest → skill.foraging; BushSystem cook → skill.cooking; TreeSystem fell → skill.woodcutting
+- [x] `server/HealthSystem.cs` — ApplyBump called in RequestSetClass after kit distribution
+- [x] `data/lang/en.json` — skill loc keys + item.tool.bronze_axe
+- [x] `tests/Shared/SkillRegistryTests.cs` — 10 tests (213 total, 0 failures)
 
-### Phase 3 — Inventory UI panel
-- [ ] `client/InventoryPanel.cs` — CanvasLayer; I key open/close; scrollable slot list from LocalState.Inventory
-- [ ] `data/lang/en.json` — inventory panel loc keys
-- [ ] **Editor:** Add InventoryPanel CanvasLayer to GameWorld.tscn; attach script
+### Phase 3 — Inventory UI panel ✅
+- [x] `client/InventoryPanel.cs` — CanvasLayer Layer=25; I key toggle, Escape closes; centred modal panel; scrollable item list from LocalState.Inventory; refreshes on LocalState.InventoryChanged event
+- [x] `shared/LocalState.cs` — InventoryChanged event added (fired in SetInventory)
+- [x] `client/MainMenuController.cs` — registered "open_inventory" → Key.I
+- [x] `data/lang/en.json` — inventory.title/empty/close_hint; resource.wood.name
+- [ ] **Editor:** Add InventoryPanel CanvasLayer node to GameWorld.tscn; attach script `res://scripts/client/InventoryPanel.cs`
 
-### Phase 4 — Character sheet UI
-- [ ] `client/CharacterSheet.cs` — K key open/close (Tab already eat_food); race, class, stats (Str/Dex/Con/Wis), 6 skill levels + stat caps
-- [ ] `shared/LocalState.cs` — add RaceId, ClassName, full StatBlock
-- [ ] **Editor:** Add CharacterSheet CanvasLayer to GameWorld.tscn; attach script
+### Phase 4 — Character sheet UI ✅
+- [x] `client/CharacterSheet.cs` — CanvasLayer Layer=26; K key toggle, Escape closes; race/class line; Str/Dex/Con/Wis (race-modified); 6 skill rows with Level + Cap columns; cap cell turns orange when at cap; live refresh on LocalState.SkillLevelChanged
+- [x] `client/MainMenuController.cs` — registered "char_sheet" → Key.K
+- [x] `data/lang/en.json` — charSheet.* loc keys
+- [ ] **Editor:** Add CharacterSheet CanvasLayer to GameWorld.tscn; attach script `res://scripts/client/CharacterSheet.cs`
 
 ### Phase 5 — Character creation screen
-- [ ] `client/CharacterCreateScreen.cs` — rolls 3d6×4; race picker (Human/Dwarf/Elf/Halfling applies modifier); class picker; reroll button; confirm → GameWorld
-- [ ] `scenes/CharacterCreateScreen.tscn` — editor task
-- [ ] `client/MainMenuController.cs` — route Solo/Host/Join through CharacterCreateScreen instead of ClassSelectScreen
-- [ ] `data/lang/en.json` — character creation loc keys
+- [x] `client/CharacterCreateScreen.cs` — rolls 3d6×4; race picker (Human/Dwarf/Elf/Halfling applies modifier); class picker; reroll button; confirm → GameWorld
+- [ ] `scenes/CharacterCreateScreen.tscn` — **editor task** (see editor instructions below)
+- [x] `client/MainMenuController.cs` — route Solo/Host/Join through CharacterCreateScreen instead of ClassSelectScreen
+- [x] `data/lang/en.json` — all character creation loc keys present from Phase 1
 
 ### Demo gate
 - [ ] Player creates Ranger (any race), enters world, chops 75 trees, watches Woodcutting reach level 15, receives bronze axe, stat ceiling stops further progress

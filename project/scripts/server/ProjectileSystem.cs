@@ -150,12 +150,15 @@ public partial class ProjectileSystem : Node
 					if (proj.OriginPeerId < MONSTER_ID_THRESHOLD)
 					{
 						var pStats = CombatSystem.Instance?.GetPlayerStats(proj.OriginPeerId)
-						             ?? new StatBlock(13, 12, 10, 10);
+									 ?? new StatBlock(13, 12, 10, 10);
 						damageMod = CombatResolver.PlayerDamageMod(proj.WeaponId, pStats.Str, pStats.Dex);
 					}
 					int dmg = System.Math.Max(1,
 						CombatResolver.RollDice(weapon.DamageDice, _projectileRng) + damageMod);
 					HealthSystem.Instance.ApplyDamage(targetId.Value, dmg);
+					// Only award skill XP for player-fired shots (monster shots have origin ≥ 10001).
+					if (proj.OriginPeerId < MONSTER_ID_THRESHOLD)
+						SkillSystem.Instance?.NotifyAction(proj.OriginPeerId, "skill.ranged");
 					var hitPos = new Vector3(proj.PosX, proj.PosY, proj.PosZ);
 					GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
 						?.Rpc("ShowCombatResult", hitPos, true, dmg, false);

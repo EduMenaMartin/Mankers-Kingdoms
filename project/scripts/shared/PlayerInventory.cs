@@ -38,6 +38,13 @@ public sealed class PlayerInventory
         return true;
     }
 
+    /// <summary>
+    /// Removes all of <paramref name="itemId"/> regardless of how many are held.
+    /// No-ops silently if the item is not present.
+    /// Use this for kit-clearing, not for crafting (which should fail if stock is too low).
+    /// </summary>
+    public void ForceRemove(string itemId) => _items.Remove(itemId);
+
     public int Count(string itemId) =>
         _items.TryGetValue(itemId, out int c) ? c : 0;
 

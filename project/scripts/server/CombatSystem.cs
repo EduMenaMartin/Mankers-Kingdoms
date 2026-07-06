@@ -213,6 +213,7 @@ public partial class CombatSystem : Node
         }
 
         HealthSystem.Instance.ApplyDamage(targetEntityId, damage);
+        SkillSystem.Instance?.NotifyAction(sender, "skill.melee");
         GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
             ?.Rpc("ShowCombatResult", targetPos.Value, true, damage, isCrit);
         GD.Print($"[Combat] peer {sender} hit entity {targetEntityId} with {weaponId} " +

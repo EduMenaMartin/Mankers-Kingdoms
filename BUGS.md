@@ -2,6 +2,19 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [FIXED] Starting kit given twice — double items on spawn (2026-07-06)
+
+**Milestone found:** M5 (noticed on Ranger; affects all classes)
+**Root cause:** `RequestSetClass` clears the prior kit with `RemoveItems(sender, itemId, 999)`. `PlayerInventory.Remove` requires the player to hold at least `count` items — 999 is never satisfied — so all removes silently fail and the kit is added a second time.
+**Fix:** Added `PlayerInventory.ForceRemove(itemId)` (removes all, capped at available count) + `InventorySystem.ClearItem` wrapper. `RequestSetClass` now uses `ClearItem` in the clear loop.
+
+## [FIXED] Wrong en.json edited — loc keys missing in Godot (2026-07-06)
+
+**Milestone found:** M5
+**Root cause:** Two en.json files exist: `data/lang/en.json` (root, deleted) and `project/data/lang/en.json` (what Godot loads via `res://`). M5 Phase 1 keys (race.*, charCreate.*) were added to the root copy only.
+**Fix:** Keys synced to `project/data/lang/en.json`; root `data/lang/en.json` deleted.
+**Rule going forward:** All loc key edits go to `project/data/lang/en.json` only.
+
 Template:
 
 ```

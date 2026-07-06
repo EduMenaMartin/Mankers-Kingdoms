@@ -78,4 +78,26 @@ public class InventoryTests
         inv.Clear();
         Assert.Empty(inv.Items);
     }
+
+    // Regression: RequestSetClass used RemoveItems(999) to clear the prior kit, but
+    // Remove requires having at least count items — so it silently failed, leaving the
+    // old kit in place. The kit was then added again, doubling it.
+    [Fact]
+    public void ForceRemove_ClearsItemRegardlessOfCount()
+    {
+        var inv = new PlayerInventory();
+        inv.Add("item.weapon.shortbow", 1);
+        inv.ForceRemove("item.weapon.shortbow");
+        Assert.Equal(0, inv.Count("item.weapon.shortbow"));
+        Assert.Empty(inv.Items);
+    }
+
+    [Fact]
+    public void ForceRemove_NoOpsWhenItemAbsent()
+    {
+        var inv = new PlayerInventory();
+        inv.Add("resource.wood", 3);
+        inv.ForceRemove("item.weapon.shortbow"); // not in inventory — should not throw
+        Assert.Equal(3, inv.Count("resource.wood"));
+    }
 }

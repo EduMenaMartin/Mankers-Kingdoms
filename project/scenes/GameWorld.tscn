@@ -24,6 +24,9 @@
 [ext_resource type="Script" uid="uid://qj6txy04yndl" path="res://scripts/client/WorldMapScreen.cs" id="21_l32dp"]
 [ext_resource type="Script" uid="uid://mek16gphnhqx" path="res://scripts/client/MinimapHUD.cs" id="22_jfovg"]
 [ext_resource type="Script" uid="uid://tj5q18ec2lhf" path="res://scripts/client/CombatFeedbackHUD.cs" id="24_n7y4l"]
+[ext_resource type="Script" uid="uid://djpo1rosqkckm" path="res://scripts/server/SkillSystem.cs" id="25_fy50r"]
+[ext_resource type="Script" uid="uid://ctlom2ffvbtb7" path="res://scripts/client/InventoryPanel.cs" id="26_df2hd"]
+[ext_resource type="Script" uid="uid://bvi80524kyhs" path="res://scripts/client/CharacterSheet.cs" id="27_df2hd"]
 
 [node name="GameWorld" type="Node3D" unique_id=1324218193]
 
@@ -107,3 +110,12 @@ script = ExtResource("22_jfovg")
 
 [node name="CombatFeedbackHUD" type="Node" parent="." unique_id=1168087624]
 script = ExtResource("24_n7y4l")
+
+[node name="SkillSystem" type="Node" parent="." unique_id=769992534]
+script = ExtResource("25_fy50r")
+
+[node name="InventoryPanel" type="CanvasLayer" parent="." unique_id=1576874739]
+script = ExtResource("26_df2hd")
+
+[node name="CharacterSheet" type="CanvasLayer" parent="." unique_id=1998075165]
+script = ExtResource("27_df2hd")

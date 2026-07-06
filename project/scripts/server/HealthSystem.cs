@@ -94,12 +94,17 @@ public partial class HealthSystem : Node
         if (kit == null) return;
 
         // Clear any items from the default kit given in OnPlayerConnected.
+        // ForceRemove (not RemoveItems) because RemoveItems requires exact stock and
+        // would silently fail for quantities like 1 shortbow with a request of 999.
         foreach (var kitDef in ClassKitRegistry.All)
             foreach (var item in kitDef.StartingItems)
-                InventorySystem.Instance.RemoveItems(sender, item.ItemId, 999);
+                InventorySystem.Instance.ClearItem(sender, item.ItemId);
 
         foreach (var item in kit.StartingItems)
             InventorySystem.Instance.AddItem(sender, item.ItemId, item.Count);
+
+        // Apply class skill bumps (M5): flat starting bonuses defined in ClassKitData.SkillBumps.
+        SkillSystem.Instance?.ApplyBump(sender, kit.SkillBumps);
 
         // Stats (StatBlock) are managed separately by CombatSystem.RequestSetStats.
         GD.Print($"[Health] peer {sender} confirmed class {classId} ({kit.StartingItems.Length} stacks)");

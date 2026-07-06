@@ -55,10 +55,20 @@ public static class LocalState
     }
 
     /// <summary>
+    /// Fired when the local player's inventory changes.
+    /// Subscribed by InventoryPanel (M5 Phase 3) and future inventory-sensitive HUD nodes.
+    /// </summary>
+    public static event System.Action? InventoryChanged;
+
+    /// <summary>
     /// Called by InventorySystem when the authoritative server sends a state snapshot
     /// for the local peer. Replaces the whole inventory (snapshot semantics).
     /// </summary>
-    public static void SetInventory(PlayerInventory inv) => Inventory = inv;
+    public static void SetInventory(PlayerInventory inv)
+    {
+        Inventory = inv;
+        InventoryChanged?.Invoke();
+    }
 
     /// <summary>
     /// Called by NeedsSystem when the server broadcasts a needs snapshot for the local peer.
@@ -159,5 +169,32 @@ public static class LocalState
             _deathDropId      = -1L;
             DeathDropWorldPos = null;
         }
+    }
+
+    // ── Skill levels ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Current effective level per skill for the local player.
+    /// Keys are skill IDs (e.g. "skill.melee"). Written by SkillSystem via RPC.
+    /// </summary>
+    public static System.Collections.Generic.IReadOnlyDictionary<string, int> SkillLevels
+        => _skillLevels;
+
+    private static readonly System.Collections.Generic.Dictionary<string, int> _skillLevels = new();
+
+    /// <summary>
+    /// Fired when any skill level changes. Parameter: (skillId, newLevel).
+    /// Subscribed by the character sheet HUD in M5 Phase 4.
+    /// </summary>
+    public static event System.Action<string, int>? SkillLevelChanged;
+
+    /// <summary>
+    /// Called by SkillSystem.ClientApplySkillLevel RPC (runs on the owning peer).
+    /// </summary>
+    public static void SetSkillLevel(string skillId, int level)
+    {
+        if (_skillLevels.TryGetValue(skillId, out int existing) && existing == level) return;
+        _skillLevels[skillId] = level;
+        SkillLevelChanged?.Invoke(skillId, level);
     }
 }
