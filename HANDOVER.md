@@ -7,9 +7,48 @@
 ## Current status
 
 **Milestone:** M5 — in progress (Phases 1–5 code complete; editor tasks + demo gate pending)
-**Last session:** 2026-07-06 — M5 Phase 4: CharacterSheet implemented (K key modal, race/class/stats/skills+caps, live skill level refresh). 213 tests, 0 failures.
+**Last session:** 2026-07-08 — GDD §13 (ranged asymmetry) locked + implemented; KayKit animation system (PlayerAnimator) implemented; Player.tscn editor tasks complete. 214 tests, 0 failures.
 **Blockers:** None.
-**Awaiting:** Edu to add CharacterSheet + InventoryPanel CanvasLayer nodes to GameWorld.tscn (editor tasks).
+**Awaiting:** Edu to add CharacterSheet + InventoryPanel CanvasLayer nodes to GameWorld.tscn; build CharacterCreateScreen.tscn scene; then run M5 demo gate.
+
+---
+
+## What was done this session (2026-07-08)
+
+### GDD §13 — Ranged resolution asymmetry ✅ (locked + implemented)
+
+- `docs/gdd/combat.md` — §13 appended (locked): physical contact = automatic hit for ranged; d20+AB roll determines **normal vs. crit only**, never gates hit/miss. Fumble table suppressed for ranged on nat-1 (§13.3). Monster ranged uses same model (§13.5 Q3 pending confirmation). Wide-margin crit threshold deferred to balancing pass (§13.5 Q1).
+- `shared/CombatResolver.cs` — `PlayerAttackBonus(weaponId, str, dex, skillLevel)` — gains `skillLevel` param; formula now `skillLevel/10 + StatModifier(stat)` (was stat-only placeholder).
+- `server/SkillSystem.cs` — `GetSkillLevel(long peerId, string skillId)` public method added; reuses private `ComputeLevel`.
+- `server/CombatSystem.cs` — melee AB now `GetSkillLevel(sender, "skill.melee")` before `PlayerAttackBonus`. Melee hit/miss/crit logic untouched.
+- `server/ProjectileSystem.cs` — ranged hit block rewritten: inline `1d20` roll; `isCrit = (roll == 20)`; `rollTotal` kept for future wide-margin threshold; double dice on crit (§5.4); `System.Math.Max(1, dmg)` floor; `isCrit` propagated to `ShowCombatResult` (was hardcoded `false`). No hit/miss gate — nat-1 still deals damage.
+- `tests/Shared/CombatResolverTests.cs` — 3 existing `PlayerAttackBonus` tests updated for new signature; 1 new test (`PlayerAttackBonus_SkillLevel_ContributesFloorDiv10`). **214 tests, 0 failures.**
+
+### PlayerAnimator — KayKit Adventurers animation system ✅
+
+- `shared/LocalState.cs` — 4 new events + updated `SetHealth`:
+  - `DamageTaken` — HP decreased while alive
+  - `PlayerDied` — HP hit 0
+  - `PlayerRevived` — HP rose from 0 (respawn)
+  - `LocalArrowFired` + `NotifyLocalArrowFired()` — client-side ranged fire signal
+- `client/BowController.cs` — `LocalState.NotifyLocalArrowFired()` called after RPC dispatch.
+- `client/PlayerController.cs` — `AddChild(new PlayerAnimator())` in local-player `_Ready()` block.
+- `client/PlayerAnimator.cs` — new file; state machine (priority: Dead > HitStun > Throw > Jumping > Running > Walking > Idle):
+  - `Idle_A` when `Velocity.XZ < 0.15 m/s`
+  - `Walking_A/B/C` (cycles on each Walking entry) at normal speed (5 m/s)
+  - `Running_A/B` above 7 m/s (future-proof; no sprint yet)
+  - `Jump_Start → Queue(Jump_Idle) → Jump_Land` on `IsOnFloor()` edge detection
+  - `Hit_A/B` (alternating) on `LocalState.DamageTaken`; returns to movement on `AnimationFinished`
+  - `Death_A/B` (alternating) on `LocalState.PlayerDied`; blocks all transitions until `PlayerRevived`
+  - `Throw` on `LocalState.LocalArrowFired` (ranged placeholder — no dedicated Shoot/DrawBow clip in pack)
+  - `ApplyCharacterMesh()` in `_Ready()`: shows `KnightMeshes` or `RangerMeshes` based on `GameSession.ChosenClassId`; uses `GetNodeOrNull` so it's safe before editor setup
+- Animation clips use library-prefixed names: `"Rig_Medium_General/Idle_A"`, `"Rig_Medium_MovementBasic/Walking_A"`, etc.
+- Note: confirm `Death_A/B` loop mode = `None` in AnimationPlayer so they hold the final pose.
+
+### Player.tscn editor tasks ✅ (completed by Edu)
+- Deleted old `MeshInstance3D` capsule (direct child of Player)
+- Wrapped 9 Knight mesh instances into `KnightMeshes` Node3D under `Skeleton3D`
+- Added Ranger asset as `RangerMeshes` Node3D (Visible=false) under `Skeleton3D`
 
 ---
 
@@ -281,14 +320,14 @@
 
 ## What's next (top 3)
 
-1. **Editor tasks (3 nodes to add to GameWorld.tscn):**
+1. **Editor tasks (nodes to add to GameWorld.tscn):**
    - `InventoryPanel` CanvasLayer → script `res://scripts/client/InventoryPanel.cs`
    - `CharacterSheet` CanvasLayer → script `res://scripts/client/CharacterSheet.cs`
-   - (SkillSystem Node from Phase 2 — may already be done)
+   - `SkillSystem` Node → script `res://scripts/server/SkillSystem.cs` (if not already done)
 
-2. **Editor task: `scenes/CharacterCreateScreen.tscn`** — build the scene (instructions below). Once done, the full M5 char-creation flow is playable end-to-end.
+2. **Editor task: `scenes/CharacterCreateScreen.tscn`** — build the scene (instructions in session log below). Once done, the full M5 char-creation flow is playable end-to-end.
 
-3. **M5 demo gate:** Player creates Ranger, chops 75 trees → Woodcutting 15 → bronze axe granted → K key shows cap reached in orange. Verify CharacterSheet shows correct race/class/stats.
+3. **M5 demo gate:** Player creates Ranger, chops 75 trees → Woodcutting 15 → bronze axe granted → K key shows cap reached in orange. Verify CharacterSheet shows race/class/stats; verify animations play (idle, walk, hit, death).
 
 ---
 
@@ -327,6 +366,15 @@ The root `data/lang/en.json` was a stale duplicate and has been deleted. Do not 
 - Triggers wired: melee hit, player ranged hit, harvest, cook, tree fell
 - TreeSystem placeholder _playerXp dict removed; HealthSystem.RequestSetClass calls ApplyBump
 - en.json: 6 skill keys + bronze_axe; 10 new tests; 213 total, 0 failures
+
+### 2026-07-08 — §13 ranged asymmetry + PlayerAnimator (214 tests)
+- GDD §13 locked: ranged physical contact = auto-hit; d20+AB roll → normal/crit only
+- CombatResolver.PlayerAttackBonus gains skillLevel param; SkillSystem.GetSkillLevel() added
+- CombatSystem melee AB now uses real skill.melee level; ProjectileSystem ranged hit rewritten
+- PlayerAnimator: full KayKit animation state machine (Idle/Walk/Run/Jump/Hit/Death/Throw)
+- LocalState: DamageTaken/PlayerDied/PlayerRevived/LocalArrowFired events
+- Player.tscn: old capsule deleted; KnightMeshes + RangerMeshes added (editor done by Edu)
+- 214 tests, 0 failures (+1 PlayerAttackBonus skill level test)
 
 ### 2026-07-06 — M5 Phase 5: character creation screen (196 tests)
 - Phase order decision: B (Phase 5 first)

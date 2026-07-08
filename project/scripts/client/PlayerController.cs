@@ -87,6 +87,8 @@ public partial class PlayerController : CharacterBody3D
 			AddChild(new MeleeController());
 			// BowController handles LMB fire (ranged) and arrow ghost management.
 			AddChild(new BowController());
+			// PlayerAnimator drives the KayKit AnimationPlayer based on movement and combat state.
+			AddChild(new PlayerAnimator());
 			// Tell the server our chosen class and stats.
 			// Deferred so the node tree is fully ready before the RPCs fire.
 			Callable.From(AnnounceClass).CallDeferred();

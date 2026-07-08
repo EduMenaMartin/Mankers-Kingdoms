@@ -27,11 +27,35 @@ public static class LocalState
     public static float CurrentHp { get; private set; } = 100f;
     public static float MaxHp     { get; private set; } = 100f;
 
+    /// <summary>Fired when the local player takes damage but survives (HP decreased, still > 0).</summary>
+    public static event System.Action? DamageTaken;
+
+    /// <summary>Fired when the local player's HP reaches 0.</summary>
+    public static event System.Action? PlayerDied;
+
+    /// <summary>Fired when the local player's HP rises from 0 (respawn).</summary>
+    public static event System.Action? PlayerRevived;
+
+    /// <summary>
+    /// Fired by BowController on the frame the local player dispatches a ranged fire RPC.
+    /// Client-side only — fires before server confirmation, sufficient for animation timing.
+    /// </summary>
+    public static event System.Action? LocalArrowFired;
+
+    /// <summary>Called by BowController immediately after dispatching RequestFireProjectile.</summary>
+    public static void NotifyLocalArrowFired() => LocalArrowFired?.Invoke();
+
     /// <summary>Called by HealthSystem.ApplyHealth when the server pushes a HP update.</summary>
     public static void SetHealth(float currentHp, float maxHp)
     {
-        CurrentHp = currentHp;
-        MaxHp     = maxHp;
+        bool  wasZero = CurrentHp <= 0f;
+        float prev    = CurrentHp;
+        CurrentHp     = currentHp;
+        MaxHp         = maxHp;
+
+        if      (!wasZero && currentHp <= 0f) PlayerDied?.Invoke();
+        else if ( wasZero && currentHp >  0f) PlayerRevived?.Invoke();
+        else if (!wasZero && currentHp < prev) DamageTaken?.Invoke();
     }
 
     /// <summary>

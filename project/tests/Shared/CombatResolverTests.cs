@@ -220,23 +220,32 @@ public class CombatResolverTests
     [Fact]
     public void PlayerAttackBonus_Fighter_Melee_IsOne()
     {
-        // Fighter: Str=16 → mod +1; skill=0 → AB = 1. (combat.md §2.4)
-        Assert.Equal(1, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 16, dex: 10));
+        // Fighter: Str=16 → mod +1; skill=0 → AB = 0+1 = 1. (combat.md §2.4)
+        Assert.Equal(1, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 16, dex: 10, skillLevel: 0));
     }
 
     [Fact]
     public void PlayerAttackBonus_Ranger_Ranged_IsOne()
     {
-        // Ranger: Dex=15 → mod +1; skill=0 → AB = 1. (combat.md §4.2)
-        Assert.Equal(1, CombatResolver.PlayerAttackBonus("item.weapon.shortbow", str: 10, dex: 15));
+        // Ranger: Dex=15 → mod +1; skill=0 → AB = 0+1 = 1. (combat.md §4.2)
+        Assert.Equal(1, CombatResolver.PlayerAttackBonus("item.weapon.shortbow", str: 10, dex: 15, skillLevel: 0));
     }
 
     [Fact]
     public void PlayerAttackBonus_NeutralStats_IsZero()
     {
-        // Str=13/Dex=12 → mod 0 for both.
-        Assert.Equal(0, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 13, dex: 12));
-        Assert.Equal(0, CombatResolver.PlayerAttackBonus("item.weapon.shortbow",  str: 13, dex: 12));
+        // Str=13/Dex=12 → mod 0 for both; skill=0.
+        Assert.Equal(0, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 13, dex: 12, skillLevel: 0));
+        Assert.Equal(0, CombatResolver.PlayerAttackBonus("item.weapon.shortbow",  str: 13, dex: 12, skillLevel: 0));
+    }
+
+    [Fact]
+    public void PlayerAttackBonus_SkillLevel_ContributesFloorDiv10()
+    {
+        // skill=10 → floor(10/10)=1; skill=19 → floor=1; skill=20 → floor=2.
+        Assert.Equal(1, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 10, dex: 10, skillLevel: 10));
+        Assert.Equal(1, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 10, dex: 10, skillLevel: 19));
+        Assert.Equal(2, CombatResolver.PlayerAttackBonus("item.weapon.longsword", str: 10, dex: 10, skillLevel: 20));
     }
 
     [Fact]

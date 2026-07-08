@@ -360,6 +360,22 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `client/MainMenuController.cs` — route Solo/Host/Join through CharacterCreateScreen instead of ClassSelectScreen
 - [x] `data/lang/en.json` — all character creation loc keys present from Phase 1
 
+### GDD §13 — Ranged resolution asymmetry ✅
+- [x] `docs/gdd/combat.md` §13 appended (locked): physical contact = automatic hit; d20+AB → normal/crit only
+- [x] `shared/CombatResolver.cs` — `PlayerAttackBonus` gains `skillLevel` param; formula: `skillLevel/10 + StatModifier`
+- [x] `server/SkillSystem.cs` — `GetSkillLevel(long peerId, string skillId)` public method
+- [x] `server/CombatSystem.cs` — melee AB uses real `skill.melee` level via `GetSkillLevel`
+- [x] `server/ProjectileSystem.cs` — ranged hit: inline d20+AB; nat20 = crit; double dice; `isCrit` to `ShowCombatResult`; no hit/miss gate
+- [x] `tests/Shared/CombatResolverTests.cs` — updated callers + `PlayerAttackBonus_SkillLevel_ContributesFloorDiv10`
+
+### KayKit animation system ✅
+- [x] `shared/LocalState.cs` — `DamageTaken`, `PlayerDied`, `PlayerRevived`, `LocalArrowFired` events; `SetHealth` updated
+- [x] `client/BowController.cs` — `NotifyLocalArrowFired()` after fire RPC dispatch
+- [x] `client/PlayerController.cs` — `AddChild(new PlayerAnimator())` in local-player `_Ready()`
+- [x] `client/PlayerAnimator.cs` — state machine: Idle_A, Walking_A/B/C, Running_A/B, Jump sequence, Hit_A/B, Death_A/B, Throw; `ApplyCharacterMesh()` for Knight/Ranger visibility
+- [x] **Editor (Edu):** deleted old capsule MeshInstance3D; wrapped Knight meshes into `KnightMeshes`; added `RangerMeshes` (Visible=false)
+- [ ] **Editor:** confirm `Death_A` and `Death_B` loop mode = `None` in AnimationPlayer
+
 ### Demo gate
 - [ ] Player creates Ranger (any race), enters world, chops 75 trees, watches Woodcutting reach level 15, receives bronze axe, stat ceiling stops further progress
 

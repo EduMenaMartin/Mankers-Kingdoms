@@ -143,26 +143,46 @@ public partial class ProjectileSystem : Node
 				var weapon = WeaponRegistry.Find(proj.WeaponId);
 				if (weapon != null)
 				{
-					// Ranged physical hit: trajectory is the attack roll; just roll damage dice.
-					// Player shots add Dex damage modifier; monster shots use 0.
-					// combat.md §4: Damage = WeaponDice + StatModifier(Dex for ranged).
-					int damageMod = 0;
+					// combat.md §13.1: physical contact = automatic hit (aim+trajectory is the skill gate).
+					// Roll 1d20 + AB; result only selects normal-hit vs. crit (§13.3) — never gates hit/miss.
+					// combat.md §4: Damage = WeaponDice + StatModifier(GoverningStat).
+					int attackBonus;
+					int damageMod;
 					if (proj.OriginPeerId < MONSTER_ID_THRESHOLD)
 					{
-						var pStats = CombatSystem.Instance?.GetPlayerStats(proj.OriginPeerId)
-									 ?? new StatBlock(13, 12, 10, 10);
-						damageMod = CombatResolver.PlayerDamageMod(proj.WeaponId, pStats.Str, pStats.Dex);
+						var pStats     = CombatSystem.Instance?.GetPlayerStats(proj.OriginPeerId)
+										 ?? new StatBlock(13, 12, 10, 10);
+						int skillLevel = SkillSystem.Instance?.GetSkillLevel(proj.OriginPeerId, "skill.ranged") ?? 0;
+						attackBonus    = CombatResolver.PlayerAttackBonus(proj.WeaponId, pStats.Str, pStats.Dex, skillLevel);
+						damageMod      = CombatResolver.PlayerDamageMod(proj.WeaponId, pStats.Str, pStats.Dex);
 					}
-					int dmg = System.Math.Max(1,
-						CombatResolver.RollDice(weapon.DamageDice, _projectileRng) + damageMod);
+					else
+					{
+						// combat.md §13.5 Q3: applying same asymmetric model to monster ranged (not yet confirmed).
+						var mData   = MonsterSystem.Instance?.GetMonsterData(proj.OriginPeerId);
+						attackBonus = mData?.AttackBonus ?? 0;
+						damageMod   = 0;
+					}
+
+					// Roll determines normal-hit vs. crit only (§13.3).
+					// total is computed for future wide-margin crit threshold (§13.5 Q1); nat20 only for v1.
+					int  roll      = _projectileRng.Next(1, 21);
+					int  rollTotal = roll + attackBonus; // kept for future wide-margin crit threshold (§13.5 Q1)
+					bool isCrit    = (roll == 20);
+					int  dmg       = CombatResolver.RollDice(weapon.DamageDice, _projectileRng) + damageMod;
+					if (isCrit && !string.IsNullOrEmpty(weapon.DamageDice))
+						dmg += CombatResolver.RollDice(weapon.DamageDice, _projectileRng); // §5.4: double dice on crit
+
+					dmg = System.Math.Max(1, dmg);
 					HealthSystem.Instance.ApplyDamage(targetId.Value, dmg);
 					// Only award skill XP for player-fired shots (monster shots have origin ≥ 10001).
 					if (proj.OriginPeerId < MONSTER_ID_THRESHOLD)
 						SkillSystem.Instance?.NotifyAction(proj.OriginPeerId, "skill.ranged");
 					var hitPos = new Vector3(proj.PosX, proj.PosY, proj.PosZ);
 					GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
-						?.Rpc("ShowCombatResult", hitPos, true, dmg, false);
-					GD.Print($"[Projectile] {proj.WeaponId} (id {id}) hit entity {targetId.Value} for {dmg} dmg");
+						?.Rpc("ShowCombatResult", hitPos, true, dmg, isCrit);
+					GD.Print($"[Projectile] {proj.WeaponId} (id {id}) hit entity {targetId.Value} " +
+							 $"for {dmg}{(isCrit ? " (CRIT)" : "")} dmg (roll {roll}+{attackBonus}={rollTotal})");
 				}
 			}
 

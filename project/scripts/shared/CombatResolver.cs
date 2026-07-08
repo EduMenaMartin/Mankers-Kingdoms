@@ -110,13 +110,12 @@ public static class CombatResolver
     /// Player's attack bonus.
     /// Formula: floor(SkillLevel / 10) + StatModifier(GoverningStat).
     /// Melee → Strength; Ranged → Dexterity (combat.md §2.2).
-    /// Skill level remains 0 until the skills system is wired.
     /// </summary>
-    public static int PlayerAttackBonus(string weaponId, int str, int dex)
+    public static int PlayerAttackBonus(string weaponId, int str, int dex, int skillLevel)
     {
         var weapon = WeaponRegistry.Find(weaponId);
         int stat   = (weapon?.IsRanged == true) ? dex : str;
-        return StatModifier(stat); // skill=0
+        return skillLevel / 10 + StatModifier(stat);
     }
 
     /// <summary>

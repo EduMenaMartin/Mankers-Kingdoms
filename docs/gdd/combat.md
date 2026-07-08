@@ -354,3 +354,41 @@ Fighter (Str 16 → mod +1, Melee skill 45) attacks while holding block:
 1. Exact penalty value (−3 placeholder) — balancing pass, not architectural.
 2. Whether this penalty stacks with the Medium/Heavy armor Dex-cap interactions (§11.1) or is fully independent — recommend independent (simple addition/subtraction, no multiplicative interaction) unless playtesting shows otherwise.
 3. Whether NPCs ever use this behavior (an AI blocking while attacking) or whether it's a player-only input combination for v1 — not yet specified; likely low priority since NPC AI complexity isn't a v1 focus area.
+
+---
+
+## 13. Ranged resolution asymmetry (addition)
+
+**Status:** locked. Addresses a real design flaw found during playtesting feedback: Ranged combat currently asks players to clear three independent failure gates (manual mouse aim, leading a moving target through arrow travel time + trajectory, THEN a separate d20 hit/miss roll) while Melee only faces one meaningful skill gate (facing/range/timing) before the same roll. Not matching intent — Ranged was being punished twice for the same thing.
+
+### 13.1 The decision
+
+For **Ranged attacks specifically**: if the arrow **physically connects** (aim + lead prediction succeeds, existing trajectory/travel-time system per `VERTICAL_SLICE.md` §3.4 confirms contact) — **this is an automatic hit.** No separate roll determines whether it lands.
+
+The existing d20 attack roll (§2.2) still happens for a Ranged attack, but its result no longer determines hit/miss — it determines **damage/crit tier only** (§13.3).
+
+**Melee is unaffected** — §2.2's full hit/miss roll stands unchanged for melee attacks. Melee's own gate (facing/range/timing) is comparatively light, so the dice layer is what gives melee its AD&D swinginess and stays as designed.
+
+### 13.2 Rationale
+
+Physical aim already **is** Ranged's skill-expression equivalent to Melee's dice roll — layering a second, invisible coin-flip on top of a harder physical skill check was the actual design flaw, not the concept of dice-driven combat itself. If a player nails the aim/lead, they should never be robbed of the hit by an unrelated roll; if they whiff the aim, that's the correct and sufficient failure point.
+
+### 13.3 What the attack roll now determines for Ranged — binary, not tiered (locked default for v1)
+
+Once physical contact is confirmed, roll 1d20 + Attack Bonus as before (§2.2's formula, completely unchanged), but **interpret the result differently for Ranged only:**
+
+- **Natural 20, or total ≥ Target Number by a wide margin** (placeholder threshold, tuned during balancing): **Critical hit**, per §5.4's existing crit table.
+- **Any other successful contact:** **Normal hit**, standard damage (§4).
+- **§5.4's fumble table does NOT trigger for Ranged on a natural 1** — a natural 1 no longer determines whether the shot lands at all; a physical miss already covers "the shot failed." (See §13.5, open question 2, on whether a different fumble-equivalent belongs here later.)
+
+**A three-tier "graze" outcome** (partial damage on a low roll that still physically connected) was considered and **deferred for v1** — keeping this binary (normal-hit / crit) for simplicity. Revisit only if playtesting shows Ranged damage needs more granularity.
+
+### 13.4 What doesn't change
+
+Target Number formula (§2.2), armor/shield effects (§2.2, §11), and the damage formula (§4) are all unchanged. Only the **interpretation** of the roll's outcome differs for Ranged (hit/miss removed from the roll's job, crit/normal-hit-tier only remains) — not the underlying math or any other formula in this document.
+
+### 13.5 Open questions
+
+1. Exact "wide margin" threshold for the strong-roll auto-crit case (§13.3) — placeholder, balancing pass, not architectural.
+2. Whether a fumble-equivalent should exist for Ranged at all (e.g. a natural-1 roll on a landed shot causes a minor complication like a slow nock/reload delay on the next shot) — deferred, not blocking v1.
+3. Whether NPC/monster ranged attackers (e.g. a future Bandit Archer per `VERTICAL_SLICE.md` §3.6) use this same asymmetric model, or the standard full-roll model from §2.2 — recommend the same treatment for consistency, but not yet confirmed.

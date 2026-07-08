@@ -194,7 +194,8 @@ public partial class CombatSystem : Node
 
         // ── Attack roll (combat.md §2.2 + §12.2) ────────────────────────────
         var stats        = GetPlayerStats(sender);
-        int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId, stats.Str, stats.Dex);
+        int meleeLevel   = SkillSystem.Instance?.GetSkillLevel(sender, "skill.melee") ?? 0;
+        int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId, stats.Str, stats.Dex, meleeLevel);
         // §12.2: fighting defensively lowers hit chance for that swing only.
         if (IsBlocking(sender)) attackBonus -= 3;
         int targetNumber = GetEntityTargetNumber(targetEntityId);

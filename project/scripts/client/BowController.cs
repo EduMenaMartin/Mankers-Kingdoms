@@ -130,6 +130,7 @@ public partial class BowController : Node
         else
             ps.RpcId(1, "RequestFireProjectile", weaponId, origin, dir.Value);
 
+        LocalState.NotifyLocalArrowFired(); // triggers Throw animation on PlayerAnimator
         _fireTimer = weapon.SwingCooldown;
         return true;
     }
