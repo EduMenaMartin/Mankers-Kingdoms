@@ -6,10 +6,49 @@
 
 ## Current status
 
-**Milestone:** M5 — in progress (Phases 1–5 code complete; editor tasks + demo gate pending)
-**Last session:** 2026-07-08 — GDD §13 (ranged asymmetry) locked + implemented; KayKit animation system (PlayerAnimator) implemented; Player.tscn editor tasks complete. 214 tests, 0 failures.
+**Milestone:** M6 — Village and recruitment (planning; not yet started)
+**Last session:** 2026-07-09 — M5 demo gate passed; animation bugs fixed; camera-relative WASD + zoom; build mode redesigned; M5 formally closed.
 **Blockers:** None.
-**Awaiting:** Edu to add CharacterSheet + InventoryPanel CanvasLayer nodes to GameWorld.tscn; build CharacterCreateScreen.tscn scene; then run M5 demo gate.
+**Awaiting:** M6 phase breakdown presented to Edu for approval before implementation begins.
+
+---
+
+## What was done this session (2026-07-09)
+
+### M5 demo gate — PASSED ✅
+- Woodcutting XP growth confirmed in Output; K key (CharacterSheet) shows skill level in real time.
+- Ranger created, 75 trees chopped, Woodcutting reached level 15, bronze axe granted, stat ceiling confirmed.
+
+### Animation system fixes
+- `client/PlayerAnimator.cs` — node paths corrected: `Knight/AnimationPlayer` → `CharacterRig/AnimationPlayer`; same for KnightMeshes/RangerMeshes paths. Root cause: the scene node was named `CharacterRig` not `Knight`; `GetNode` threw on every _Ready, silently killing all animation.
+- `client/PlayerAnimator.cs` — `FaceMouseCursor()` added: per-frame horizontal-plane raycast from camera through mouse; rotates `CharacterRig` Y axis to face cursor. Model faces +Z at Y=0 → uses `Atan2(dir.X, dir.Z)`.
+- **Editor (Edu):** Ranger mesh nodes in Player.tscn were missing `skeleton = NodePath("../..")` — all `MeshInstance3D` children under `RangerMeshes` now have skeleton set; ranger animations work.
+
+### Camera and movement improvements (ADR-0025 follow-up)
+- `client/PlayerController.cs` — `GetCameraRelativeInput(Vector2)`: flattens camera -Z/+X axes to XZ plane, applies WASD vector relative to camera yaw. World-space direction sent to server unchanged (same Vector2 field, same server code). C key `toggle_combat` handler removed.
+- `client/CameraController.cs` — scroll-wheel zoom: `WheelUp` decrements `_followDistance` by 2 (min 5), `WheelDown` increments (max 30); default 14 unchanged. `FOLLOW_DISTANCE` constant replaced with `_followDistance` field.
+
+### Build mode redesign
+- **Old:** C toggles between build mode (default) and combat mode. B blocked in combat mode.
+- **New:** Combat mode is always the default (`InCombatMode = true`). B opens the build menu and enters build mode; closing the menu (B again / Close button) or completing/cancelling placement restores combat mode automatically. C key removed.
+- `shared/LocalState.cs` — `InCombatMode` default `false` → `true`; `SetCombatMode(bool)` added (fires event only on actual change); `ToggleCombatMode()` kept as legacy wrapper.
+- `client/BuildMenu.cs` — combat warning + `CombatModeChanged` subscription removed; B press sets `SetCombatMode(false)` + shows menu; close sets `SetCombatMode(true)`.
+- `client/PlacementController.cs` — `CombatModeChanged` subscription + `OnCombatModeChanged` removed; `CancelPlacement()` now calls `SetCombatMode(true)`.
+- `client/MainMenuController.cs` — `toggle_combat` → C key registration removed.
+- `client/PlayerController.cs` — `toggle_combat` action handler removed.
+
+### M5 formally closed
+- CURRENT_MILESTONE.md updated to M6.
+- TODO.md M5 items marked complete; post-gate fixes logged; M6 stub added.
+- HANDOVER.md updated (this entry).
+- BUGS.md — two new FIXED entries: PlayerAnimator path bug, Ranger skeleton bug.
+- CHANGELOG.md — M5 formally closed with full Added/Fixed/Tests record.
+- **214 tests, 0 failures** (no new tests this session — all changes were client-side presentation or mode-switching logic).
+
+### Docs and planning (end of session)
+- `docs/gdd/worldgen.md` — created; §11 (fog of war early probe for M9) written and locked. §1–10 pending authoring.
+- `VERTICAL_SLICE.md` M8 — fog of war bullet added to scope list.
+- `IDEAS_BACKLOG.md` — 9 new entries added (2026-07-09): 6 `[trivial-content]` visual polish items (post-process, AO, colour grade, foliage shader, water shader, bloom), 1 `[post-slice]` day/night visual payoff check, 1 `[rejected]` depth-of-field, 1 `[trivial-content]` itch.io shader sourcing note.
 
 ---
 
@@ -318,16 +357,14 @@
 
 ---
 
-## What's next (top 3)
+## What's next
 
-1. **Editor tasks (nodes to add to GameWorld.tscn):**
-   - `InventoryPanel` CanvasLayer → script `res://scripts/client/InventoryPanel.cs`
-   - `CharacterSheet` CanvasLayer → script `res://scripts/client/CharacterSheet.cs`
-   - `SkillSystem` Node → script `res://scripts/server/SkillSystem.cs` (if not already done)
-
-2. **Editor task: `scenes/CharacterCreateScreen.tscn`** — build the scene (instructions in session log below). Once done, the full M5 char-creation flow is playable end-to-end.
-
-3. **M5 demo gate:** Player creates Ranger, chops 75 trees → Woodcutting 15 → bronze axe granted → K key shows cap reached in orange. Verify CharacterSheet shows race/class/stats; verify animations play (idle, walk, hit, death).
+1. **M6 phase breakdown** — present to Edu for approval, then begin implementation.
+   - Phase 1: Village generation (VillagerData, VillageGenerator, VillageSystem spawns NPCs)
+   - Phase 2: Recruitment dialogue (E key near villager, follow state)
+   - Phase 3: Station assignment (E key near station with follower, job loop)
+   - Phase 4: NPC needs (hunger/rest tick, Shelter seek)
+   - Demo gate: recruit → assign to Woodcutter's Post → NPC chops autonomously
 
 ---
 

@@ -115,7 +115,9 @@ script = ExtResource("24_n7y4l")
 script = ExtResource("25_fy50r")
 
 [node name="InventoryPanel" type="CanvasLayer" parent="." unique_id=1576874739]
+layer = 25
 script = ExtResource("26_df2hd")
 
 [node name="CharacterSheet" type="CanvasLayer" parent="." unique_id=1998075165]
+layer = 26
 script = ExtResource("27_df2hd")

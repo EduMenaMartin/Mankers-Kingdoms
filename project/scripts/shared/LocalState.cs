@@ -132,24 +132,32 @@ public static class LocalState
     // ── Combat / build mode ───────────────────────────────────────────────────
 
     /// <summary>
+    /// <summary>
     /// True when the local player is in combat mode (LMB = attack).
-    /// False (default) = build mode (LMB = building placement, B opens the build menu).
-    /// Toggled by the "toggle_combat" input action (C key).
+    /// Default is true — combat is always on. Build mode is transient: entered when the
+    /// build menu opens, exited automatically when a building is placed or placement is cancelled.
     /// </summary>
-    public static bool InCombatMode { get; private set; } = false;
+    public static bool InCombatMode { get; private set; } = true;
 
     /// <summary>
-    /// Fired on every combat-mode flip. bool parameter is the new InCombatMode value.
-    /// Subscribed by PlacementController (cancel ghost) and BuildMenu (close panel).
+    /// Fired whenever InCombatMode changes.
+    /// Subscribed by WeaponHUD (display update).
     /// </summary>
     public static event System.Action<bool>? CombatModeChanged;
 
-    /// <summary>Flip combat/build mode. Called by PlayerController on "toggle_combat" input.</summary>
-    public static void ToggleCombatMode()
+    /// <summary>
+    /// Explicitly set combat mode. Used by BuildMenu (false on open, true on close)
+    /// and PlacementController (true after place or cancel).
+    /// </summary>
+    public static void SetCombatMode(bool inCombat)
     {
-        InCombatMode = !InCombatMode;
+        if (InCombatMode == inCombat) return;
+        InCombatMode = inCombat;
         CombatModeChanged?.Invoke(InCombatMode);
     }
+
+    /// <summary>Legacy toggle — kept so existing callers compile; prefer SetCombatMode.</summary>
+    public static void ToggleCombatMode() => SetCombatMode(!InCombatMode);
 
     // ── Weapon mode (within combat mode) ─────────────────────────────────────
 

@@ -86,3 +86,61 @@ CI currently only runs xUnit tests (pure .NET, no Godot). A headless Godot build
 
 Considered adding full third-person-over-shoulder and first-person aiming modes alongside top-down, toggleable by the player. Deferred — would require parallel aiming/geometry-gate systems alongside the existing mouse-aim model in docs/gdd/combat.md, its own balancing pass, and cuts against the coop-presence reasoning behind ADR-0003 (especially first-person hiding the player's own race/class model). Real occlusion and screen-space complaints that prompted this were solved more cheaply instead: angled (not literal 90°) camera, free orbit around the player, and an occlusion fade shader — see ADR-0025. Revisit third/first-person only if a specific, strong reason emerges post-slice — not a default plan.
 
+### 2026-07-09 — [trivial-content] Visual consistency pass — unified post-process treatment
+Currently mixing multiple asset sources (KayKit characters, KayKit nature
+pack, placeholder primitives) with no shared visual treatment. A single
+post-processing profile applied globally (not per-asset) is the highest-
+value fix for making mismatched sources read as cohesive — cheaper and
+more effective than upgrading individual assets. Apply once a baseline
+scene exists to tune against.
+
+### 2026-07-09 — [trivial-content] Ambient occlusion + secondary fill light
+Biggest identified fix for "flat, unlit textures" complaint. Godot 4 has
+built-in SSAO. Add a second DirectionalLight3D as a fill/shadow light
+alongside the primary one. Cheap, high visual impact, no architecture
+change.
+
+### 2026-07-09 — [trivial-content] Color grading + subtle vignette
+Ties to the locked tone in PRD.md §4.8 ("mystical, not grimdark, not
+comedic, high-fantasy adventuring feel"). A warm, slightly desaturated
+grade reinforces this passively, every frame, for near-zero cost.
+
+### 2026-07-09 — [trivial-content] Foliage/grass wind sway shader
+Cheap vertex-shader technique (no new geometry, no particles) — directly
+targets the KayKit nature pack assets already installed. Likely the
+single cheapest fix for "plain textures moving plainly" specifically.
+
+### 2026-07-09 — [trivial-content] Water shimmer shader for the locked river
+VERTICAL_SLICE.md §3.8 locks "one river" as a terrain feature. Check
+whether it's currently a flat plane — if so, a simple scrolling-normal-
+map water shader is a well-known, cheap Godot pattern that would make
+this specific locked feature look intentional rather than placeholder.
+
+### 2026-07-09 — [trivial-content] Selective bloom for light sources
+Apply to torches, campfires (Cooking Fire), and any lit windows at night.
+Makes light sources actually read as light sources rather than just
+bright-colored geometry. Ties to the existing day/night cycle.
+
+### 2026-07-09 — [post-slice] Day/night visual payoff — verify and possibly add
+VERTICAL_SLICE.md §3.8 locks a day/night cycle mechanically (hunger/rest
+timing) but it's unclear whether it currently has any VISUAL payoff (sky
+color shift, light color temperature change). If it's purely a mechanical
+timer with no visible lighting change, that's a real gap — the mechanic
+exists but its most obvious payoff may be missing. Worth a quick check
+before deciding whether this needs work.
+
+### 2026-07-09 — [rejected] Depth of field post-processing
+Considered as a standard polish technique (commonly recommended
+alongside bloom/AO/color grading) but rejected for this project
+specifically — DoF blurring the periphery works against wanting full
+visibility of the settlement, teammates, and incoming threats in a
+top-down coop game. Do not add this even if it comes up again as
+"standard practice" — the reasoning here is project-specific, not a
+general objection to the technique.
+
+### 2026-07-09 — [trivial-content] Godot-specific shader/VFX asset resource
+itch.io has curated, engine-tagged shader/VFX packs (some specifically
+medieval/fantasy themed) — worth browsing there for ready-made foliage-
+sway, water, and ambient-particle shaders rather than building from
+scratch, same sourcing pattern already used for KayKit.
+

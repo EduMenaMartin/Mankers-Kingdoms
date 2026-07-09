@@ -124,8 +124,6 @@ public partial class PlayerController : CharacterBody3D
 			EatFood();
 		if (@event.IsActionPressed("toggle_weapon"))
 			LocalState.ToggleWeaponMode();
-		if (@event.IsActionPressed("toggle_combat"))
-			LocalState.ToggleCombatMode();
 	}
 
 	// ── Class and stats announcement ─────────────────────────────────────────
@@ -162,8 +160,9 @@ public partial class PlayerController : CharacterBody3D
 	private void ProcessLocalPlayer(float delta)
 	{
 		ApplyGravity(delta);
-		var input = GetInputVector();
-		Velocity = new Vector3(input.X * SPEED, Velocity.Y, input.Y * SPEED);
+		var rawInput    = GetInputVector();
+		var worldInput  = GetCameraRelativeInput(rawInput);
+		Velocity = new Vector3(worldInput.X * SPEED, Velocity.Y, worldInput.Y * SPEED);
 		MoveAndSlide();
 
 		if (_hasServerCorrection)
@@ -179,7 +178,7 @@ public partial class PlayerController : CharacterBody3D
 		if (Multiplayer.IsServer())
 			Rpc(MethodName.UpdateState, GlobalPosition);
 		else
-			RpcId(1, MethodName.ReceiveInput, input);
+			RpcId(1, MethodName.ReceiveInput, worldInput);
 	}
 
 	private void ProcessRemoteOnServer(float delta)
@@ -205,6 +204,29 @@ public partial class PlayerController : CharacterBody3D
 
 	private static Vector2 GetInputVector() =>
 		Input.GetVector("move_left", "move_right", "move_forward", "move_back");
+
+	/// <summary>
+	/// Rotates a raw WASD input vector into world-space using the camera's current yaw.
+	/// Only the horizontal (XZ) component of the camera's orientation is used — tilt is
+	/// explicitly excluded so a steep camera angle never adds a vertical velocity component.
+	/// Returns a Vector2(worldX, worldZ) with the same magnitude as the raw input,
+	/// safe to send to the server as-is (server applies SPEED, no other changes needed).
+	/// See ADR-0025.
+	/// </summary>
+	private Vector2 GetCameraRelativeInput(Vector2 rawInput)
+	{
+		// Flatten camera axes onto the XZ plane — this strips the tilt angle entirely.
+		var camForwardRaw = -_camera.GlobalBasis.Z;
+		var camRightRaw   =  _camera.GlobalBasis.X;
+
+		var camForward = new Vector3(camForwardRaw.X, 0f, camForwardRaw.Z).Normalized();
+		var camRight   = new Vector3(camRightRaw.X,   0f, camRightRaw.Z).Normalized();
+
+		// rawInput.Y is -1 for W (forward) and +1 for S (back), so negate it.
+		var worldDir = camRight * rawInput.X + camForward * -rawInput.Y;
+
+		return new Vector2(worldDir.X, worldDir.Z);
+	}
 
 	// ── Settlement interaction ────────────────────────────────────────────────
 

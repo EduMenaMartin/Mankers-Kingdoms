@@ -79,7 +79,6 @@ public partial class PlacementController : Node
         };
 
         OnBuildingSelected += StartPlacement;
-        LocalState.CombatModeChanged += OnCombatModeChanged;
 
         // Flash label shown when the server rejects a placement request.
         _flashLabel = new Label
@@ -107,7 +106,6 @@ public partial class PlacementController : Node
     {
         if (Current == this) Current = null;
         OnBuildingSelected -= StartPlacement;
-        LocalState.CombatModeChanged -= OnCombatModeChanged;
         LocalState.RejectionMessageReceived -= ShowFlash;
         _ghost?.QueueFree();
         _territoryRing?.QueueFree();
@@ -117,13 +115,6 @@ public partial class PlacementController : Node
     // ── Public API ────────────────────────────────────────────────────────────
 
     public void Cancel() => CancelPlacement();
-
-    // ── Combat mode integration ───────────────────────────────────────────────
-
-    private void OnCombatModeChanged(bool inCombat)
-    {
-        if (inCombat) CancelPlacement(); // entering combat cancels any active ghost
-    }
 
     // ── Signal receiver (untyped connect from SettlementSystem) ──────────────
 
@@ -161,6 +152,7 @@ public partial class PlacementController : Node
         _building  = null;
         _territoryRing?.QueueFree();
         _territoryRing = null;
+        LocalState.SetCombatMode(true); // always return to combat after place or cancel
     }
 
     private Node3D CreateTerritoryRing(Vector3 centre)

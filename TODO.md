@@ -374,10 +374,30 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `client/PlayerController.cs` — `AddChild(new PlayerAnimator())` in local-player `_Ready()`
 - [x] `client/PlayerAnimator.cs` — state machine: Idle_A, Walking_A/B/C, Running_A/B, Jump sequence, Hit_A/B, Death_A/B, Throw; `ApplyCharacterMesh()` for Knight/Ranger visibility
 - [x] **Editor (Edu):** deleted old capsule MeshInstance3D; wrapped Knight meshes into `KnightMeshes`; added `RangerMeshes` (Visible=false)
-- [ ] **Editor:** confirm `Death_A` and `Death_B` loop mode = `None` in AnimationPlayer
+- [x] **Editor:** confirm `Death_A` and `Death_B` loop mode = `None` in AnimationPlayer
 
 ### Demo gate
-- [ ] Player creates Ranger (any race), enters world, chops 75 trees, watches Woodcutting reach level 15, receives bronze axe, stat ceiling stops further progress
+- [x] Player creates Ranger (any race), enters world, chops 75 trees, watches Woodcutting reach level 15, receives bronze axe, stat ceiling stops further progress
+
+### Post-gate fixes (2026-07-09)
+- [x] `client/PlayerAnimator.cs` — node paths corrected (`Knight/` → `CharacterRig/`); animations were not playing at all
+- [x] `client/PlayerAnimator.cs` — `FaceMouseCursor()` added; character now rotates to face mouse cursor each frame
+- [x] `client/PlayerController.cs` — `GetCameraRelativeInput()` added; WASD now moves relative to camera yaw (ADR-0025)
+- [x] `client/CameraController.cs` — scroll-wheel zoom added (5–30 units, step 2, default 14)
+- [x] `client/BuildMenu.cs`, `client/PlacementController.cs`, `shared/LocalState.cs` — build mode redesign: default always combat; B opens build menu (enters build mode); close/place/cancel restores combat; C key toggle removed
+- [x] **Editor (Edu):** Ranger mesh `skeleton = NodePath("../..")` set on all RangerMeshes children in Player.tscn
+
+---
+
+## M5 ✅ COMPLETE (2026-07-09)
+
+---
+
+## M6 — Village and recruitment
+
+**Goal:** Player travels to a procedural village, recruits a high-Str villager, brings them home, assigns to Woodcutter's Post — NPC chops trees while player does something else.
+
+*Phases to be planned and approved before implementation begins.*
 
 ---
 

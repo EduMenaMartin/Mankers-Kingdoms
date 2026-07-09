@@ -6,70 +6,24 @@ using MankersKingdoms.Shared;
 namespace MankersKingdoms.Client;
 
 /// <summary>
-/// Build menu CanvasLayer — toggled by the "build_menu" action (B key).
+/// Build menu CanvasLayer — opened by the "build_menu" action (B key).
 /// Lists available building types with their resource costs.
 /// Selecting a building hides the menu and hands off to PlacementController.
+///
+/// Build mode is transient: entering this menu switches LocalState to build mode;
+/// closing it (via B, Close button, or Escape) restores combat mode automatically.
+/// PlacementController also restores combat mode after a place or cancel.
 /// </summary>
 public partial class BuildMenu : CanvasLayer
 {
 	// Place buttons keyed by building ID — refreshed when the menu opens.
 	private readonly Dictionary<string, Button> _placeButtons = new();
 
-	// Flash warning for "cannot build in combat mode".
-	private CanvasLayer? _warnLayer;
-	private Label?       _warnLabel;
-	private double       _warnTimer;
-
 	public override void _Ready()
 	{
 		Layer   = 20;
 		Visible = false;
 		BuildUI();
-
-		_warnLabel = new Label
-		{
-			HorizontalAlignment = HorizontalAlignment.Center,
-			VerticalAlignment   = VerticalAlignment.Top,
-			AnchorLeft          = 0f,
-			AnchorRight         = 1f,
-			AnchorTop           = 0.08f,
-			AnchorBottom        = 0.18f,
-			Visible             = false
-		};
-		_warnLayer = new CanvasLayer { Layer = 21 };
-		_warnLayer.AddChild(_warnLabel);
-		GetTree().GetCurrentScene().CallDeferred(Node.MethodName.AddChild, _warnLayer);
-
-		LocalState.CombatModeChanged += OnCombatModeChanged;
-	}
-
-	public override void _ExitTree()
-	{
-		LocalState.CombatModeChanged -= OnCombatModeChanged;
-		_warnLayer?.QueueFree();
-	}
-
-	public override void _Process(double delta)
-	{
-		if (_warnTimer > 0)
-		{
-			_warnTimer -= delta;
-			if (_warnTimer <= 0 && _warnLabel != null)
-				_warnLabel.Visible = false;
-		}
-	}
-
-	private void OnCombatModeChanged(bool inCombat)
-	{
-		if (inCombat) Visible = false; // close build menu when entering combat
-	}
-
-	private void ShowCombatWarning()
-	{
-		if (_warnLabel == null) return;
-		_warnLabel.Text    = "You cannot build in combat mode.";
-		_warnLabel.Visible = true;
-		_warnTimer         = 2.0;
 	}
 
 	// Disable/enable Place buttons based on current founder status.
@@ -79,7 +33,7 @@ public partial class BuildMenu : CanvasLayer
 		bool isFounder = LocalState.IsFounder;
 		foreach (var btn in _placeButtons.Values)
 		{
-			btn.Disabled  = !isFounder;
+			btn.Disabled    = !isFounder;
 			btn.TooltipText = isFounder ? "" : "Plant a Kingdom Marker first (F key)";
 		}
 	}
@@ -88,24 +42,24 @@ public partial class BuildMenu : CanvasLayer
 	{
 		if (!@event.IsActionPressed("build_menu")) return;
 
-		if (LocalState.InCombatMode)
-		{
-			ShowCombatWarning();
-			GetViewport().SetInputAsHandled();
-			return;
-		}
-
 		if (!Visible)
 		{
 			PlacementController.Current?.Cancel(); // cancel any active placement first
-			RefreshFounderState();                 // re-evaluate before showing
+			LocalState.SetCombatMode(false);       // enter build mode
+			RefreshFounderState();
 			Visible = true;
 		}
 		else
 		{
-			Visible = false;
+			CloseMenu();
 		}
 		GetViewport().SetInputAsHandled();
+	}
+
+	private void CloseMenu()
+	{
+		Visible = false;
+		LocalState.SetCombatMode(true); // return to combat mode
 	}
 
 	private void BuildUI()
@@ -179,13 +133,14 @@ public partial class BuildMenu : CanvasLayer
 			Text                = "Close  [B]",
 			SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter
 		};
-		closeBtn.Pressed += () => Visible = false;
+		closeBtn.Pressed += CloseMenu;
 		vbox.AddChild(closeBtn);
 	}
 
 	private void OnPlacePressed(string buildingId)
 	{
 		Visible = false;
+		// Do NOT restore combat mode here — PlacementController does it after place or cancel.
 		PlacementController.SelectBuilding(buildingId);
 	}
 

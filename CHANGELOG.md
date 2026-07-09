@@ -6,7 +6,59 @@ Follows [Keep a Changelog](https://keepachangelog.com/) conventions loosely.
 
 ---
 
+## [M5] — 2026-07-09 — Class, stats, skills, and inventory panel (COMPLETE)
+
+M5 demo gate passed. All gameplay code, editor tasks, and post-gate fixes complete.
+
+### Fixed (2026-07-09 post-gate)
+- **PlayerAnimator node paths** — `Knight/AnimationPlayer` → `CharacterRig/AnimationPlayer`; all animations were silently failing to initialize
+- **Ranger T-pose** — `skeleton = NodePath("../..")` missing on all RangerMeshes children in Player.tscn; added in editor by Edu
+- **Character facing** — `FaceMouseCursor()` added to `PlayerAnimator._Process`; character now rotates to face mouse cursor via horizontal-plane raycast, `Atan2(dir.X, dir.Z)` for +Z-forward KayKit model
+- **WASD camera-relative** — `GetCameraRelativeInput()` in `PlayerController`; movement direction now relative to camera yaw (ADR-0025); world-space vector sent to server, no server changes needed
+- **Camera zoom** — scroll-wheel zoom added to `CameraController` (range 5–30, step 2, default 14)
+- **Build mode UX** — default is always combat mode; B opens build menu and enters build mode; closing menu, completing, or cancelling placement restores combat mode; C key toggle removed; `LocalState.SetCombatMode(bool)` replaces toggle-only API
+
+### Added (2026-07-06, code-complete pass)
+
+**Character creation**
+- `CharacterCreateScreen` — roll 3d6 straight for Str/Dex/Con/Wis; pick race (Human/Dwarf/Elf/Halfling); pick class (Fighter/Ranger); Human race grants +1 to any chosen stat; Confirm disabled until all choices made; reroll clears Human bonus selection; effective stats shown with `raw → effective` notation when race changes a value
+- Route: MainMenu → CharacterCreateScreen → GameWorld (was MainMenu → ClassSelectScreen → GameWorld)
+
+**Stat foundation**
+- `StatBlock` — record: Str, Dex, Con, Wis; `SkillCap(stat)` = `floor(99 × stat / 18)` (ADR-0019); `Clamped()` enforces 3–18
+- `RaceData` / `RaceRegistry` — 4 races hardcoded: Human (+1 player choice), Dwarf (Con+1/Wis−1), Elf (Dex+1/Con−1), Halfling (Dex+1/Str−1); `Apply(rolled, chosenStat?)` applies modifiers and clamps
+- `GameSession` — added `RolledStats (StatBlock?)`, `ChosenRaceId`, `HumanChosenStat`
+- `CombatSystem._playerStats` upgraded from `(str, dex)` tuple to `StatBlock`; `RequestSetStats` RPC added; stats flow end-to-end from CharacterCreateScreen through CombatResolver
+
+**Skill system**
+- `SkillData` — record: Id, DisplayNameKey, GoverningStats[], XpPerAction, XpPerLevel, ToolTiers[]; `GetCap(StatBlock)` returns best cap across governing stats (Athletics uses max of Str/Con)
+- `ToolTierData` — record: MinLevel, GrantedItemId
+- `SkillRegistry` — 6 hardcoded skills: Melee (Str), Ranged (Dex), Athletics (max(Str/Con)), Woodcutting (Str), Foraging (Wis), Cooking (Wis); XpPerLevel=5, XpPerAction=1; Woodcutting level 15 → `item.tool.bronze_axe`
+- `SkillSystem` — server Node; per-peer XP + class-bump tracking; `NotifyAction(peerId, skillId)` awards XP and levels up on threshold; `ApplyBump` applies class starting bonuses; `ClientApplySkillLevel` RPC pushes effective level to client
+- Level formula: `effectiveLevel = min(statCap, rawXp / XpPerLevel + classBump)`. Demo gate: 75 chops = 75 XP / 5 = level 15
+- Class skill bumps: Fighter Melee+5/Athletics+3, Ranger Ranged+5/Foraging+3 (replaces removed Str/Dex class fields)
+- Skill XP wired into: melee hit (CombatSystem), player ranged hit (ProjectileSystem, monster shots excluded), bush harvest (BushSystem), cooking (BushSystem), tree fell (TreeSystem — placeholder `_playerXp` dict removed)
+- `LocalState` — `SkillLevels` dict + `SetSkillLevel` + `SkillLevelChanged` event; `InventoryChanged` event added (fired on every server inventory snapshot)
+
+**Inventory UI panel**
+- `InventoryPanel` — CanvasLayer Layer 25; **I** key toggles, Escape closes; centred 380×480 modal; scrollable item list (`item.name × count`); item names via `Loc.T(itemId + ".name")`; refreshes on `LocalState.InventoryChanged`
+
+**Character sheet**
+- `CharacterSheet` — CanvasLayer Layer 26; **K** key toggles, Escape closes; shows race, class, effective stats (Str/Dex/Con/Wis post-race-modifiers), 6 skill rows with Level + Cap columns; cap cell turns orange at ceiling, green while room to grow; live refresh on `LocalState.SkillLevelChanged`
+
+### Fixed (2026-07-06)
+- Starting kit given twice on spawn — `PlayerInventory.ForceRemove` + `InventorySystem.ClearItem` added; `RequestSetClass` uses `ClearItem` in clear loop instead of `RemoveItems(999)` which silently failed
+- Wrong `en.json` being edited — root duplicate deleted; all loc edits now go to `project/data/lang/en.json`
+
+### Tests
+- 214 tests, 0 failures
+- New suites: `StatBlockTests` (7), `RaceRegistryTests` (19), `SkillRegistryTests` (10), `InventoryTests` regression (2 ForceRemove tests)
+
+---
+
 ## [M5-code] — 2026-07-06 — Class, stats, skills, and inventory panel (code complete)
+
+*(Superseded by M5 entry above — kept for session-log reference only.)*
 
 All M5 gameplay code is implemented. Three editor tasks and the demo gate remain before M5 is formally closed.
 

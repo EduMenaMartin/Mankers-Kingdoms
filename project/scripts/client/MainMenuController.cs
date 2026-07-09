@@ -83,7 +83,6 @@ public partial class MainMenuController : Control
 		AddKeyAction("build_menu",   Key.B);
 		AddKeyAction("eat_food",        Key.Tab);
 		AddKeyAction("toggle_weapon",   Key.Q);
-		AddKeyAction("toggle_combat",   Key.C);
 		AddKeyAction("open_map",        Key.M);
 		AddKeyAction("open_inventory",  Key.I);
 		AddKeyAction("char_sheet",      Key.K);

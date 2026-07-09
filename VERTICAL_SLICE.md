@@ -288,6 +288,7 @@ Each milestone is small, demoable, and unambiguous. Each takes 1–4 weeks depen
 - All existing systems tested with save→quit→reload cycle
 - Basic UI polish (readable, not pretty)
 - Localization file audit — confirm no hardcoded strings remain in gameplay code
+- Fog of war probe — full-map toggle screen with unseen/previously-seen/currently-visible states, shared reveal across the party, persisted with the existing save data. See `docs/gdd/worldgen.md` §11 for full spec.
 - **Demo:** Play for 30 minutes, quit, restart, resume exactly where left off.
 
 ### M9 — Vertical slice playtest (2 weeks)

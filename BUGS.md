@@ -2,6 +2,30 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [P1] PlayerAnimator node paths wrong — animations not playing (2026-07-09)
+
+**Milestone found:** M5
+**Reproduce:** Enter GameWorld as any class; character stands in T-pose, no idle/walk/death animations.
+**Expected:** Idle animation plays immediately; walk/run/hit/death animate correctly.
+**Actual:** `GetNode<AnimationPlayer>("Knight/AnimationPlayer")` threw at `_Ready()` — node is named `CharacterRig` in Player.tscn, not `Knight`. All animation setup aborted silently.
+**Notes:** Fixed by correcting the three path constants in `PlayerAnimator.cs`: `Knight/AnimationPlayer` → `CharacterRig/AnimationPlayer`, and similarly for KnightMeshes/RangerMeshes paths.
+
+Status: FIXED (2026-07-09)
+
+---
+
+## [P1] Ranger meshes T-pose — `skeleton` NodePath missing in Player.tscn (2026-07-09)
+
+**Milestone found:** M5
+**Reproduce:** Create a Ranger character; enter GameWorld; character mesh is visible but completely rigid (T-pose) despite animations playing correctly for Fighter.
+**Expected:** Ranger meshes deform identically to Knight meshes — same Skeleton3D, same AnimationPlayer.
+**Actual:** All `MeshInstance3D` nodes under `RangerMeshes` were missing `skeleton = NodePath("../..")`. Without this, the mesh is not driven by the Skeleton3D and ignores all bone transforms.
+**Notes:** Fixed in Godot editor by Edu — set `skeleton = ../..` on all MeshInstance3D children of `RangerMeshes` in Player.tscn. Knight meshes already had this set correctly.
+
+Status: FIXED (2026-07-09)
+
+---
+
 ## [FIXED] Starting kit given twice — double items on spawn (2026-07-06)
 
 **Milestone found:** M5 (noticed on Ranger; affects all classes)
