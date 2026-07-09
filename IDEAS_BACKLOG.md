@@ -82,3 +82,7 @@ Content modding foundation exists (stable string IDs per ADR-0009, content-is-da
 
 CI currently only runs xUnit tests (pure .NET, no Godot). A headless Godot build step would catch C# compile errors in client/server scripts that reference Godot types. Requires `chickensoft-games/setup-godot` action on the runner. Worth adding in M1 once server scripts exist.
 
+### 2026-07-09 — [slice-affecting] Third-person / first-person camera modes
+
+Considered adding full third-person-over-shoulder and first-person aiming modes alongside top-down, toggleable by the player. Deferred — would require parallel aiming/geometry-gate systems alongside the existing mouse-aim model in docs/gdd/combat.md, its own balancing pass, and cuts against the coop-presence reasoning behind ADR-0003 (especially first-person hiding the player's own race/class model). Real occlusion and screen-space complaints that prompted this were solved more cheaply instead: angled (not literal 90°) camera, free orbit around the player, and an occlusion fade shader — see ADR-0025. Revisit third/first-person only if a specific, strong reason emerges post-slice — not a default plan.
+

@@ -89,6 +89,11 @@ public partial class PlayerController : CharacterBody3D
 			AddChild(new BowController());
 			// PlayerAnimator drives the KayKit AnimationPlayer based on movement and combat state.
 			AddChild(new PlayerAnimator());
+			// CameraController replaces the static M1 camera transform with runtime-computed
+			// tilt + orbit yaw. See ADR-0025.
+			AddChild(new CameraController());
+			// OcclusionFader dithers geometry that sits between the camera and the player.
+			AddChild(new OcclusionFader());
 			// Tell the server our chosen class and stats.
 			// Deferred so the node tree is fully ready before the RPCs fire.
 			Callable.From(AnnounceClass).CallDeferred();
