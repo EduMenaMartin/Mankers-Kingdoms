@@ -22,7 +22,8 @@ public partial class SettlementSystem : Node
     public static SettlementSystem Instance { get; private set; } = null!;
 
     // Server-only. SortedDictionary: ADR-0011 deterministic iteration.
-    private readonly SortedDictionary<long, Vector3> _markers = new();
+    private readonly SortedDictionary<long, Vector3> _markers   = new();
+    private readonly SortedDictionary<string, int>   _stockpile = new();
 
     public const float TERRITORY_RADIUS = 40f;
 
@@ -93,7 +94,10 @@ public partial class SettlementSystem : Node
         // If this is the local peer's marker, record founder status in LocalState.
         // BuildMenu reads this for UX greying — server enforcement is via IsFounder().
         if (peerId == Multiplayer.GetUniqueId())
+        {
             LocalState.SetFounder();
+            LocalState.SetMarkerWorldPos(position.X, position.Z);
+        }
 
         // Signal lets PlacementController cache this peer's territory centre.
         EmitSignal(SignalName.MarkerPlanted, peerId, position);
@@ -188,6 +192,60 @@ public partial class SettlementSystem : Node
     private void ClientNotifyRejection(string missingItemId) =>
         LocalState.NotifyRejection(missingItemId);
 
+    // ── Settlement stockpile ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Adds items to the settlement stockpile and broadcasts the new state to all peers.
+    /// Called by TreeSystem.FellTreeForNpc when an NPC chops a tree.
+    /// Server-side only.
+    /// </summary>
+    public void AddToStockpile(string itemId, int count)
+    {
+        _stockpile.TryGetValue(itemId, out int existing);
+        _stockpile[itemId] = existing + count;
+        GD.Print($"[Settlement] stockpile +{count} {itemId} → {_stockpile[itemId]}");
+        BroadcastStockpile();
+    }
+
+    /// <summary>
+    /// Moves all stockpile contents into the requesting founder's inventory and clears the stockpile.
+    /// Only the founder peer can take from their own stockpile.
+    /// </summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RequestTakeFromStockpile()
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+
+        if (!IsFounder(sender))
+        {
+            GD.PrintErr($"[Settlement] peer {sender} tried to take from stockpile — not a founder");
+            return;
+        }
+
+        foreach (var (itemId, count) in _stockpile)
+        {
+            InventorySystem.Instance.AddItem(sender, itemId, count);
+            GD.Print($"[Settlement] peer {sender} took {count}× {itemId} from stockpile");
+        }
+        _stockpile.Clear();
+        BroadcastStockpile();
+    }
+
+    private void BroadcastStockpile()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(_stockpile);
+        Rpc(MethodName.ClientUpdateStockpile, json);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ClientUpdateStockpile(string stockpileJson) =>
+        LocalState.SetStockpile(stockpileJson);
+
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true,
          TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     private void SpawnBuilding(string buildingId, Vector3 position)
@@ -196,6 +254,11 @@ public partial class SettlementSystem : Node
         if (data == null) return;
 
         var scene = GD.Load<PackedScene>(data.ScenePath);
+        if (scene == null)
+        {
+            GD.PrintErr($"[Settlement] scene not found: {data.ScenePath} — editor task pending");
+            return;
+        }
         var node  = scene.Instantiate<Node3D>();
         // Unique name avoids conflicts if multiple of the same type are placed.
         node.Name = $"{buildingId}_{(int)position.X}_{(int)position.Z}";

@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://bopn0mip75467"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_tepmp"]
+size = Vector3(4, 3, 4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bo0yh"]
+albedo_color = Color(0.74786204, 0.4888016, 0.31767747, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tepmp"]
+size = Vector3(4, 3, 4)
+
+[node name="WoodcuttersPost" type="StaticBody3D" unique_id=18319839]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1675031304]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+mesh = SubResource("BoxMesh_tepmp")
+surface_material_override/0 = SubResource("StandardMaterial3D_bo0yh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1701255481]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("BoxShape3D_tepmp")

@@ -140,5 +140,26 @@
   "charSheet.col.skill": "Skill",
   "charSheet.col.level": "Level",
   "charSheet.col.cap": "Cap",
-  "charSheet.close_hint": "Press K or Escape to close"
+  "charSheet.close_hint": "Press K or Escape to close",
+
+  "archetype.woodcutter.name": "Woodcutter",
+  "archetype.forager.name": "Forager",
+  "archetype.guard.name": "Guard",
+  "archetype.laborer.name": "Laborer",
+  "village.title": "Village",
+
+  "recruit.btn_recruit": "Recruit",
+  "recruit.btn_leave": "Leave",
+  "recruit.close_hint": "Press Escape to close",
+
+  "building.woodcutters_post.name": "Woodcutter's Post",
+  "building.stockpile.name": "Stockpile Drop",
+
+  "warning.assign.no_shelter": "Build a Shelter first — workers need somewhere to rest.",
+  "warning.job.no_stockpile": "Build a Stockpile Drop — your woodcutter has nowhere to deposit wood.",
+
+  "stockpile.title": "Settlement Stockpile",
+  "stockpile.empty": "Stockpile is empty.",
+  "stockpile.take_all": "Take All",
+  "stockpile.close_hint": "Press Escape to close"
 }

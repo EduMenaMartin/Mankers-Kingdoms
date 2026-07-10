@@ -13,6 +13,8 @@ namespace MankersKingdoms.Server;
 /// </summary>
 public partial class TreeSystem : Node
 {
+    public static TreeSystem Instance { get; private set; } = null!;
+
     private PackedScene _treeScene = null!;
     private PackedScene _woodDropScene = null!;
 
@@ -23,6 +25,8 @@ public partial class TreeSystem : Node
 
     public override void _Ready()
     {
+        Instance = this;
+
         _treeCfg      = TreeConfig.Default;
         _treeScene    = GD.Load<PackedScene>("res://scenes/tree.tscn");
         _woodDropScene = GD.Load<PackedScene>("res://scenes/WoodDrop.tscn");
@@ -73,6 +77,52 @@ public partial class TreeSystem : Node
 
         if (hp <= 0)
             FellTree(treeId, sender);
+    }
+
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the IDs of all trees that still have HP (not yet felled).
+    /// Used by VillageSystem to find the nearest tree for NPC job assignment.
+    /// </summary>
+    public System.Collections.Generic.ICollection<string> GetAvailableTreeIds() => _treeHp.Keys;
+
+    /// <summary>
+    /// Server-side tree chop triggered by an NPC (no RPC hop needed).
+    /// Wood yield goes to the settlement stockpile instead of player inventory.
+    /// SkillSystem is NOT notified — NPC labour does not grant player XP.
+    /// Called by VillageSystem job tick.
+    /// </summary>
+    /// <summary>
+    /// Returns wood yielded (WoodYield) when the tree is felled, 0 on intermediate chops.
+    /// Caller (VillageSystem) is responsible for routing the yield to the stockpile via the
+    /// NPC haul loop — this method no longer calls AddToStockpile directly.
+    /// </summary>
+    public int ServerChopTree(string treeId)
+    {
+        if (!Multiplayer.IsServer()) return 0;
+        if (!_treeHp.TryGetValue(treeId, out int hp)) return 0; // already felled or unknown
+
+        hp -= 1;
+        _treeHp[treeId] = hp;
+
+        if (hp <= 0)
+        {
+            FellTreeForNpc(treeId);
+            return _treeCfg.WoodYield;
+        }
+        return 0;
+    }
+
+    private void FellTreeForNpc(string treeId)
+    {
+        _treeHp.Remove(treeId);
+        // Wood yield is returned to VillageSystem via ServerChopTree — no direct stockpile call.
+        GD.Print($"[TreeSystem] NPC felled {treeId}");
+
+        var treeNode = GetNodeOrNull<Node3D>(treeId);
+        var dropPos  = treeNode?.GlobalPosition ?? Vector3.Zero;
+        Rpc(MethodName.OnTreeFelled, treeId, dropPos, _treeCfg.WoodYield);
     }
 
     private void FellTree(string treeId, long byPeer)

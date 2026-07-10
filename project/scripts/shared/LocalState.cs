@@ -59,11 +59,19 @@ public static class LocalState
     }
 
     /// <summary>
-    /// Fired on the local peer when the server rejects a building placement request.
+    /// Fired on the local peer when the server rejects a request or a settlement gate is
+    /// not met (missing building, full capacity, etc.).
     /// Subscribed by PlacementController to flash a message on screen.
     /// The string is already resolved via Loc.T before the event fires.
     /// </summary>
     public static event System.Action<string>? RejectionMessageReceived;
+
+    /// <summary>
+    /// Fires a pre-resolved warning message through the same flash channel used for
+    /// placement rejections. Called by VillageSystem and SettlementSystem to surface
+    /// settlement gate failures (missing shelter, missing stockpile, etc.).
+    /// </summary>
+    public static void ShowWarning(string message) => RejectionMessageReceived?.Invoke(message);
 
     /// <summary>
     /// Called by SettlementSystem.ClientNotifyRejection (runs on client via RpcId).
@@ -202,6 +210,83 @@ public static class LocalState
             DeathDropWorldPos = null;
         }
     }
+
+    // ── Follower NPC ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Villager ID of the NPC currently following this player, or "" if none.
+    /// Set by VillageSystem.ClientSetFollower; cleared by ClientClearFollower.
+    /// Read by RecruitmentDialogue (enable/disable Leave button) and StockpilePanel (Phase 3).
+    /// </summary>
+    public static string FollowerNpcId { get; private set; } = "";
+
+    /// <summary>
+    /// Fired when the follower NPC changes (parameter = new id, or "" if cleared).
+    /// Subscribed by RecruitmentDialogue to refresh the Leave button state.
+    /// </summary>
+    public static event System.Action<string>? FollowerChanged;
+
+    /// <summary>Called by VillageSystem when a villager is successfully recruited.</summary>
+    public static void SetFollower(string npcId)
+    {
+        FollowerNpcId = npcId;
+        FollowerChanged?.Invoke(npcId);
+    }
+
+    /// <summary>Called by VillageSystem when the follower is dismissed or assigned to a station.</summary>
+    public static void ClearFollower()
+    {
+        FollowerNpcId = "";
+        FollowerChanged?.Invoke("");
+    }
+
+    // ── Settlement stockpile ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Items accumulated in the local player's settlement stockpile.
+    /// Written by SettlementSystem.ClientUpdateStockpile; read by StockpilePanel.
+    /// </summary>
+    public static System.Collections.Generic.IReadOnlyDictionary<string, int> StockpileSnapshot
+        => _stockpile;
+
+    private static readonly System.Collections.Generic.Dictionary<string, int> _stockpile = new();
+
+    /// <summary>Fired whenever the stockpile contents change.</summary>
+    public static event System.Action? StockpileChanged;
+
+    /// <summary>
+    /// Called by SettlementSystem.ClientUpdateStockpile (JSON-encoded dictionary).
+    /// Replaces the whole snapshot (server is authoritative).
+    /// </summary>
+    public static void SetStockpile(string stockpileJson)
+    {
+        _stockpile.Clear();
+        if (!string.IsNullOrEmpty(stockpileJson) && stockpileJson != "{}")
+        {
+            try
+            {
+                var dict = System.Text.Json.JsonSerializer
+                    .Deserialize<System.Collections.Generic.Dictionary<string, int>>(stockpileJson);
+                if (dict != null)
+                    foreach (var (k, v) in dict) _stockpile[k] = v;
+            }
+            catch { /* malformed JSON — leave empty */ }
+        }
+        StockpileChanged?.Invoke();
+    }
+
+    // ── Kingdom Marker world position ─────────────────────────────────────────
+
+    /// <summary>
+    /// XZ world position of the local player's Kingdom Marker, or null if not planted.
+    /// Set by SettlementSystem.SpawnMarker on the local peer.
+    /// Used by PlayerController to detect proximity for stockpile panel access.
+    /// Stored as plain floats to avoid a Godot.Vector3 dependency in shared/.
+    /// </summary>
+    public static (float X, float Z)? MarkerWorldPos { get; private set; }
+
+    /// <summary>Called by SettlementSystem.SpawnMarker when this peer's marker is placed.</summary>
+    public static void SetMarkerWorldPos(float x, float z) => MarkerWorldPos = (x, z);
 
     // ── Skill levels ──────────────────────────────────────────────────────────
 

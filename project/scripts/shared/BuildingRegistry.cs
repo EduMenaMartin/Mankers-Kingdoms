@@ -42,8 +42,24 @@ public static class BuildingRegistry
         Width: 2f, Height: 1f, Depth: 2f
     );
 
+    public static readonly BuildingData WoodcuttersPost = new(
+        Id:             "building.woodcutters_post",
+        DisplayNameKey: "building.woodcutters_post.name",
+        ScenePath:      "res://scenes/WoodcuttersPost.tscn",
+        Cost:           new Dictionary<string, int> { ["resource.wood"] = 15 },
+        Width: 4f, Height: 3f, Depth: 4f
+    );
+
+    public static readonly BuildingData StockpileDrop = new(
+        Id:             "building.stockpile",
+        DisplayNameKey: "building.stockpile.name",
+        ScenePath:      "res://scenes/Stockpile.tscn",
+        Cost:           new Dictionary<string, int> { ["resource.wood"] = 8 },
+        Width: 3f, Height: 1.5f, Depth: 3f
+    );
+
     public static readonly IReadOnlyList<BuildingData> All =
-        new[] { Shelter, StorageChest, Workbench, CookingFire };
+        new[] { Shelter, StorageChest, Workbench, CookingFire, WoodcuttersPost, StockpileDrop };
 
     public static BuildingData? Find(string id) =>
         All.FirstOrDefault(b => b.Id == id);

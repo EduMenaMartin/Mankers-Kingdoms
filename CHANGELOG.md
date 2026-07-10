@@ -6,6 +6,51 @@ Follows [Keep a Changelog](https://keepachangelog.com/) conventions loosely.
 
 ---
 
+## [M6] — 2026-07-10 — Village and recruitment (COMPLETE)
+
+M6 demo gate passed. All gameplay code, editor tasks, and post-gate fixes complete.
+
+### Added
+
+**Village generation (Phase 1)**
+- `VillagerData` — immutable record: Id, Name, Stats (StatBlock), WorldX/Z; `ArchetypeTag` computed from highest stat (Str→woodcutter, Con→laborer, Dex→guard, Wis→forager); `ArchetypeNameKey` derived
+- `VillageData` — immutable record: Id, WorldX/Z, VillagerIds
+- `VillageGenerator` — seeded (salt `worldSeed ^ 0xB11A6E00u`); 1 village placed 45–70 units from origin at random angle; 6–10 villagers; each stat = best-of-three 3d6 rolls; Fisher-Yates name draw from pool; returns (VillageData, IReadOnlyList&lt;VillagerData&gt;)
+- `data/base/villages/names.json` — 30 medieval fantasy names
+- `VillageSystem` — server Node; spawns `VillagerNode` instances from seeded positions; holds all mutable NPC state in `SortedDictionary`s; NPC metadata set on node (id, name, archetype, stats)
+- `client/VillagerNode.cs` — CharacterBody3D; teal capsule (r=0.15, h=0.70); Label3D `"{name}\n[{archetype}]"` billboard, NoDepthTest; CollisionLayer 256u; `SetTarget(Vector3)` called via `.Call()` for server position broadcasts
+- `data/lang/en.json` — `archetype.*.name` (4 keys) + `village.title`
+
+**Recruitment dialogue (Phase 2)**
+- `RecruitmentDialogue` — CanvasLayer Layer=28; opened by E key within 3 m of villager; shows name, archetype, all four stats (highest highlighted gold ★); Recruit / Leave buttons with live state (disabled if player already has follower, or this NPC isn't the current follower); Escape closes; sends `RequestRecruit` / `RequestLeave` RPC via untyped path
+- `LocalState` additions: `FollowerNpcId`, `SetFollower`, `ClearFollower`, `FollowerChanged` event
+- `VillageSystem` — `RequestRecruit` / `RequestLeave` RPCs; 3 m proximity check; `_followTargets` + `_followerByPeer` reverse-lookup dicts; follow movement in `_PhysicsProcess` (3 m/s, stops 2 m behind player); `ClientMoveVillager` position broadcast (every 3 ticks); sleeping/walking NPCs blocked from recruit
+- `PlayerController` — 256u added to interact sphere mask; villager is Priority 1 (above shelter); dialogue guard prevents double-trigger; `TryAssignFollowerToStation` helper
+- `data/lang/en.json` — `recruit.*` keys (3)
+
+**Woodcutter's Post + settlement stockpile + NPC job loop (Phase 3)**
+- `BuildingRegistry` — `WoodcuttersPost` added (id `building.woodcutters_post`, cost 15 wood, 4×3×4)
+- `SettlementSystem` additions: `_stockpile` (SortedDictionary); `AddToStockpile`; `RequestTakeFromStockpile` RPC (moves all to player inventory); `BroadcastStockpile` (JSON string via `System.Text.Json`); `ClientUpdateStockpile` RPC → `LocalState.SetStockpile`; `SpawnMarker` now calls `LocalState.SetMarkerWorldPos`
+- `LocalState` additions: `StockpileSnapshot`, `SetStockpile(json)`, `StockpileChanged`; `MarkerWorldPos`, `SetMarkerWorldPos` (float pair, no Godot.Vector3 in shared/)
+- `StockpilePanel` — CanvasLayer Layer=29; E key within 3 m of Kingdom Marker; live item list (name via Loc stem lookup + count); "Take All" + Escape close; subscribes to `StockpileChanged`
+- `TreeSystem` — `GetAvailableTreeIds()` public API (returns `SortedDictionary.Keys`); `ServerChopTree(treeId)` routes wood yield to `SettlementSystem.AddToStockpile` (no SkillSystem — NPC chops don't award player XP); `TreeSystem.Instance` static property added
+- `VillageSystem` — `RequestAssignToStation` RPC; Following→Working state transition (5 m proximity check); job tick: `FindNearestTree` (20 m radius), move toward tree (shared `MoveNpcToward`), `ServerChopTree` (1 s cooldown via elapsed-time comparison)
+- `data/lang/en.json` — `building.woodcutters_post.name` + `stockpile.*` keys (4)
+
+**NPC needs (Phase 4)**
+- `VillageSystem` needs state: `_npcHunger` + `_npcRest` (0–100, initialized to 100); `_walkingToShelter`; `_sleeping` (villagerId → wake `_elapsed` time)
+- `TickNeeds` (1 s interval): drains rest 1/min, restores hunger 0.5/s; rest < 20 → `SuspendForRest`
+- `SuspendForRest`: strips Follow or Work state (with `ClientClearFollower` RPC to owning peer), walks NPC to nearest Shelter node under SettlementSystem
+- `TickResting`: moves walking NPCs toward shelter, promotes arrivals to `_sleeping` (rest→100, wake = elapsed+30 s), wakes expired sleepers back to Idle
+- `TickFollow` and `TickJobs` skip NPCs in `_walkingToShelter` or `_sleeping`
+- `FindNearestShelterPosition`: scans SettlementSystem children for node names starting with `"shelter"` (case-insensitive)
+
+### Tests
+- 230 tests, 0 failures
+- New suite: `VillageGeneratorTests` (16 tests): 1 village placed, 6–10 villagers, stats 3–18, best-of-3 mean > 12, archetype = highest stat, archetype name key convention, no duplicate names, names from pool, determinism, different seeds diverge, unique IDs
+
+---
+
 ## [M5] — 2026-07-09 — Class, stats, skills, and inventory panel (COMPLETE)
 
 M5 demo gate passed. All gameplay code, editor tasks, and post-gate fixes complete.

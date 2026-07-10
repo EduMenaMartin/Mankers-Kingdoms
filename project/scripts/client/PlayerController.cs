@@ -32,7 +32,7 @@ public partial class PlayerController : CharacterBody3D
 	private const int   BROADCAST_INTERVAL = 9;
 
 	// Raycast length for tree interaction (E key).
-	private const float INTERACT_RANGE = 2.5f;
+	private const float INTERACT_RANGE = 1.5f;
 
 	private bool _isLocalPlayer;
 	private Camera3D _camera = null!;
@@ -60,6 +60,15 @@ public partial class PlayerController : CharacterBody3D
 
 	// Path to HealthSystem — used for untyped RPC (item drop pickup).
 	private const string HEALTH_SYSTEM_PATH = "/root/GameWorld/HealthSystem";
+
+	// Path to VillageSystem — used for villager proximity detection (E key).
+	private const string VILLAGE_SYSTEM_PATH = "/root/GameWorld/VillageSystem";
+
+	// Path to RecruitmentDialogue — opened when E key is pressed near a villager.
+	private const string RECRUITMENT_DIALOGUE_PATH = "/root/GameWorld/RecruitmentDialogue";
+
+	// Path to StockpilePanel — opened when E key is pressed near the Kingdom Marker.
+	private const string STOCKPILE_PANEL_PATH = "/root/GameWorld/StockpilePanel";
 
 	// Path to ProjectileSystem — used for untyped RPC (not used directly; BowController owns fire).
 	private const string PROJECTILE_SYSTEM_PATH = "/root/GameWorld/ProjectileSystem";
@@ -117,7 +126,12 @@ public partial class PlayerController : CharacterBody3D
 	{
 		if (!_isLocalPlayer) return;
 		if (@event.IsActionPressed("interact"))
-			TryInteract();
+		{
+			// Don't trigger world interaction while the recruitment dialogue is open.
+			var dialogue = GetNodeOrNull<RecruitmentDialogue>(RECRUITMENT_DIALOGUE_PATH);
+			if (dialogue == null || !dialogue.Visible)
+				TryInteract();
+		}
 		if (@event.IsActionPressed("plant_marker"))
 			TryPlantMarker();
 		if (@event.IsActionPressed("eat_food"))
@@ -245,8 +259,23 @@ public partial class PlayerController : CharacterBody3D
 
 	private void TryInteract()
 	{
+		// Kingdom Marker proximity → open stockpile panel (no sphere query needed;
+		// marker position is cached in LocalState when the marker is planted).
+		if (LocalState.IsFounder && LocalState.MarkerWorldPos.HasValue)
+		{
+			var m  = LocalState.MarkerWorldPos.Value;
+			float mdx = GlobalPosition.X - m.X;
+			float mdz = GlobalPosition.Z - m.Z;
+			if (mdx * mdx + mdz * mdz <= 9f) // 3 m radius
+			{
+				var stockpilePanel = GetNodeOrNull<StockpilePanel>(STOCKPILE_PANEL_PATH);
+				if (stockpilePanel != null) { stockpilePanel.Open(); return; }
+			}
+		}
+
 		// Sphere overlap: mask covers terrain (1), trees (2), buildings (8),
-		// berry bushes (16), and item drops (128). We distinguish by name/parent-walk.
+		// berry bushes (16), item drops (128), and villagers (256).
+		// We distinguish targets by type/name/parent-walk after the query.
 		var spaceState = GetWorld3D().DirectSpaceState;
 		var sphere     = new SphereShape3D { Radius = INTERACT_RANGE };
 		var shapeQuery = new PhysicsShapeQueryParameters3D
@@ -254,7 +283,7 @@ public partial class PlayerController : CharacterBody3D
 			Shape         = sphere,
 			Transform     = new Transform3D(Basis.Identity, GlobalPosition),
 			Exclude       = new Godot.Collections.Array<Rid> { GetRid() },
-			CollisionMask = 1u | 2u | 8u | 16u | 128u
+			CollisionMask = 1u | 2u | 8u | 16u | 128u | 256u
 		};
 
 		var hits = spaceState.IntersectShape(shapeQuery);
@@ -271,7 +300,33 @@ public partial class PlayerController : CharacterBody3D
 			return;
 		}
 
-		// Priority 1: Shelter → sleep.
+		// Priority 1: Station assignment — checked before recruitment so pressing E near a
+		// station with a follower in tow always assigns rather than re-opening dialogue.
+		if (!string.IsNullOrEmpty(LocalState.FollowerNpcId))
+		{
+			foreach (var hit in hits)
+			{
+				var collider     = hit["collider"].As<Node>();
+				var buildingNode = FindBuildingNode(collider);
+				if (buildingNode != null && buildingNode.Name.ToString().Contains("woodcutters_post"))
+				{
+					TryAssignFollowerToStation(buildingNode.Name.ToString());
+					return;
+				}
+			}
+		}
+
+		// Priority 2: Villager → open recruitment dialogue (only when no follower active).
+		foreach (var hit in hits)
+		{
+			if (hit["collider"].As<Node>() is not VillagerNode collider) continue;
+
+			var dlg = GetNodeOrNull(RECRUITMENT_DIALOGUE_PATH) as RecruitmentDialogue;
+			dlg?.Open(collider);
+			return;
+		}
+
+		// Priority 3: Shelter → sleep.
 		foreach (var hit in hits)
 		{
 			var collider    = hit["collider"].As<Node>();
@@ -283,7 +338,7 @@ public partial class PlayerController : CharacterBody3D
 			}
 		}
 
-		// Priority 2: Berry bush → harvest.
+		// Priority 3: Berry bush → harvest.
 		foreach (var hit in hits)
 		{
 			var collider = hit["collider"].As<Node>();
@@ -294,7 +349,7 @@ public partial class PlayerController : CharacterBody3D
 			}
 		}
 
-		// Priority 3: Cooking Fire → cook berries.
+		// Priority 4: Cooking Fire → cook berries.
 		foreach (var hit in hits)
 		{
 			var collider    = hit["collider"].As<Node>();
@@ -306,7 +361,7 @@ public partial class PlayerController : CharacterBody3D
 			}
 		}
 
-		// Priority 4: Workbench → craft arrows.
+		// Priority 5: Workbench → craft arrows.
 		foreach (var hit in hits)
 		{
 			var collider    = hit["collider"].As<Node>();
@@ -318,7 +373,7 @@ public partial class PlayerController : CharacterBody3D
 			}
 		}
 
-		// Priority 5: Tree → chop (nearest).
+		// Priority 6: Tree → chop (nearest).
 		Node? nearestTree = null;
 		float nearestDist = float.MaxValue;
 		foreach (var hit in hits)
@@ -345,6 +400,17 @@ public partial class PlayerController : CharacterBody3D
 			treeSystem.Call("ReceiveChop", treeId);
 		else
 			treeSystem.RpcId(1, "ReceiveChop", treeId);
+	}
+
+	private void TryAssignFollowerToStation(string stationNodeName)
+	{
+		var vs = GetNodeOrNull(VILLAGE_SYSTEM_PATH);
+		if (vs == null) return;
+
+		if (Multiplayer.IsServer())
+			vs.Call("RequestAssignToStation", stationNodeName);
+		else
+			vs.RpcId(1, "RequestAssignToStation", stationNodeName);
 	}
 
 	private void TryHarvestBush(StringName bushId)

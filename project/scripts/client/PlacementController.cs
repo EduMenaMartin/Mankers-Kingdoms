@@ -137,7 +137,7 @@ public partial class PlacementController : Node
         var data = BuildingRegistry.Find(buildingId);
         if (data == null) return;
 
-        CancelPlacement(); // destroy any existing ghost first
+        DestroyGhost(); // tear down any existing ghost without touching combat mode
         _building = data;
         CreateGhost();
         if (_markerPos.HasValue)
@@ -146,13 +146,18 @@ public partial class PlacementController : Node
 
     private void CancelPlacement()
     {
+        DestroyGhost();
+        LocalState.SetCombatMode(true); // always return to combat after place or cancel
+    }
+
+    private void DestroyGhost()
+    {
         _ghost?.QueueFree();
         _ghost     = null;
         _ghostMesh = null;
         _building  = null;
         _territoryRing?.QueueFree();
         _territoryRing = null;
-        LocalState.SetCombatMode(true); // always return to combat after place or cancel
     }
 
     private Node3D CreateTerritoryRing(Vector3 centre)

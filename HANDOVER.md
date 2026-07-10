@@ -6,10 +6,55 @@
 
 ## Current status
 
-**Milestone:** M6 — Village and recruitment (planning; not yet started)
-**Last session:** 2026-07-09 — M5 demo gate passed; animation bugs fixed; camera-relative WASD + zoom; build mode redesigned; M5 formally closed.
+**Milestone:** M7 — Class-gated building
+**Last session:** 2026-07-10 — M6 all four phases complete; demo gate passed; M6 formally closed.
 **Blockers:** None.
-**Awaiting:** M6 phase breakdown presented to Edu for approval before implementation begins.
+**Awaiting:** M7 phase breakdown / Edu decision on pending design questions (see CURRENT_MILESTONE.md).
+
+---
+
+## What was done this session (2026-07-10)
+
+### M6 — Village and Recruitment — COMPLETE ✅
+
+All four phases implemented and demo gate passed.
+
+**Phase 1 — Village generation**
+- `VillagerData`, `VillageData`, `VillageGenerator` (seeded, best-of-3 3d6 per stat, archetype from highest stat), `data/base/villages/names.json` (30 names)
+- `VillageSystem` (server Node, spawns VillagerNode instances from seeded positions)
+- `client/VillagerNode.cs` (teal capsule, Layer 256u, Label3D, `SetTarget` via `.Call()`)
+- 16 new tests in `VillageGeneratorTests.cs`
+
+**Phase 2 — Recruitment dialogue + follow state**
+- `RecruitmentDialogue` (CanvasLayer 28, stat display with gold ★ on highest, Recruit/Leave, FollowerChanged live update)
+- `LocalState`: `FollowerNpcId`, `SetFollower`, `ClearFollower`, `FollowerChanged`
+- `VillageSystem`: `RequestRecruit` / `RequestLeave` RPCs, follow tick (3 m/s, stop 2 m), `ClientMoveVillager` broadcast (every 3 physics ticks)
+
+**Phase 3 — Woodcutter's Post + stockpile + NPC job loop**
+- `BuildingRegistry`: `WoodcuttersPost` (id `building.woodcutters_post`, 15 wood)
+- `SettlementSystem`: `_stockpile`, `AddToStockpile`, `RequestTakeFromStockpile`, JSON broadcast, `LocalState.SetMarkerWorldPos`
+- `StockpilePanel` (CanvasLayer 29, E near Kingdom Marker, live list, Take All)
+- `TreeSystem`: `GetAvailableTreeIds()`, `ServerChopTree()`, `TreeSystem.Instance` static property (was missing — added as post-gate bug fix)
+- `VillageSystem`: `RequestAssignToStation` RPC, Following→Working transition, job tick with 20 m tree search + 1 s chop cooldown via elapsed-time comparison
+
+**Phase 4 — NPC needs**
+- `VillageSystem`: `_npcHunger`/`_npcRest` dicts (100 at spawn); `TickNeeds` (1 s interval, drains rest 1/min, restores hunger 0.5/s, triggers `SuspendForRest` at < 20); `TickResting` (walk→arrive→sleep 30 s→wake→Idle); `SuspendForRest` (strips Follow/Work, sends `ClientClearFollower`, walks to nearest Shelter); `TickFollow`/`TickJobs` skip sleeping/walking NPCs; `RequestRecruit` rejects sleeping/walking NPCs
+
+**Bug fix (post-gate)**
+- `TreeSystem.Instance` static property missing — VillageSystem referenced it in `TickJobs`; added `public static TreeSystem Instance { get; private set; }` + assignment in `_Ready()`
+
+**Docs closed out**
+- `TODO.md` — Phase 4 ✅, demo gate ✅, M6 COMPLETE, M7 stub added
+- `CHANGELOG.md` — M6 entry written (full Added + Tests)
+- `CURRENT_MILESTONE.md` → M7
+- `HANDOVER.md` → this entry
+
+**230 tests, 0 failures**
+
+### Editor tasks completed by Edu (before demo gate)
+- `scenes/VillagerNode.tscn` — CharacterBody3D + CapsuleMesh + CapsuleShape3D + Label3D; script `client/VillagerNode.cs`
+- `GameWorld.tscn` — VillageSystem node added (after TreeSystem); RecruitmentDialogue CanvasLayer added; StockpilePanel CanvasLayer added
+- `scenes/WoodcuttersPost.tscn` — StaticBody3D + MeshInstance3D; built and placeble in build menu
 
 ---
 
@@ -359,12 +404,12 @@
 
 ## What's next
 
-1. **M6 phase breakdown** — present to Edu for approval, then begin implementation.
-   - Phase 1: Village generation (VillagerData, VillageGenerator, VillageSystem spawns NPCs)
-   - Phase 2: Recruitment dialogue (E key near villager, follow state)
-   - Phase 3: Station assignment (E key near station with follower, job loop)
-   - Phase 4: NPC needs (hunger/rest tick, Shelter seek)
-   - Demo gate: recruit → assign to Woodcutter's Post → NPC chops autonomously
+1. **M7 phase breakdown** — present to Edu for approval, then begin implementation.
+   - Phase 1: Herbalist's Hut building + presence-gating logic (locked when no Ranger NPC, dormant when Ranger leaves)
+   - Phase 2: Foraging NPC job loop at Herbalist's Hut → herbs into stockpile
+   - Phase 3: Bandage crafting at Herbalist's Hut (E key, 2 herbs → 1 bandage, heals 20 HP)
+   - Demo gate: Fighter can't build Hut → recruits Ranger villager → assigns → Hut unlocks → build it → herbs produced → craft bandage → Ranger leaves → Hut goes dormant
+2. **Pending M7 design decisions** (see CURRENT_MILESTONE.md): dormant-vs-locked behavior; presence check by archetype tag or class; herb item ID/recipe; bandage heal amount.
 
 ---
 

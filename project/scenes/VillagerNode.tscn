@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cs3v0mv26yxdm"]
+
+[ext_resource type="Script" uid="uid://bxhdv1prspkg8" path="res://scripts/client/VillagerNode.cs" id="1_f36o8"]
+
+[node name="CharacterBody3D" type="CharacterBody3D" unique_id=908309983]
+script = ExtResource("1_f36o8")

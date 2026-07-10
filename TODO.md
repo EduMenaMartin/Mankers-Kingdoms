@@ -395,9 +395,92 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 
 ## M6 — Village and recruitment
 
-**Goal:** Player travels to a procedural village, recruits a high-Str villager, brings them home, assigns to Woodcutter's Post — NPC chops trees while player does something else.
+**Goal:** Player travels to a procedural village, recruits a high-Str villager, brings them
+home, assigns to Woodcutter's Post — NPC chops trees, wood lands in settlement stockpile,
+player takes it via Kingdom Marker.
 
-*Phases to be planned and approved before implementation begins.*
+### Phase 1 — Village generation and NPC spawn ✅
+- [x] `shared/VillagerData.cs` — record: Id, Name, Stats (StatBlock); ArchetypeTag computed from highest stat
+- [x] `shared/VillageData.cs` — record: Id, WorldX, WorldZ, VillagerIds (string[])
+- [x] `shared/VillageGenerator.cs` — seeded; 1 village; 6–10 villagers; each stat = best-of-three 3d6; archetype derived from highest stat
+- [x] `data/base/villages/names.json` — 30 name pool; drawn by seeded index
+- [x] `server/VillageSystem.cs` — Node; spawns VillagerNode instances; holds mutable NPC state (SortedDictionary)
+- [x] `client/VillagerNode.cs` — teal capsule + name Label3D above head; collision layer 256u
+- [x] `data/lang/en.json` — archetype.*.name + village.title loc keys
+- [x] `tests/Shared/VillageGeneratorTests.cs` — 16 tests: 1 village placed; 6–10 villagers; stats in 3–18; archetype = highest stat; no duplicate names; determinism (230 total, 0 failures)
+- [ ] **Editor:** Add `VillageSystem` node to `GameWorld.tscn`; create `scenes/VillagerNode.tscn` (CharacterBody3D + CapsuleMesh + CapsuleShape3D + Label3D)
+
+### Phase 2 — Recruitment dialogue and follow state ✅
+- [x] `client/RecruitmentDialogue.cs` — CanvasLayer Layer=28; E key near villager; name + archetype + stats (highest stat gold ★); Recruit / Leave buttons; Escape closes
+- [x] `shared/LocalState.cs` — `FollowerNpcId` + `SetFollower` + `ClearFollower` + `FollowerChanged` event
+- [x] `server/VillageSystem.cs` — `RequestRecruit` / `RequestLeave` RPCs; proximity check (3m); _followTargets + _followerByPeer dicts; _PhysicsProcess follow movement (3 m/s, stops 2m); `ClientMoveVillager` position broadcast
+- [x] `client/PlayerController.cs` — 256u added to interact mask; villager Priority 1 (above shelter); dialogue guard on E key
+- [x] `data/lang/en.json` — `recruit.*` loc keys (230 tests, 0 failures)
+- [ ] **Editor:** Add `RecruitmentDialogue` CanvasLayer to `GameWorld.tscn`
+
+### Phase 3 — Woodcutter's Post, settlement stockpile, NPC job loop ✅
+- [x] `shared/BuildingRegistry.cs` — added `WoodcuttersPost` (id `"building.woodcutters_post"`, 15 wood, in All list)
+- [x] `server/SettlementSystem.cs` — `_stockpile` SortedDictionary; `AddToStockpile`; `RequestTakeFromStockpile` RPC; `ClientUpdateStockpile` (JSON) → LocalState; `SpawnMarker` now calls `LocalState.SetMarkerWorldPos`
+- [x] `shared/LocalState.cs` — `StockpileSnapshot` + `SetStockpile(json)` + `StockpileChanged`; `MarkerWorldPos` + `SetMarkerWorldPos`
+- [x] `client/StockpilePanel.cs` — CanvasLayer Layer=29; E key near Kingdom Marker (3m); item list; "Take All"; subscribes to `StockpileChanged`
+- [x] `server/TreeSystem.cs` — `ServerChopTree(treeId)` routes wood to stockpile (no SkillSystem); `GetAvailableTreeIds()` public API
+- [x] `server/VillageSystem.cs` — `RequestAssignToStation` RPC; Following→Working state transition; job tick: `FindNearestTree` (20m), move to tree, `ServerChopTree` (1s cooldown via elapsed time); `MoveNpcToward` helper shared by follow + job ticks
+- [x] `client/PlayerController.cs` — Kingdom Marker proximity check (pre-sphere); Woodcutter's Post + has follower → assign (Priority 2); `TryAssignFollowerToStation` helper; `StockpilePanel` path constant
+- [x] `data/lang/en.json` — `building.woodcutters_post.name` + `stockpile.*` loc keys (230 tests, 0 failures)
+- [ ] **Editor:** Create `scenes/WoodcuttersPost.tscn`; Add `StockpilePanel` CanvasLayer to `GameWorld.tscn`
+
+### Phase 4 — NPC needs ✅
+- [x] `server/VillageSystem.cs` — per-NPC hunger + rest (SortedDictionary<string,float>); hunger drains 0.5/min, rest drains 1/min; rest < 20 → suspend job/follow, walk to nearest Shelter, sleep 30s (rest → 100); hunger restores passively 0.5/s
+
+### Demo gate ✅
+- [x] Player travels to village → recruits high-Str villager → NPC follows home → build Woodcutter's Post (15 wood) → E key assigns NPC → NPC chops trees autonomously → wood appears in stockpile → player takes it via Kingdom Marker
+
+---
+
+## M6 ✅ COMPLETE (2026-07-10)
+
+---
+
+## M6.5 — NPC haul loop + Stockpile building
+
+**Goal:** Woodcutter NPC carries wood to a physical Stockpile Drop building instead of
+teleporting it to the abstract stockpile. More satisfying and visible.
+
+### Tasks
+- [x] `server/TreeSystem.cs` — `ServerChopTree` returns `int` wood yielded (0 until tree felled); `FellTreeForNpc` no longer calls `AddToStockpile` directly
+- [x] `server/VillageSystem.cs` — `_npcCarried` dict; `_walkingToDeposit` dict; `NPC_CARRY_CAPACITY = 6`; `TickDeposit`; `FindNearestStockpile`; updated `TickJobs`; carry check on wake
+- [x] `shared/BuildingRegistry.cs` — add `StockpileDrop` (`building.stockpile`, 8 wood, `Stockpile.tscn`)
+- [x] `server/SettlementSystem.cs` — null guard on `GD.Load<PackedScene>` in `SpawnBuilding`
+- [x] `data/lang/en.json` — `building.stockpile.name`
+- [ ] **Editor (Edu):** Create `scenes/Stockpile.tscn` — Node3D root + BoxMesh (3×1.5×3) + StaticBody3D + BoxShape3D on collision layer 8 (buildings)
+
+### Demo gate
+- [ ] Build Stockpile Drop near Woodcutter's Post → assign NPC → NPC chops 2 trees, walks to Stockpile Drop, deposits wood → stockpile count increments → NPC returns to chop
+
+---
+
+## M7 — Class-gated building
+
+**Goal:** Fighter alone can't build Herbalist's Hut → recruits Ranger villager → hut becomes buildable → Ranger leaves → hut becomes non-functional (dormant).
+
+### Phase 1 — Herbalist's Hut building + presence gating
+- [ ] `shared/BuildingRegistry.cs` — add `HerbalistsHut` (id `"building.herbalists_hut"`, cost TBD, size TBD)
+- [ ] `server/SettlementSystem.cs` — presence-gating logic: building becomes buildable only when a Ranger-class NPC is assigned to any station in the settlement; locks/dormant when the Ranger leaves
+- [ ] `client/BuildMenu.cs` — show Herbalist's Hut as locked (greyed out) if Ranger presence not met; show tooltip explaining the requirement
+- [ ] `data/lang/en.json` — `building.herbalists_hut.name` + gate-fail tooltip key
+
+### Phase 2 — Foraging station and herb production
+- [ ] `server/VillageSystem.cs` — job loop for Foraging archetype NPC at Herbalist's Hut; produces herbs → settlement stockpile
+- [ ] `shared/LocalState.cs` — track assigned NPC archetypes for presence-gate checking
+- [ ] `data/lang/en.json` — herb item name/desc keys
+
+### Phase 3 — Bandage crafting
+- [ ] `shared/ItemRegistry.cs` (or equivalent) — add `item.bandage` (crafted from 2 herbs at Herbalist's Hut; heals 20 HP)
+- [ ] `server/SettlementSystem.cs` — crafting interaction at Herbalist's Hut: E key → craft bandage from herb stock
+- [ ] `data/lang/en.json` — bandage name/desc keys
+
+### Demo gate
+- [ ] Fighter player can't build Herbalist's Hut (locked in build menu) → recruits Ranger-archetype villager → assigns to any station → Herbalist's Hut unlocks in build menu → player builds it → assigns Ranger NPC to it → herbs appear in stockpile → craft bandage → Ranger NPC removed from settlement → Herbalist's Hut goes dormant
 
 ---
 

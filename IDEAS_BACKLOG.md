@@ -15,6 +15,75 @@ Every entry gets one:
 
 ## Entries
 
+### 2026-07-10 — [slice-affecting] Settlement prerequisite gate system — full plan
+
+All gates use the same pattern: server rejects with `SendWarningToPeer → LocalState.ShowWarning`
+→ 2.5 s flash on screen. Gates are checked at assignment time (hard block) or per-tick
+(throttled warning, NPC degrades gracefully).
+
+**Implemented (M6.5):**
+- Assignment gate: shelter must exist before assigning any worker → flash "warning.assign.no_shelter"
+- Haul gate: flash "warning.job.no_stockpile" every 10 s while NPC carry is full and no Stockpile Drop is reachable
+
+**Planned — `[post-slice]` unless noted:**
+- **Shelter capacity gate** `[slice-affecting]` — each Shelter has `BedCapacity = 2`; assignment blocked
+  when `assignedWorkers >= totalBedCapacity`. Requires `SettlementSystem` to track assigned-worker
+  count per shelter and expose `HasFreeBed()`.
+- **"No trees in range" idle warning** — after a woodcutter worker idles > 30 s with no target tree
+  in `MAX_CHOP_RANGE`, flash "Your woodcutter can't find trees — clear the area or move the post."
+  Throttled per-NPC via `_lastWarnTime`.
+- **Station removed while NPC assigned** — when a building is demolished (future demolish system),
+  VillageSystem detects the node is gone, transitions NPC to Idle, warns player
+  "A station was removed — {name} is now idle."
+- **Herbalist's Hut Ranger-presence gate** `[M7 scope]` — locked in BuildMenu when no Ranger-archetype
+  NPC is assigned to any station; tooltip shows reason. Goes dormant (not destroyed) when Ranger leaves.
+  See CURRENT_MILESTONE.md M7 Phase 1.
+- **Tool-tier gate** — some stations require a tool tier (e.g. Iron Axe at Logging Camp tier 2).
+  Block assignment and flash "This station requires an iron axe — craft one first."
+  Requires `ClassKitData.RequiredToolId` field.
+- **Multi-resource deposit** — Stockpile Drop accepts any resource, not just wood. Requires
+  `AddToStockpile(itemId, count)` to already be generic (it is) and `_npcCarried` to be
+  `SortedDictionary<string, int>` (itemId → amount) instead of a flat int. Deferred: only wood now.
+
+### 2026-07-10 — [slice-affecting] NPC assignment panel — settlement worker roster UI
+
+**Slot suggestion: M8** (after M7 adds Herbalist's Hut; by M8 there are enough station types — Woodcutter's Post, Herbalist's Hut — to make the panel genuinely useful, and the current recruit→follow→E-assign flow starts feeling clunky with 6–10 workers).
+
+**What it replaces:** The current flow of recruiting an NPC, having them follow you to a building, and pressing E to assign. That flow becomes a fallback or is removed entirely once the panel exists.
+
+**Design:**
+- Opened via a dedicated key (suggested: `N`) or via E-interact on the Kingdom Marker (alongside stockpile).
+- Left column: all villagers in the settlement — name, archetype tag, current state (Idle / Assigned to X / Resting / Following).
+- Right column: all placed stations — building type, assigned NPC slot (empty / name).
+- Interaction: click a villager → click a station → "Assign" button → assignment RPC fires.
+- "Unassign" button on any occupied station slot.
+- Colour coding: idle = white, assigned = green, resting = blue, following = yellow.
+
+**Implementation shape:**
+
+`client/SettlementPanel.cs` — CanvasLayer Layer=27; `N` key toggle; reads `LocalState.VillagerRoster` (new) and `LocalState.StationAssignments` (new) which are pushed by the server on any change.
+
+`shared/LocalState.cs` — two new state blobs:
+- `VillagerRoster`: `IReadOnlyList<VillagerSnapshot>` (id, name, archetypeTag, state string)
+- `StationAssignments`: `IReadOnlyDictionary<string, string>` (stationNodeName → villagerId or "")
+
+`server/VillageSystem.cs` — new `BroadcastRoster()` called whenever any villager state changes (recruit, assign, unassign, sleep/wake). Serialises both blobs to JSON → `ClientUpdateRoster` RPC → `LocalState.SetRoster(...)`.
+
+`server/VillageSystem.cs` — new `RequestAssignFromPanel(string villagerId, string stationNodeName)` RPC (AnyPeer): skips the "follower" requirement; validates villager is idle or already following; validates station exists and is unoccupied; transitions directly to Working state. Old `RequestAssignToStation` (requires follower) kept for backwards compatibility until panel ships.
+
+`data/lang/en.json` — `"panel.settlement.title"`, `"panel.settlement.assign"`, `"panel.settlement.unassign"`, `"panel.settlement.state.idle"`, `"panel.settlement.state.assigned"`, `"panel.settlement.state.resting"`, `"panel.settlement.state.following"`.
+
+**Prerequisite:** `VillageSystem` already tracks all state needed — `_workAssignments`, `_followTargets`, `_sleeping`, `_walkingToShelter`. Only missing piece is the broadcast channel to client and the direct-assign RPC.
+
+**Editor task (when implementing):** Add `SettlementPanel` CanvasLayer node to `GameWorld.tscn`; register `"open_settlement"` → Key.N in `MainMenuController`.
+
+### 2026-07-10 — [post-slice] NPC personal inventory + settlement stockpile integration
+
+NPCs have their own personal inventory distinct from the settlement stockpile. Player can
+interact directly with an NPC (E key) to view/take from their inventory. NPCs interact with
+the settlement stockpile to deposit harvested goods automatically. Prerequisite: M6 settlement
+stockpile foundation (already planned).
+
 ### 2026-07-02 — [post-slice] Content loading from repo-root `data/` via filesystem
 
 Currently `data/lang/en.json` lives both at repo root (`data/lang/`) and duplicated inside the Godot project (`project/data/lang/`) as a workaround for `res://` access limits. The proper architecture loads all content from the repo-root `data/` directory using filesystem paths resolved relative to the game executable — consistent with how mods load content. Needs a content loader system. Not needed until M3+ (mod loading milestone).

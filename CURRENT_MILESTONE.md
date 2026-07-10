@@ -1,31 +1,27 @@
-# Current Milestone: M6 — Village and Recruitment
+# Current Milestone: M7 — Class-gated building
 
-**Started:** 2026-07-09
-**Target demo:** Player travels to a procedural village, recruits a high-Str villager, brings them home, assigns them to the Woodcutter's Post — NPC chops trees autonomously while the player does something else.
+**Started:** 2026-07-10
+**Target demo:** Fighter player can't build Herbalist's Hut (locked in build menu) → recruits Ranger-archetype villager → assigns them to any station → Herbalist's Hut unlocks → player builds it → assigns Ranger NPC to it → herbs appear in stockpile → craft a bandage → Ranger NPC removed from settlement → Herbalist's Hut goes dormant.
 
-## Scope (from VERTICAL_SLICE.md §3.6 + §5)
+## Scope (from VERTICAL_SLICE.md §3.5 + §3.6)
 
-- Procedural village: 6–10 villagers, rolled stats, hidden archetype tags, generated names ⬜
-- Simple recruitment dialogue: talk → offer to join → NPC leaves village and follows player ⬜
-- Recruited NPC follows player to settlement ⬜
-- Recruited NPC can be assigned to a station (Woodcutter's Post, Cooking Fire) ⬜
-- Station job loop: NPC executes the station task autonomously, levels appropriate skill ⬜
-- NPC needs (hunger/rest) tick down; NPC seeks Shelter when rest is low ⬜
+- Herbalist's Hut — new building type, gated on Ranger-class NPC presence in settlement ⬜
+- Presence-gating logic: building locked when no Ranger-archetype assigned, dormant (not destroyed) when Ranger leaves ⬜
+- Foraging NPC job loop: Ranger NPC assigned to Herbalist's Hut produces herbs → settlement stockpile ⬜
+- Bandage crafting at Herbalist's Hut: E key → craft from herbs → heals 20 HP (no Medicine skill in v1) ⬜
 - Demo gate ⬜
 
-## Key decisions (pending / to be locked during M6)
+## Key decisions (pending / to be locked during M7)
 
-- **NPC movement:** straight-line follow (same as monster AI) for v1; no pathfinding.
-- **Dialogue:** single-prompt interaction (E key near villager → "Join us?" → Y/N), no full dialogue tree.
-- **Station assignment:** E key near a station while NPC is following → assigns NPC; NPC walks to station and starts job loop.
-- **NPC combat:** out of scope for M6. Recruited NPCs are non-combatants in v1.
+- **Dormant vs locked:** When the Ranger NPC leaves, does the hut go locked (can't interact) or dormant (crafting menu opens but shows "no Ranger present" and disables craft)? — to decide.
+- **Presence check:** Is presence determined by NPC archetype tag (`archetype.forager`), class assignment, or a Ranger-class player being in the settlement? — to decide (v1 spec says "Ranger class present in settlement" — could be NPC or player Ranger).
+- **Herb item:** New item `item.herb` — base gather item; consumed 2→1 bandage at Hut — to confirm.
+- **Bandage heal amount:** Fixed 20 HP, no Medicine skill check in v1 — to confirm.
 
-## Out of scope for M6
+## Out of scope for M7
 
-- Village population growth
-- NPC morale / relationship tracking
-- Trade with village
-- NPC combat
-- Named archetype abilities (archetype tag stored but dormant)
-- Orc enemy type
-- Pathfinding (straight-line movement only)
+- Full crafting tree depth beyond bandages
+- Herbalist's Hut tier 2 recipes
+- NPC Ranger having a ranged attack (NPCs are non-combatants in v1)
+- Morale / relationship tracking
+- Presence-gated buildings beyond Herbalist's Hut
