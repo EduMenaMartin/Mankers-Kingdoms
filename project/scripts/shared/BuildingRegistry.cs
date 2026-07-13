@@ -58,8 +58,21 @@ public static class BuildingRegistry
         Width: 3f, Height: 1.5f, Depth: 3f
     );
 
+    /// <summary>
+    /// Presence-gated: requires a Ranger (player or NPC forager archetype) in the settlement.
+    /// When dormant (Ranger left) — building stands but crafting yields nothing until Ranger returns.
+    /// See VERTICAL_SLICE.md §3.5 and docs/gdd/settlements.md for the one-gated-example rationale.
+    /// </summary>
+    public static readonly BuildingData HerbalistsHut = new(
+        Id:             "building.herbalists_hut",
+        DisplayNameKey: "building.herbalists_hut.name",
+        ScenePath:      "res://scenes/HerbalistsHut.tscn",
+        Cost:           new Dictionary<string, int> { ["resource.wood"] = 20 },
+        Width: 4f, Height: 3f, Depth: 4f
+    );
+
     public static readonly IReadOnlyList<BuildingData> All =
-        new[] { Shelter, StorageChest, Workbench, CookingFire, WoodcuttersPost, StockpileDrop };
+        new[] { Shelter, StorageChest, Workbench, CookingFire, WoodcuttersPost, StockpileDrop, HerbalistsHut };
 
     public static BuildingData? Find(string id) =>
         All.FirstOrDefault(b => b.Id == id);

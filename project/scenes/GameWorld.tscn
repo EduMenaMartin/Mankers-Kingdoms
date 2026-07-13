@@ -30,6 +30,22 @@
 [ext_resource type="Script" uid="uid://bvi80524kyhs" path="res://scripts/client/CharacterSheet.cs" id="27_df2hd"]
 [ext_resource type="Script" uid="uid://dww18p3f0eww5" path="res://scripts/client/RecruitmentDialogue.cs" id="29_jt2qr"]
 [ext_resource type="Script" uid="uid://b8h1vd1u1ul8t" path="res://scripts/client/StockpilePanel.cs" id="30_jt2qr"]
+[ext_resource type="Script" uid="uid://bm7py0mm86y1b" path="res://scripts/client/HotbarHUD.cs" id="31_gkrqa"]
+[ext_resource type="AudioStream" uid="uid://bbrkrcj0onhd2" path="res://assets/Ambient Music/Ancient_Call_1.mp3" id="32_785i0"]
+[ext_resource type="AudioStream" uid="uid://3rr448bu8yoh" path="res://assets/Ambient Music/Ancient_Call_2.mp3" id="33_0kkfd"]
+[ext_resource type="AudioStream" uid="uid://bykhcpfrov5fa" path="res://assets/Ambient Music/And The Manker Begins _1.mp3" id="34_tsbmo"]
+[ext_resource type="AudioStream" uid="uid://dlr2y1y7v4nda" path="res://assets/Ambient Music/And The Manker Begins _2.mp3" id="35_g7gxu"]
+[ext_resource type="Script" uid="uid://bdywp5c8pvjhc" path="res://scripts/client/BuildingAssignmentPanel.cs" id="36_0kkfd"]
+[ext_resource type="Script" uid="uid://b1pbr23x2ibgo" path="res://scripts/server/SaveSystem.cs" id="37_tsbmo"]
+[ext_resource type="Script" uid="uid://wqd2myyfk8h8" path="res://scripts/client/PauseMenu.cs" id="38_g7gxu"]
+
+[sub_resource type="AudioStreamPlaylist" id="AudioStreamPlaylist_785i0"]
+shuffle = true
+stream_count = 4
+stream_0 = ExtResource("32_785i0")
+stream_1 = ExtResource("33_0kkfd")
+stream_2 = ExtResource("34_tsbmo")
+stream_3 = ExtResource("35_g7gxu")
 
 [node name="GameWorld" type="Node3D" unique_id=1324218193]
 
@@ -133,3 +149,20 @@ script = ExtResource("29_jt2qr")
 
 [node name="StockpilePanel" type="CanvasLayer" parent="." unique_id=1152332544]
 script = ExtResource("30_jt2qr")
+
+[node name="HotbarHUD" type="CanvasLayer" parent="." unique_id=266572234]
+script = ExtResource("31_gkrqa")
+
+[node name="BuildingAssignmentPanel" type="CanvasLayer" parent="." unique_id=282277474]
+script = ExtResource("36_0kkfd")
+
+[node name="BgPlaylist" type="AudioStreamPlayer3D" parent="." unique_id=1112643229]
+stream = SubResource("AudioStreamPlaylist_785i0")
+volume_db = -2.0
+autoplay = true
+
+[node name="SaveSystem" type="Node" parent="." unique_id=397512884]
+script = ExtResource("37_tsbmo")
+
+[node name="PauseMenu" type="CanvasLayer" parent="." unique_id=1120122145]
+script = ExtResource("38_g7gxu")

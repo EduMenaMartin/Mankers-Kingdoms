@@ -8,7 +8,7 @@ public sealed class TerrainConfig
 {
     public int MapWidth       { get; init; } = 64;
     public int MapHeight      { get; init; } = 64;
-    public float TileSize     { get; init; } = 4f;
+    public float TileSize     { get; init; } = WorldConstants.TILE_SIZE;
     public float NoiseFreq    { get; init; } = 0.06f;
     public int NoiseOctaves   { get; init; } = 4;
     public float NoiseAmp     { get; init; } = 6f;   // max height variation in world units

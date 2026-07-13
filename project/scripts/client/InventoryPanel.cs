@@ -10,6 +10,10 @@ namespace MankersKingdoms.Client;
 /// Shows a centred modal panel listing every item the local player carries with its count.
 /// Refreshes immediately when the server pushes an inventory update (LocalState.InventoryChanged).
 ///
+/// Hotbar assignment: hover a row and press 1–9 to assign that item to the corresponding
+/// hotbar slot. The HotbarKeyPressed event from LocalState bridges HotbarHUD's key handling
+/// to this panel's hover state without a direct reference between the two.
+///
 /// Item display names resolved via Loc.T(itemId + ".name"); all current item IDs have matching
 /// entries in en.json so no fallback [key] strings should appear in normal play.
 ///
@@ -20,10 +24,21 @@ namespace MankersKingdoms.Client;
 public partial class InventoryPanel : CanvasLayer
 {
     private const float PANEL_W = 380f;
-    private const float PANEL_H = 480f;
+    private const float PANEL_H = 520f;
 
-    private VBoxContainer _itemList = null!;
+    // Path to InventorySystem — untyped RPC to avoid client→server import.
+    private const string INVENTORY_SYSTEM_PATH = "/root/GameWorld/InventorySystem";
+
+    private VBoxContainer _itemList   = null!;
     private Label         _emptyLabel = null!;
+
+    /// <summary>
+    /// Maps each item row control to its itemId.
+    /// Rebuilt on every Refresh(). Queried by GetHoveredItemId() on key press so that
+    /// we don't rely on MouseEntered/MouseExited — those don't re-fire when rows are
+    /// rebuilt after a hotbar slot change, causing stale hover state.
+    /// </summary>
+    private readonly System.Collections.Generic.Dictionary<HBoxContainer, string> _rowItems = new();
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -34,12 +49,16 @@ public partial class InventoryPanel : CanvasLayer
 
         BuildUI();
 
-        LocalState.InventoryChanged += OnInventoryChanged;
+        LocalState.InventoryChanged  += OnInventoryChanged;
+        LocalState.HotbarKeyPressed  += OnHotbarKeyPressed;
+        LocalState.HotbarSlotChanged += OnHotbarSlotChanged;
     }
 
     public override void _ExitTree()
     {
-        LocalState.InventoryChanged -= OnInventoryChanged;
+        LocalState.InventoryChanged  -= OnInventoryChanged;
+        LocalState.HotbarKeyPressed  -= OnHotbarKeyPressed;
+        LocalState.HotbarSlotChanged -= OnHotbarSlotChanged;
     }
 
     // ── Input ─────────────────────────────────────────────────────────────────
@@ -126,9 +145,18 @@ public partial class InventoryPanel : CanvasLayer
         };
         _itemList.AddChild(_emptyLabel);
 
-        // ── Footer hint ───────────────────────────────────────────────────────
+        // ── Footer hints ──────────────────────────────────────────────────────
         var sep2 = new HSeparator();
         outerVBox.AddChild(sep2);
+
+        var hotbarHint = new Label
+        {
+            Text                = Loc.T("inventory.hotbar_hint"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Modulate            = new Color(0.6f, 0.85f, 1f)
+        };
+        hotbarHint.AddThemeFontSizeOverride("font_size", 11);
+        outerVBox.AddChild(hotbarHint);
 
         var hint = new Label
         {
@@ -153,38 +181,119 @@ public partial class InventoryPanel : CanvasLayer
         if (Visible) Refresh();
     }
 
+    private void OnHotbarSlotChanged(int _slot, string? _itemId)
+    {
+        // Refresh only the badge column — avoids rebuilding rows and losing mouse state.
+        if (Visible) RefreshBadges();
+    }
+
     private void Refresh()
     {
         // Remove all item rows (keep _emptyLabel at index 0).
         for (int i = _itemList.GetChildCount() - 1; i >= 1; i--)
             _itemList.GetChild(i).QueueFree();
 
-        var items = LocalState.Inventory.Items;
+        _rowItems.Clear();
 
+        var items = LocalState.Inventory.Items;
         _emptyLabel.Visible = items.Count == 0;
 
         foreach (var (itemId, count) in items)
         {
             var row = new HBoxContainer();
             row.AddThemeConstantOverride("separation", 8);
+            // Pass-through so mouse position can be queried against GetGlobalRect() on key press.
+            row.MouseFilter = Control.MouseFilterEnum.Pass;
+
+            _rowItems[row] = itemId;
 
             var nameLabel = new Label
             {
-                Text               = ItemDisplayName(itemId),
-                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+                Text                = ItemDisplayName(itemId),
+                SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+                MouseFilter         = Control.MouseFilterEnum.Ignore
             };
             row.AddChild(nameLabel);
+
+            // Badge shows which hotbar slot (1-9) this item is assigned to, e.g. "[3]".
+            var badgeLabel = new Label
+            {
+                Text                = HotbarBadge(itemId),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                CustomMinimumSize   = new Vector2(28f, 0f),
+                Modulate            = new Color(1f, 0.9f, 0.25f),
+                MouseFilter         = Control.MouseFilterEnum.Ignore
+            };
+            badgeLabel.AddThemeFontSizeOverride("font_size", 11);
+            row.AddChild(badgeLabel);
 
             var countLabel = new Label
             {
                 Text                = $"×{count}",
                 HorizontalAlignment = HorizontalAlignment.Right,
-                CustomMinimumSize   = new Vector2(50f, 0f)
+                CustomMinimumSize   = new Vector2(40f, 0f),
+                MouseFilter         = Control.MouseFilterEnum.Ignore
             };
             row.AddChild(countLabel);
 
             _itemList.AddChild(row);
         }
+    }
+
+    /// <summary>
+    /// Lightweight refresh that updates only badge labels without rebuilding rows.
+    /// Called when a hotbar slot changes so we don't disturb mouse state.
+    /// </summary>
+    private void RefreshBadges()
+    {
+        foreach (var (row, itemId) in _rowItems)
+        {
+            // Badge label is child index 1 (nameLabel=0, badgeLabel=1, countLabel=2).
+            if (row.GetChildCount() >= 2 && row.GetChild(1) is Label badge)
+                badge.Text = HotbarBadge(itemId);
+        }
+    }
+
+    // ── Hotbar assignment ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by LocalState.HotbarKeyPressed (fired by HotbarHUD when 1–9 is pressed).
+    /// Detects the hovered row at call time via rect-intersection so it stays correct after
+    /// rows are rebuilt (MouseEntered events don't re-fire on rebuilt rows).
+    /// </summary>
+    private void OnHotbarKeyPressed(int slot)
+    {
+        if (!Visible) return;
+
+        string? itemId = GetHoveredItemId();
+        if (itemId == null) return;
+
+        var invSystem = GetNodeOrNull(INVENTORY_SYSTEM_PATH);
+        if (invSystem == null) return;
+
+        if (Multiplayer.IsServer())
+            invSystem.Call("RequestAssignHotbar", slot, itemId);
+        else
+            invSystem.RpcId(1, "RequestAssignHotbar", slot, itemId);
+        // Badge refresh comes via LocalState.HotbarSlotChanged → RefreshBadges().
+    }
+
+    /// <summary>
+    /// Returns the itemId of the row the mouse cursor is currently over,
+    /// or null if no row is under the cursor.
+    /// Uses global rect intersection instead of MouseEntered events so it works
+    /// even after rows have been rebuilt (rebuilt nodes don't re-fire MouseEntered).
+    /// </summary>
+    private string? GetHoveredItemId()
+    {
+        var mousePos = GetViewport().GetMousePosition();
+        foreach (var (row, itemId) in _rowItems)
+        {
+            if (!row.IsInsideTree()) continue;
+            if (row.GetGlobalRect().HasPoint(mousePos))
+                return itemId;
+        }
+        return null;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -199,5 +308,17 @@ public partial class InventoryPanel : CanvasLayer
         string name   = Loc.T(locKey);
         // If Loc returns the fallback "[key]", show the raw ID instead — at least it's legible.
         return name.StartsWith('[') ? itemId : name;
+    }
+
+    /// <summary>
+    /// Returns a badge string like "[3]" if the item is assigned to any hotbar slot,
+    /// or "" if not assigned. Used to show hotbar assignment inline on inventory rows.
+    /// </summary>
+    private static string HotbarBadge(string itemId)
+    {
+        for (int i = 0; i < 9; i++)
+            if (LocalState.GetHotbarSlot(i) == itemId)
+                return $"[{i + 1}]";
+        return "";
     }
 }

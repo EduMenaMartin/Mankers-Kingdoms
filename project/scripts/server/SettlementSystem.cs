@@ -22,8 +22,11 @@ public partial class SettlementSystem : Node
     public static SettlementSystem Instance { get; private set; } = null!;
 
     // Server-only. SortedDictionary: ADR-0011 deterministic iteration.
-    private readonly SortedDictionary<long, Vector3> _markers   = new();
-    private readonly SortedDictionary<string, int>   _stockpile = new();
+    private readonly SortedDictionary<long, Vector3> _markers        = new();
+    private readonly SortedDictionary<string, int>   _stockpile      = new();
+    // Ordered list of placed buildings: (buildingId, terrain-level position).
+    // Populated by SpawnBuilding on the server. Used by SaveSystem.GetSaveState().
+    private readonly List<(string buildingId, Vector3 position)>     _placedBuildings = new();
 
     public const float TERRITORY_RADIUS = 40f;
 
@@ -192,6 +195,101 @@ public partial class SettlementSystem : Node
     private void ClientNotifyRejection(string missingItemId) =>
         LocalState.NotifyRejection(missingItemId);
 
+    // ── Save / Load (M8) ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the current settlement state for serialization.
+    /// Called by SaveSystem.Save() on the server.
+    /// </summary>
+    public (List<MarkerSave> markers,
+            List<BuildingSave> buildings,
+            System.Collections.Generic.Dictionary<string, int> stockpile)
+        GetSaveState()
+    {
+        var markers = new List<MarkerSave>();
+        foreach (var (peerId, pos) in _markers)
+            markers.Add(new MarkerSave { PeerId = peerId, X = pos.X, Y = pos.Y, Z = pos.Z });
+
+        var buildings = new List<BuildingSave>();
+        foreach (var (buildingId, pos) in _placedBuildings)
+            buildings.Add(new BuildingSave { BuildingId = buildingId, X = pos.X, Y = pos.Y, Z = pos.Z });
+
+        return (markers, buildings, new System.Collections.Generic.Dictionary<string, int>(_stockpile));
+    }
+
+    /// <summary>
+    /// Restores settlement state from a save on the server.
+    /// SpawnMarker/SpawnBuilding are called via Rpc so visual nodes appear on all peers.
+    /// Called by SaveSystem.TryLoad().
+    /// </summary>
+    public void RestoreFromSave(
+        List<MarkerSave>  markers,
+        List<BuildingSave> buildings,
+        System.Collections.Generic.Dictionary<string, int> stockpile)
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        foreach (var m in markers)
+        {
+            var pos = new Vector3(m.X, m.Y, m.Z);
+            _markers[m.PeerId] = pos;
+            Rpc(MethodName.SpawnMarker, m.PeerId, pos);
+        }
+
+        foreach (var b in buildings)
+        {
+            var pos = new Vector3(b.X, b.Y, b.Z);
+            // SpawnBuilding (CallLocal=true) runs on server + clients.
+            // The server branch adds to _placedBuildings automatically.
+            Rpc(MethodName.SpawnBuilding, b.BuildingId, pos);
+        }
+
+        _stockpile.Clear();
+        foreach (var (id, cnt) in stockpile)
+            _stockpile[id] = cnt;
+        BroadcastStockpile();
+
+        GD.Print($"[Settlement] restored {markers.Count} marker(s), {buildings.Count} building(s)");
+    }
+
+    // ── Herbalist's Hut crafting ──────────────────────────────────────────────
+
+    public const int   BANDAGE_HERB_COST       = 2;
+    public const float BANDAGE_BASE_HEAL        = 20f;
+    public const float BANDAGE_HEAL_PER_5_SKILL = 1f;  // +1 HP per 5 Foraging levels
+    public const float BANDAGE_MAX_HEAL         = 40f;
+
+    /// <summary>
+    /// Client pressed E near the Herbalist's Hut to craft a bandage.
+    /// Server validates: Ranger present (otherwise dormant), ≥2 herbs in inventory.
+    /// Consumes 2 herbs → grants 1 bandage → bumps skill.foraging.
+    /// </summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RequestCraftBandage()
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+
+        // Resource check.
+        if (!InventorySystem.Instance.HasItems(sender, "item.herb", BANDAGE_HERB_COST))
+        {
+            GD.Print($"[Settlement] peer {sender} tried to craft bandage — not enough herbs");
+            if (sender == Multiplayer.GetUniqueId())
+                LocalState.NotifyRejection("item.herb");
+            else
+                RpcId(sender, MethodName.ClientNotifyRejection, "item.herb");
+            return;
+        }
+
+        InventorySystem.Instance.RemoveItems(sender, "item.herb", BANDAGE_HERB_COST);
+        InventorySystem.Instance.AddItem(sender, "item.bandage", 1);
+        SkillSystem.Instance?.NotifyAction(sender, "skill.foraging");
+        GD.Print($"[Settlement] peer {sender} crafted 1 bandage (used {BANDAGE_HERB_COST} herbs)");
+    }
+
     // ── Settlement stockpile ──────────────────────────────────────────────────
 
     /// <summary>
@@ -250,6 +348,11 @@ public partial class SettlementSystem : Node
          TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     private void SpawnBuilding(string buildingId, Vector3 position)
     {
+        // Track placed buildings on the server for save/load (M8).
+        // CallLocal = true means this runs on server AND clients; only record on server.
+        if (Multiplayer.IsServer())
+            _placedBuildings.Add((buildingId, position));
+
         var data = BuildingRegistry.Find(buildingId);
         if (data == null) return;
 

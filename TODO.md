@@ -346,17 +346,17 @@ New ideas go to `IDEAS_BACKLOG.md` first, get triaged, then land here if they're
 - [x] `shared/LocalState.cs` — InventoryChanged event added (fired in SetInventory)
 - [x] `client/MainMenuController.cs` — registered "open_inventory" → Key.I
 - [x] `data/lang/en.json` — inventory.title/empty/close_hint; resource.wood.name
-- [ ] **Editor:** Add InventoryPanel CanvasLayer node to GameWorld.tscn; attach script `res://scripts/client/InventoryPanel.cs`
+- [x] **Editor:** Add InventoryPanel CanvasLayer node to GameWorld.tscn; attach script `res://scripts/client/InventoryPanel.cs`
 
 ### Phase 4 — Character sheet UI ✅
 - [x] `client/CharacterSheet.cs` — CanvasLayer Layer=26; K key toggle, Escape closes; race/class line; Str/Dex/Con/Wis (race-modified); 6 skill rows with Level + Cap columns; cap cell turns orange when at cap; live refresh on LocalState.SkillLevelChanged
 - [x] `client/MainMenuController.cs` — registered "char_sheet" → Key.K
 - [x] `data/lang/en.json` — charSheet.* loc keys
-- [ ] **Editor:** Add CharacterSheet CanvasLayer to GameWorld.tscn; attach script `res://scripts/client/CharacterSheet.cs`
+- [x] **Editor:** Add CharacterSheet CanvasLayer to GameWorld.tscn; attach script `res://scripts/client/CharacterSheet.cs`
 
 ### Phase 5 — Character creation screen
 - [x] `client/CharacterCreateScreen.cs` — rolls 3d6×4; race picker (Human/Dwarf/Elf/Halfling applies modifier); class picker; reroll button; confirm → GameWorld
-- [ ] `scenes/CharacterCreateScreen.tscn` — **editor task** (see editor instructions below)
+- [x] `scenes/CharacterCreateScreen.tscn` — **editor task** (see editor instructions below)
 - [x] `client/MainMenuController.cs` — route Solo/Host/Join through CharacterCreateScreen instead of ClassSelectScreen
 - [x] `data/lang/en.json` — all character creation loc keys present from Phase 1
 
@@ -408,7 +408,7 @@ player takes it via Kingdom Marker.
 - [x] `client/VillagerNode.cs` — teal capsule + name Label3D above head; collision layer 256u
 - [x] `data/lang/en.json` — archetype.*.name + village.title loc keys
 - [x] `tests/Shared/VillageGeneratorTests.cs` — 16 tests: 1 village placed; 6–10 villagers; stats in 3–18; archetype = highest stat; no duplicate names; determinism (230 total, 0 failures)
-- [ ] **Editor:** Add `VillageSystem` node to `GameWorld.tscn`; create `scenes/VillagerNode.tscn` (CharacterBody3D + CapsuleMesh + CapsuleShape3D + Label3D)
+- [x] **Editor:** Add `VillageSystem` node to `GameWorld.tscn`; create `scenes/VillagerNode.tscn` (CharacterBody3D + CapsuleMesh + CapsuleShape3D + Label3D)
 
 ### Phase 2 — Recruitment dialogue and follow state ✅
 - [x] `client/RecruitmentDialogue.cs` — CanvasLayer Layer=28; E key near villager; name + archetype + stats (highest stat gold ★); Recruit / Leave buttons; Escape closes
@@ -416,7 +416,7 @@ player takes it via Kingdom Marker.
 - [x] `server/VillageSystem.cs` — `RequestRecruit` / `RequestLeave` RPCs; proximity check (3m); _followTargets + _followerByPeer dicts; _PhysicsProcess follow movement (3 m/s, stops 2m); `ClientMoveVillager` position broadcast
 - [x] `client/PlayerController.cs` — 256u added to interact mask; villager Priority 1 (above shelter); dialogue guard on E key
 - [x] `data/lang/en.json` — `recruit.*` loc keys (230 tests, 0 failures)
-- [ ] **Editor:** Add `RecruitmentDialogue` CanvasLayer to `GameWorld.tscn`
+- [x] **Editor:** Add `RecruitmentDialogue` CanvasLayer to `GameWorld.tscn`
 
 ### Phase 3 — Woodcutter's Post, settlement stockpile, NPC job loop ✅
 - [x] `shared/BuildingRegistry.cs` — added `WoodcuttersPost` (id `"building.woodcutters_post"`, 15 wood, in All list)
@@ -427,7 +427,7 @@ player takes it via Kingdom Marker.
 - [x] `server/VillageSystem.cs` — `RequestAssignToStation` RPC; Following→Working state transition; job tick: `FindNearestTree` (20m), move to tree, `ServerChopTree` (1s cooldown via elapsed time); `MoveNpcToward` helper shared by follow + job ticks
 - [x] `client/PlayerController.cs` — Kingdom Marker proximity check (pre-sphere); Woodcutter's Post + has follower → assign (Priority 2); `TryAssignFollowerToStation` helper; `StockpilePanel` path constant
 - [x] `data/lang/en.json` — `building.woodcutters_post.name` + `stockpile.*` loc keys (230 tests, 0 failures)
-- [ ] **Editor:** Create `scenes/WoodcuttersPost.tscn`; Add `StockpilePanel` CanvasLayer to `GameWorld.tscn`
+- [x] **Editor:** Create `scenes/WoodcuttersPost.tscn`; Add `StockpilePanel` CanvasLayer to `GameWorld.tscn`
 
 ### Phase 4 — NPC needs ✅
 - [x] `server/VillageSystem.cs` — per-NPC hunger + rest (SortedDictionary<string,float>); hunger drains 0.5/min, rest drains 1/min; rest < 20 → suspend job/follow, walk to nearest Shelter, sleep 30s (rest → 100); hunger restores passively 0.5/s
@@ -452,10 +452,31 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [x] `shared/BuildingRegistry.cs` — add `StockpileDrop` (`building.stockpile`, 8 wood, `Stockpile.tscn`)
 - [x] `server/SettlementSystem.cs` — null guard on `GD.Load<PackedScene>` in `SpawnBuilding`
 - [x] `data/lang/en.json` — `building.stockpile.name`
-- [ ] **Editor (Edu):** Create `scenes/Stockpile.tscn` — Node3D root + BoxMesh (3×1.5×3) + StaticBody3D + BoxShape3D on collision layer 8 (buildings)
+- [x] **Editor (Edu):** Create `scenes/Stockpile.tscn` — Node3D root + BoxMesh (3×1.5×3) + StaticBody3D + BoxShape3D on collision layer 8 (buildings)
+
+### Demo gate ✅ PASSED (2026-07-13)
+- [x] Build Stockpile Drop near Woodcutter's Post → assign NPC → NPC chops 2 trees, walks to Stockpile Drop, deposits wood → stockpile count increments → NPC returns to chop
+
+---
+
+## M7.5a — Hotbar (9 quick-access slots)
+
+**Goal:** Player opens inventory, hovers an item, presses 1–9 to assign it to a hotbar slot. Hotbar is always visible at screen bottom. Active slot highlighted with 1–9 keys. Prerequisite for M7 bandage use-from-hotbar.
+
+### Code (all complete)
+- [x] `shared/PlayerInventory.cs` — `HotbarSlots string?[9]`; `SetHotbarSlot(int, string?)`; `GetHotbarSlot(int)`
+- [x] `shared/LocalState.cs` — `ActiveHotbarSlot`; `HotbarSlotChanged`; `ActiveHotbarSlotChanged`; `HotbarKeyPressed`; `SetHotbarSlot`; `SetActiveHotbarSlot`; `NotifyHotbarKeyPressed`
+- [x] `server/InventorySystem.cs` — `RequestAssignHotbar(int slot, string itemId)` AnyPeer RPC; `ApplyHotbarSlot` Authority RPC; `SyncHotbarTo` helper
+- [x] `client/HotbarHUD.cs` — CanvasLayer Layer=5; 9-slot bar bottom-centre; number keys 1–9 select active slot; slot label shows item name; yellow highlight on active slot
+- [x] `client/InventoryPanel.cs` — hover tracking per item row; `HotbarKeyPressed` handler assigns hovered item; hotbar badge `[N]` on assigned rows; hotbar hint in footer
+- [x] `data/lang/en.json` — `inventory.hotbar_hint`
+
+### Editor tasks
+- [x] **Editor (Edu):** Add `HotbarHUD` CanvasLayer node to `GameWorld.tscn`; attach script `res://scripts/client/HotbarHUD.cs`
 
 ### Demo gate
-- [ ] Build Stockpile Drop near Woodcutter's Post → assign NPC → NPC chops 2 trees, walks to Stockpile Drop, deposits wood → stockpile count increments → NPC returns to chop
+- [x] Open inventory (I), hover Wood row, press 3 → `[3]` badge appears on Wood row, slot 3 in HotbarHUD shows "Wood"; close inventory; press 3 → slot 3 highlighted
+- [x] Hover a different item and press 3 again → slot 3 overwrites to new item (verified 2026-07-10)
 
 ---
 
@@ -463,24 +484,72 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 
 **Goal:** Fighter alone can't build Herbalist's Hut → recruits Ranger villager → hut becomes buildable → Ranger leaves → hut becomes non-functional (dormant).
 
-### Phase 1 — Herbalist's Hut building + presence gating
-- [ ] `shared/BuildingRegistry.cs` — add `HerbalistsHut` (id `"building.herbalists_hut"`, cost TBD, size TBD)
-- [ ] `server/SettlementSystem.cs` — presence-gating logic: building becomes buildable only when a Ranger-class NPC is assigned to any station in the settlement; locks/dormant when the Ranger leaves
-- [ ] `client/BuildMenu.cs` — show Herbalist's Hut as locked (greyed out) if Ranger presence not met; show tooltip explaining the requirement
-- [ ] `data/lang/en.json` — `building.herbalists_hut.name` + gate-fail tooltip key
+### Phase 1 — Herbalist's Hut building ✅
+- [x] `shared/BuildingRegistry.cs` — `HerbalistsHut` added (id `"building.herbalists_hut"`, 20 wood, 4×3×4); `RequiresPresence` removed from all buildings
+- [x] `server/SettlementSystem.cs` — `RequestCraftBandage` RPC (2 herbs → 1 bandage; no gate)
+- [x] `client/BuildMenu.cs` — gate label/button system removed; panel simplified
 
-### Phase 2 — Foraging station and herb production
-- [ ] `server/VillageSystem.cs` — job loop for Foraging archetype NPC at Herbalist's Hut; produces herbs → settlement stockpile
-- [ ] `shared/LocalState.cs` — track assigned NPC archetypes for presence-gate checking
-- [ ] `data/lang/en.json` — herb item name/desc keys
+### Phase 2 — Forager NPC job loop ✅
+- [x] `server/VillageSystem.cs` — `_settlementNpcs` SortedSet; `TickForagerJob` (30s, herb → stockpile); `RequestAssignNpcToStation` (shelter-based, no proximity); `RequestUnassignNpc`; `BroadcastVillageRoster` + `ClientSetVillageRoster`
+- [x] `shared/LocalState.cs` — `VillageRosterJson` + `VillageRosterChanged` event
+- [x] `data/lang/en.json` — `item.herb.*` keys
 
-### Phase 3 — Bandage crafting
-- [ ] `shared/ItemRegistry.cs` (or equivalent) — add `item.bandage` (crafted from 2 herbs at Herbalist's Hut; heals 20 HP)
-- [ ] `server/SettlementSystem.cs` — crafting interaction at Herbalist's Hut: E key → craft bandage from herb stock
-- [ ] `data/lang/en.json` — bandage name/desc keys
+### Phase 3 — Bandage crafting + use ✅
+- [x] `server/HealthSystem.cs` — `RequestUseBandage` RPC (heal 20 + floor(foraging/5), cap 40)
+- [x] `client/PlayerController.cs` — Tab with bandage in active hotbar → `RequestUseBandage`; E at Herbalist's Hut → `RequestCraftBandage`; E at Shelter (founder) → `BuildingAssignmentPanel.Open()`
+- [x] `client/BuildingAssignmentPanel.cs` — new CanvasLayer Layer=31; NPC list + station list; Assign/Unassign; subscribes to `VillageRosterChanged`
+- [x] `data/lang/en.json` — `item.bandage.*` keys
+- [x] **Editor (Edu):** Add `BuildingAssignmentPanel` CanvasLayer to `GameWorld.tscn`; attach `res://scripts/client/BuildingAssignmentPanel.cs`
 
-### Demo gate
-- [ ] Fighter player can't build Herbalist's Hut (locked in build menu) → recruits Ranger-archetype villager → assigns to any station → Herbalist's Hut unlocks in build menu → player builds it → assigns Ranger NPC to it → herbs appear in stockpile → craft bandage → Ranger NPC removed from settlement → Herbalist's Hut goes dormant
+### Demo gate ✅ PASSED (2026-07-11)
+- [x] Recruit a Wis-high villager (forager archetype) → assign via BuildingAssignmentPanel → build Herbalist's Hut → assign forager NPC to it → herbs appear in stockpile → E at Hut → craft bandage → assign bandage to hotbar → Tab to use → HP restored
+
+---
+
+## M7 ✅ COMPLETE (2026-07-11)
+
+---
+
+## M8 — Save/load and polish
+
+**Goal:** Play for 30 minutes, quit, restart, resume exactly where you left off.
+
+### Phase 1 — Save schema + core systems ✅
+- [x] `shared/SaveData.cs` — v1 schema (WorldSeed, Markers, Buildings, Stockpile, NpcAssignments, Players); version field for future migrations
+- [x] `server/SaveSystem.cs` — `Save()` + `TryLoad()` + 5-minute autosave + exit save + reconnect replay (`SendFullStateToClient`)
+- [x] `server/SettlementSystem.cs` — `_placedBuildings` tracking in `SpawnBuilding`; `GetSaveState()` + `RestoreFromSave()`
+- [x] `server/SkillSystem.cs` — `GetXpForSave()` + `GetBumpsForSave()` + `RestoreSkillsFromSave()` + `BroadcastLevelsTo()`
+- [x] `server/HealthSystem.cs` — `GetPlayerIds()` + `RestoreHpFromSave()` + `SyncHealthTo()`
+- [x] `server/NeedsSystem.cs` — `GetNeeds()` + `RestoreNeedsFromSave()`
+- [x] `server/InventorySystem.cs` — `RestoreInventoryFromSave()` + `SyncInventoryAndHotbarTo()`
+- [x] `server/VillageSystem.cs` — `GetAssignmentsForSave()` + `RestoreAssignmentsFromSave()` + `BroadcastRosterToAll()`
+
+### Phase 2 — Wire-up + editor task ✅
+- [x] `tests/Shared/SaveDataTests.cs` — 13 round-trip + schema tests (270 total, 0 failures)
+- [x] **Editor (Edu):** Add `SaveSystem` node to `GameWorld.tscn` — last child of root after VillageSystem
+- [x] Smoke-test save→quit→restart: kingdom marker, 2+ buildings, stockpile items, skill level, bandage in hotbar all survive, felled trees stay felled ✅
+
+### Phase 2b — Named saves + Load Game UI ✅ (code only; editor task pending)
+- [x] `shared/SaveUtil.cs` — `ListSaves()` + `PeekSession()` read-only helpers (client-safe; no Server import needed)
+- [x] `shared/GameSession.cs` — `SaveName` field; `SaveRequested` event + `RequestSave()` (bridges PauseMenu → SaveSystem without cross-namespace import)
+- [x] `shared/SaveData.cs` — `SessionSave` class (class/race/stats) embedded in save; `Session` field on `SaveData`
+- [x] `server/SaveSystem.cs` — `SavePath` property uses `GameSession.SaveName`; `EnsureSaveDir()`; saves and restores `data.Session`; subscribes `GameSession.SaveRequested`
+- [x] `client/CharacterCreateScreen.cs` — `OnConfirm()` stamps `GameSession.SaveName = "save_{yyyyMMdd_HHmmss}"`
+- [x] `client/LoadGamePanel.cs` — programmatic Control (no .tscn); lists saves via `SaveUtil.ListSaves()`; shows class/race from `PeekSession()`; sets `GameSession` on load; auto-selects newest save on open; double-click to load
+- [x] `client/PauseMenu.cs` — CanvasLayer Layer=50; Escape toggle; Resume/Save/Load/Quit buttons; embeds `LoadGamePanel`; uses `GameSession.RequestSave()` (no Server import)
+- [x] `client/MainMenuController.cs` — injects "Load Game" button after StartSolo; creates `LoadGamePanel` overlay
+- [x] `data/lang/en.json` — `menu.load_game`, `pause.*`, `load_panel.*` loc keys
+- [ ] **Editor (Edu):** Add `PauseMenu` CanvasLayer to `GameWorld.tscn` — any position; Layer=50 set in code; attach `res://scripts/client/PauseMenu.cs`
+- [ ] Smoke-test Load Game: new game → play → save (Escape → Save) → quit to menu → Load Game → select slot → resumes in same world with same state
+
+### Phase 3 — Remaining M8 scope
+- [ ] Fog of war probe — full-map toggle (unseen/seen/visible), shared reveal, persisted in save (see `docs/gdd/worldgen.md` §11)
+- [ ] Localization audit — grep for string literals in gameplay code; ensure 0 hardcoded player-facing strings remain
+- [ ] Demo gate: play 30 min solo → quit → restart → resume exactly where left off
+
+### Captured (scope TBD)
+- [ ] Building construction progress — visual indicator while a building is being placed/constructed
+- [ ] NPC collision with buildings — NPCs currently walk through placed buildings
 
 ---
 

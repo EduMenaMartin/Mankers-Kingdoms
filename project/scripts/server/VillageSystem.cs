@@ -30,6 +30,11 @@ public partial class VillageSystem : Node
     // ── Server-only: positions ────────────────────────────────────────────────
     private readonly SortedDictionary<string, Vector3> _positions = new();
 
+    // ── Server-only: Settlement roster ───────────────────────────────────────
+    // NPCs that have been recruited into the player's settlement (persist beyond follow state).
+    private readonly SortedSet<string>               _settlementNpcs = new(); // villagerId
+    private readonly SortedDictionary<string, long>  _npcFounder     = new(); // villagerId → founderPeerId
+
     // ── Server-only: Following state ──────────────────────────────────────────
     private readonly SortedDictionary<string, long>   _followTargets  = new(); // villagerId → peerId
     private readonly SortedDictionary<long,   string> _followerByPeer = new(); // peerId → villagerId
@@ -55,6 +60,11 @@ public partial class VillageSystem : Node
     private const int   NPC_CARRY_CAPACITY = 6;  // 2 trees × 3 wood/tree
     private const float DEPOSIT_RANGE      = 2f;
 
+    // ── Server-only: Forager state ────────────────────────────────────────────
+    private readonly SortedDictionary<string, float> _lastForageTime = new(); // villagerId → elapsed at last forage
+    private const float FORAGE_COOLDOWN  = 30.0f; // seconds between herb yields
+    private const int   HERB_PER_FORAGE  = 1;     // herbs produced per forage tick
+
     // ── Warning throttle ──────────────────────────────────────────────────────
     private readonly SortedDictionary<string, float> _lastWarnTime = new(); // villagerId → _elapsed at last warn
     private const float WARN_THROTTLE_SEC = 10f;
@@ -73,7 +83,7 @@ public partial class VillageSystem : Node
     private float _elapsed; // seconds since _Ready, used for cooldown comparison
 
     private const float  FOLLOW_SPEED     = 3f;
-    private const float  FOLLOW_STOP_XZ   = 2f;
+    private const float  FOLLOW_STOP_XZ   = 4f;
     private const float  CHOP_RANGE       = 1.5f;  // distance to tree that triggers a chop
     private const float  MAX_CHOP_RANGE   = 200f;  // NPC searches for trees within this radius
     private const float  CHOP_COOLDOWN    = 1.0f;  // seconds between chops
@@ -165,6 +175,60 @@ public partial class VillageSystem : Node
     public string GetFollowerOf(long peerId) =>
         _followerByPeer.TryGetValue(peerId, out var id) ? id : "";
 
+    // ── Save / Load (M8) ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns current NPC work assignments for serialization.
+    /// Called by SaveSystem.Save().
+    /// </summary>
+    public List<NpcAssignSave> GetAssignmentsForSave()
+    {
+        var result = new List<NpcAssignSave>();
+        foreach (var (npcId, stationNodeName) in _workAssignments)
+        {
+            _workFounder.TryGetValue(npcId, out long founderPeerId);
+            result.Add(new NpcAssignSave
+            {
+                NpcId           = npcId,
+                StationNodeName = stationNodeName,
+                FounderPeerId   = founderPeerId
+            });
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Restores NPC work assignments from save data.
+    /// NPCs must already exist in _npcNodes (seeded from the same world seed in _Ready).
+    /// Called by SaveSystem.TryLoad().
+    /// </summary>
+    public void RestoreAssignmentsFromSave(List<NpcAssignSave> assignments)
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        foreach (var a in assignments)
+        {
+            if (!_villagers.ContainsKey(a.NpcId))
+            {
+                GD.PrintErr($"[VillageSystem] restore: NPC '{a.NpcId}' not found — skipping");
+                continue;
+            }
+
+            _settlementNpcs.Add(a.NpcId);
+            _npcFounder[a.NpcId]      = a.FounderPeerId;
+            _workAssignments[a.NpcId] = a.StationNodeName;
+            _workFounder[a.NpcId]     = a.FounderPeerId;
+
+            GD.Print($"[VillageSystem] restored assignment: {a.NpcId} → {a.StationNodeName}");
+        }
+
+        if (assignments.Count > 0)
+            BroadcastVillageRoster(1L); // host is always peer 1; clients sync on reconnect
+    }
+
+    /// <summary>Sends the village roster to all connected peers. Used for reconnect replay.</summary>
+    public void BroadcastRosterToAll() => BroadcastVillageRoster(1L);
+
     // ── Recruitment RPCs ──────────────────────────────────────────────────────
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
@@ -194,12 +258,16 @@ public partial class VillageSystem : Node
 
         _followTargets[villagerId] = sender;
         _followerByPeer[sender]    = villagerId;
-        GD.Print($"[VillageSystem] {data.Name} now follows peer {sender}");
+        _settlementNpcs.Add(villagerId);
+        _npcFounder[villagerId] = sender;
+        GD.Print($"[VillageSystem] {data.Name} now follows peer {sender}, added to settlement");
 
         if (sender == Multiplayer.GetUniqueId())
             LocalState.SetFollower(villagerId);
         else
             RpcId(sender, MethodName.ClientSetFollower, villagerId);
+
+        BroadcastVillageRoster(sender);
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
@@ -216,29 +284,44 @@ public partial class VillageSystem : Node
 
         _followTargets.Remove(villagerId);
         _followerByPeer.Remove(sender);
-        GD.Print($"[VillageSystem] {villagerId} released by peer {sender}");
+        // NPC stays in _settlementNpcs — they become idle in the settlement.
+        GD.Print($"[VillageSystem] {villagerId} stopped following peer {sender} — now idle in settlement");
 
         if (sender == Multiplayer.GetUniqueId())
             LocalState.ClearFollower();
         else
             RpcId(sender, MethodName.ClientClearFollower);
+
+        BroadcastVillageRoster(sender);
     }
 
-    // ── Station assignment RPC ────────────────────────────────────────────────
+    // ── Station assignment RPCs ───────────────────────────────────────────────
 
+    /// <summary>
+    /// Assigns any settlement NPC to any station without proximity or follower checks.
+    /// Called from BuildingAssignmentPanel — the founder selects NPC + station via UI.
+    /// NPC must be in _settlementNpcs (recruited to this settlement).
+    /// Station must exist under SettlementSystem.
+    /// If NPC was following, stop the follow so they can walk to the station.
+    /// </summary>
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
          TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    public void RequestAssignToStation(string stationNodeName)
+    public void RequestAssignNpcToStation(string npcId, string stationNodeName)
     {
         if (!Multiplayer.IsServer()) return;
 
         long sender = Multiplayer.GetRemoteSenderId();
         if (sender == 0) sender = 1L;
 
-        // Must have a follower
-        if (!_followerByPeer.TryGetValue(sender, out string villagerId))
+        if (!IsFounderPeer(sender))
         {
-            GD.PrintErr($"[VillageSystem] peer {sender} has no follower to assign");
+            GD.PrintErr($"[VillageSystem] peer {sender} tried to assign NPC — not a founder");
+            return;
+        }
+
+        if (!_settlementNpcs.Contains(npcId))
+        {
+            GD.PrintErr($"[VillageSystem] NPC {npcId} is not in the settlement roster");
             return;
         }
 
@@ -249,39 +332,66 @@ public partial class VillageSystem : Node
             return;
         }
 
-        // Station must exist under SettlementSystem
-        var stationNode = GetNodeOrNull<Node3D>($"/root/GameWorld/SettlementSystem/{stationNodeName}");
+        var stationNode = GetNodeOrNull($"/root/GameWorld/SettlementSystem/{stationNodeName}");
         if (stationNode == null)
         {
-            GD.PrintErr($"[VillageSystem] station node '{stationNodeName}' not found");
+            GD.PrintErr($"[VillageSystem] station '{stationNodeName}' not found");
             return;
         }
 
-        // Player must be within 5 m of the station
-        var playerNode = GetNodeOrNull<Node3D>($"{PLAYERS_PATH}/Player_{sender}");
-        if (playerNode == null) return;
-        if (stationNode.GlobalPosition.DistanceTo(playerNode.GlobalPosition) > 5f)
+        // If NPC was following someone, stop the follow.
+        if (_followTargets.TryGetValue(npcId, out long followPeer))
         {
-            GD.Print($"[VillageSystem] peer {sender} too far from station to assign");
-            return;
+            _followTargets.Remove(npcId);
+            _followerByPeer.Remove(followPeer);
+            if (followPeer == Multiplayer.GetUniqueId())
+                LocalState.ClearFollower();
+            else
+                RpcId(followPeer, MethodName.ClientClearFollower);
         }
 
-        // Move NPC from Following → Working
-        _followTargets.Remove(villagerId);
-        _followerByPeer.Remove(sender);
-        _workAssignments[villagerId] = stationNodeName;
-        _workFounder[villagerId]     = sender;
-        _jobTargetTree[villagerId]   = "";
+        _workAssignments[npcId] = stationNodeName;
+        _workFounder[npcId]     = sender;
+        _jobTargetTree[npcId]   = "";
 
-        if (_villagers.TryGetValue(villagerId, out var data))
+        if (_villagers.TryGetValue(npcId, out var data))
             GD.Print($"[VillageSystem] {data.Name} assigned to {stationNodeName}");
 
-        // Clear client's follower indicator (NPC is now working, no longer "following")
-        if (sender == Multiplayer.GetUniqueId())
-            LocalState.ClearFollower();
-        else
-            RpcId(sender, MethodName.ClientClearFollower);
+        BroadcastVillageRoster(sender);
     }
+
+    /// <summary>
+    /// Removes a settlement NPC from their current station. NPC becomes idle.
+    /// Called from BuildingAssignmentPanel.
+    /// </summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RequestUnassignNpc(string npcId)
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+
+        if (!IsFounderPeer(sender)) return;
+        if (!_settlementNpcs.Contains(npcId)) return;
+
+        _workAssignments.Remove(npcId);
+        _workFounder.Remove(npcId);
+        _jobTargetTree.Remove(npcId);
+        _lastChopTime.Remove(npcId);
+        _lastForageTime.Remove(npcId);
+        _walkingToDeposit.Remove(npcId);
+
+        if (_villagers.TryGetValue(npcId, out var data))
+            GD.Print($"[VillageSystem] {data.Name} unassigned — now idle");
+
+        BroadcastVillageRoster(sender);
+    }
+
+    // Helper: is this peer the settlement founder (has planted a marker)?
+    private static bool IsFounderPeer(long peerId) =>
+        SettlementSystem.Instance?.IsFounder(peerId) ?? false;
 
     // ── Client RPCs ───────────────────────────────────────────────────────────
 
@@ -328,7 +438,6 @@ public partial class VillageSystem : Node
     private void TickJobs(float delta)
     {
         var ts = TreeSystem.Instance;
-        if (ts == null) return;
 
         foreach (var (villagerId, stationNodeName) in _workAssignments)
         {
@@ -336,6 +445,17 @@ public partial class VillageSystem : Node
             if (_sleeping.ContainsKey(villagerId))          continue;
             if (_walkingToDeposit.ContainsKey(villagerId))  continue;
             if (!_positions.TryGetValue(villagerId, out var npcPos)) continue;
+
+            // Route to forager loop when assigned to a Herbalist's Hut.
+            // Note: Godot normalises dots to underscores in node names.
+            if (stationNodeName.StartsWith("building_herbalists_hut", System.StringComparison.Ordinal))
+            {
+                TickForagerJob(villagerId, stationNodeName);
+                continue;
+            }
+
+            // Woodcutter loop — requires TreeSystem.
+            if (ts == null) continue;
 
             // If already at carry capacity (e.g. just woke from sleep), head to deposit first.
             _npcCarried.TryGetValue(villagerId, out int alreadyCarried);
@@ -409,6 +529,30 @@ public partial class VillageSystem : Node
                 }
             }
         }
+    }
+
+    // ── Forager job tick ──────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called each physics tick for an NPC assigned to a Herbalist's Hut.
+    /// Produces HERB_PER_FORAGE herbs into the settlement stockpile every FORAGE_COOLDOWN seconds.
+    /// Production is skipped if the hut is dormant (Ranger presence lost) — the NPC is still
+    /// assigned and will resume when a Ranger returns. V1 simplification: no world herb spawn
+    /// nodes; the NPC forages from the hut's area implicitly.
+    /// </summary>
+    private void TickForagerJob(string villagerId, string stationNodeName)
+    {
+        // Hut must still exist under SettlementSystem.
+        var hutNode = GetNodeOrNull($"/root/GameWorld/SettlementSystem/{stationNodeName}");
+        if (hutNode == null) return;
+
+        // Cooldown check.
+        float lastForage = _lastForageTime.TryGetValue(villagerId, out var lf) ? lf : -FORAGE_COOLDOWN;
+        if (_elapsed - lastForage < FORAGE_COOLDOWN) return;
+
+        _lastForageTime[villagerId] = _elapsed;
+        SettlementSystem.Instance?.AddToStockpile("item.herb", HERB_PER_FORAGE);
+        GD.Print($"[VillageSystem] NPC {villagerId} foraged {HERB_PER_FORAGE} herb(s)");
     }
 
     // ── Deposit tick ──────────────────────────────────────────────────────────
@@ -606,8 +750,9 @@ public partial class VillageSystem : Node
                 var stationNode = GetNodeOrNull($"/root/GameWorld/SettlementSystem/{resumeStation}");
                 if (stationNode != null)
                 {
+                    long resumeFounder   = _suspendedFounder.TryGetValue(id, out long f) ? f : 0L;
                     _workAssignments[id] = resumeStation;
-                    _workFounder[id]     = _suspendedFounder.TryGetValue(id, out long f) ? f : 0L;
+                    _workFounder[id]     = resumeFounder;
                     _jobTargetTree[id]   = "";
                     GD.Print($"[VillageSystem] NPC {id} woke up, resuming work at {resumeStation}");
                 }
@@ -641,14 +786,18 @@ public partial class VillageSystem : Node
         // when they resume work after sleeping (TickJobs checks carry cap on wake).
         _walkingToDeposit.Remove(villagerId);
 
+        long suspendedFounder = 0L;
         if (_workAssignments.TryGetValue(villagerId, out string stationToResume))
         {
             _suspendedStation[villagerId] = stationToResume;
-            _suspendedFounder[villagerId] = _workFounder.TryGetValue(villagerId, out long f) ? f : 0L;
+            suspendedFounder = _workFounder.TryGetValue(villagerId, out long f) ? f : 0L;
+            _suspendedFounder[villagerId] = suspendedFounder;
             _workAssignments.Remove(villagerId);
             _workFounder.Remove(villagerId);
             _jobTargetTree.Remove(villagerId);
             _lastChopTime.Remove(villagerId);
+            _lastForageTime.Remove(villagerId);
+
         }
 
         Vector3 shelterPos = FindNearestShelterPosition(
@@ -709,6 +858,42 @@ public partial class VillageSystem : Node
         }
         return bestId;
     }
+
+    // ── Village roster broadcast ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Sends the settlement NPC roster (names, archetypes, current stations) to the founder.
+    /// Called on recruit, leave, assign, and unassign so the client panel always reflects
+    /// current state without a request/response round-trip.
+    /// JSON format: [{"id":"v0","name":"Alice","archetypeKey":"archetype.forager.name","station":"building_herbalists_hut_10_20"}]
+    /// </summary>
+    private void BroadcastVillageRoster(long founderPeerId)
+    {
+        var sb = new System.Text.StringBuilder("[");
+        bool first = true;
+        foreach (var npcId in _settlementNpcs)
+        {
+            if (!_villagers.TryGetValue(npcId, out var data)) continue;
+            string station = _workAssignments.TryGetValue(npcId, out var s) ? s : "";
+            if (!first) sb.Append(',');
+            sb.Append($"{{\"id\":\"{npcId}\",\"name\":\"{EscapeJson(data.Name)}\",");
+            sb.Append($"\"archetypeKey\":\"{data.ArchetypeNameKey}\",\"station\":\"{station}\"}}");
+            first = false;
+        }
+        sb.Append(']');
+        string json = sb.ToString();
+
+        if (founderPeerId == Multiplayer.GetUniqueId())
+            ClientSetVillageRoster(json);
+        else
+            RpcId(founderPeerId, MethodName.ClientSetVillageRoster, json);
+    }
+
+    private static string EscapeJson(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ClientSetVillageRoster(string json) => LocalState.SetVillageRoster(json);
 
     // ── Data loading ──────────────────────────────────────────────────────────
 

@@ -6,7 +6,7 @@ size = Vector3(3, 1.5, 3)
 [sub_resource type="BoxShape3D" id="BoxShape3D_tepmp"]
 size = Vector3(3, 1.5, 3)
 
-[node name="Node3D" type="Node3D" unique_id=2120510578]
+[node name="Stockpile" type="Node3D" unique_id=2120510578]
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=241952260]
 mesh = SubResource("BoxMesh_tepmp")

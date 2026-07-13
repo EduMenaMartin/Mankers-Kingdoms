@@ -288,6 +288,91 @@ public static class LocalState
     /// <summary>Called by SettlementSystem.SpawnMarker when this peer's marker is placed.</summary>
     public static void SetMarkerWorldPos(float x, float z) => MarkerWorldPos = (x, z);
 
+    // ── Village roster ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// JSON array of settlement NPCs sent by VillageSystem.ClientSetVillageRoster.
+    /// Consumed by BuildingAssignmentPanel to populate the assignment UI.
+    /// Empty string = no NPCs yet recruited.
+    /// </summary>
+    public static string VillageRosterJson { get; private set; } = "[]";
+
+    /// <summary>Fired when VillageRosterJson changes. BuildingAssignmentPanel refreshes its list.</summary>
+    public static event System.Action? VillageRosterChanged;
+
+    public static void SetVillageRoster(string json)
+    {
+        VillageRosterJson = json;
+        VillageRosterChanged?.Invoke();
+    }
+
+    // ── Hotbar ────────────────────────────────────────────────────────────────
+
+    private static readonly string?[] _hotbar = new string?[9];
+
+    /// <summary>Index of the currently selected hotbar slot (0–8). Default 0.</summary>
+    public static int ActiveHotbarSlot { get; private set; } = 0;
+
+    /// <summary>
+    /// Fired when a hotbar slot's content changes.
+    /// Parameters: (slotIndex 0–8, itemId or null for empty).
+    /// Subscribed by HotbarHUD to refresh individual slot labels.
+    /// </summary>
+    public static event System.Action<int, string?>? HotbarSlotChanged;
+
+    /// <summary>
+    /// Fired when the active (highlighted) hotbar slot changes.
+    /// Parameter: new slot index 0–8. Subscribed by HotbarHUD to redraw highlight.
+    /// </summary>
+    public static event System.Action<int>? ActiveHotbarSlotChanged;
+
+    /// <summary>
+    /// Fired by HotbarHUD when a number key 1–9 is pressed so that InventoryPanel
+    /// can assign the currently hovered item to that slot without needing a direct reference.
+    /// Parameter: slot index 0–8.
+    /// </summary>
+    public static event System.Action<int>? HotbarKeyPressed;
+
+    /// <summary>Returns the itemId assigned to the given hotbar slot, or null if empty.</summary>
+    public static string? GetHotbarSlot(int slot) =>
+        (slot >= 0 && slot < 9) ? _hotbar[slot] : null;
+
+    /// <summary>
+    /// Called by InventorySystem.ApplyHotbarSlot RPC (runs on owning peer).
+    /// Applies move semantics: clears any other slot already holding the same itemId.
+    /// </summary>
+    public static void SetHotbarSlot(int slot, string? itemId)
+    {
+        if (slot < 0 || slot >= 9) return;
+        if (itemId != null)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                if (_hotbar[i] == itemId)
+                {
+                    _hotbar[i] = null;
+                    HotbarSlotChanged?.Invoke(i, null);
+                }
+            }
+        }
+        _hotbar[slot] = itemId;
+        HotbarSlotChanged?.Invoke(slot, itemId);
+    }
+
+    /// <summary>Called by HotbarHUD when a number key changes the active slot.</summary>
+    public static void SetActiveHotbarSlot(int slot)
+    {
+        if (slot < 0 || slot >= 9 || slot == ActiveHotbarSlot) return;
+        ActiveHotbarSlot = slot;
+        ActiveHotbarSlotChanged?.Invoke(slot);
+    }
+
+    /// <summary>
+    /// Called by HotbarHUD when a number key is pressed (after updating active slot).
+    /// InventoryPanel subscribes while open to assign the hovered item.
+    /// </summary>
+    public static void NotifyHotbarKeyPressed(int slot) => HotbarKeyPressed?.Invoke(slot);
+
     // ── Skill levels ──────────────────────────────────────────────────────────
 
     /// <summary>

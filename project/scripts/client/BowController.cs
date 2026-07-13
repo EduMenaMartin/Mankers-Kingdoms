@@ -30,12 +30,28 @@ public partial class BowController : Node
     private readonly Dictionary<long, Node3D>   _ghosts           = new();
     private readonly Dictionary<long, Vector3>  _ghostVelocities  = new();
 
+    // Object pool for arrow ghost nodes — avoids per-shot instantiation/QueueFree overhead.
+    // TODO: swap CreateGhostMesh() for Arrow.tscn instances when the editor task lands.
+    private const int POOL_SIZE = 16;
+    private readonly List<MeshInstance3D>  _pool     = new();
+    private readonly Stack<MeshInstance3D> _inactive = new();
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     public override void _Ready()
     {
         LocalState.ArrowSpawned += OnArrowSpawned;
         LocalState.ArrowRemoved += OnArrowRemoved;
+
+        var scene = GetTree().CurrentScene;
+        for (int i = 0; i < POOL_SIZE; i++)
+        {
+            var ghost = CreateGhostMesh();
+            ghost.Visible = false;
+            scene.AddChild(ghost);
+            _pool.Add(ghost);
+            _inactive.Push(ghost);
+        }
     }
 
     public override void _ExitTree()
@@ -43,9 +59,11 @@ public partial class BowController : Node
         LocalState.ArrowSpawned -= OnArrowSpawned;
         LocalState.ArrowRemoved -= OnArrowRemoved;
 
-        foreach (var ghost in _ghosts.Values)
-            if (IsInstanceValid(ghost)) ghost.QueueFree();
+        foreach (var node in _pool)
+            if (IsInstanceValid(node)) node.QueueFree();
 
+        _pool.Clear();
+        _inactive.Clear();
         _ghosts.Clear();
         _ghostVelocities.Clear();
     }
@@ -145,14 +163,23 @@ public partial class BowController : Node
         var origin   = new Vector3(ox, oy, oz);
         var velocity = new Vector3(dx, dy, dz) * speed;
 
-        // Small sphere placeholder — Arrow.tscn (editor task) replaces this in a later pass.
-        var ghost = new MeshInstance3D
+        MeshInstance3D ghost;
+        if (_inactive.Count > 0)
         {
-            Mesh = new SphereMesh { Radius = 0.08f, Height = 0.16f },
-        };
+            ghost = _inactive.Pop();
+        }
+        else
+        {
+            GD.PrintErr("[BowController] arrow pool exhausted — instantiating fallback ghost");
+            ghost = CreateGhostMesh();
+            GetTree().CurrentScene.AddChild(ghost);
+            _pool.Add(ghost);
+        }
 
-        GetTree().CurrentScene.AddChild(ghost);
+        // Full state reset so no leftover position/rotation from a prior flight survives reuse.
         ghost.GlobalPosition = origin;
+        ghost.Rotation       = Vector3.Zero;
+        ghost.Visible        = true;
 
         _ghosts[id]          = ghost;
         _ghostVelocities[id] = velocity;
@@ -161,10 +188,19 @@ public partial class BowController : Node
     private void OnArrowRemoved(long id)
     {
         if (_ghosts.Remove(id, out var ghost) && IsInstanceValid(ghost))
-            ghost.QueueFree();
+        {
+            ghost.Visible = false;
+            _inactive.Push((MeshInstance3D)ghost);
+        }
 
         _ghostVelocities.Remove(id);
     }
+
+    // Small sphere placeholder — Arrow.tscn (editor task) replaces this in a later pass.
+    // When that lands, swap this to GD.Load<PackedScene>("res://scenes/Arrow.tscn").Instantiate<Node3D>()
+    // and update _pool / _inactive types accordingly.
+    private static MeshInstance3D CreateGhostMesh() =>
+        new() { Mesh = new SphereMesh { Radius = 0.08f, Height = 0.16f } };
 
     // ── Utilities ─────────────────────────────────────────────────────────────
 

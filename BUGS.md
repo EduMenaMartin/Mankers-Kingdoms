@@ -2,6 +2,52 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [P2] Load Game panel "Load" button disabled on open — no visible way to load (2026-07-14)
+
+**Milestone found:** M8
+**Reproduce:** Main Menu → Load Game → save slot visible and selectable but Load button appears greyed out.
+**Expected:** Load button enabled as soon as the panel opens with a save present.
+**Actual:** `_loadButton.Disabled = true` on open; only enabled after clicking a list item via `ItemList.ItemSelected` signal. First-time user sees no clickable affordance.
+**Fix:** `Refresh()` auto-selects the first (newest) save via `_saveList.Select(0)` and sets `_loadButton.Disabled = false` when saves are present. Added `ItemActivated` handler so double-clicking a save also loads immediately.
+
+Status: FIXED (2026-07-14)
+
+---
+
+## [P2] Felled trees respawn on save→quit→reload (2026-07-13)
+
+**Milestone found:** M8
+**Reproduce:** Chop several trees, quit, restart.
+**Expected:** Felled trees remain absent; only un-cut trees are visible.
+**Actual:** All trees respawn — `TreeSystem._Ready()` re-instantiates every seeded tree and `_treeHp` is reset; felled state is not persisted.
+**Fix:** Add `_felledTreeIds SortedSet<string>` to TreeSystem; populate on `FellTree`/`FellTreeForNpc`. Add `List<string> FelledTreeIds` to `SaveData`. `RestoreFelledTreesFromSave()` removes felled IDs from `_treeHp` and calls new `ClientRemoveTreeNode` RPC to hide nodes on all peers. Note: partially-chopped trees (non-zero HP) reset to full on reload — acceptable for M8.
+
+Status: FIXED (2026-07-13)
+
+## [P2] Founder cannot sleep in Shelter — E opens assignment panel instead (2026-07-13)
+
+**Milestone found:** M7
+**Reproduce:** Plant Kingdom Marker (become founder), build a Shelter, press E while standing inside it.
+**Expected:** Rest bar fills; player sleeps.
+**Actual:** `BuildingAssignmentPanel` opens. Sleep never triggers. Priority 1 in `PlayerController.TryInteract` matches the Shelter and returns before Priority 3 (sleep) is reached. Priority 3 also has an explicit `!LocalState.IsFounder` guard, so founders are doubly blocked.
+**Fix:** `N` key registered as `open_assignment` in `MainMenuController`. `PlayerController._UnhandledInput` handles it — opens `BuildingAssignmentPanel` if founder. Priority 1 (shelter→panel) removed from `TryInteract`; `!LocalState.IsFounder` guard removed from Priority 3 (sleep). E-at-Shelter now sleeps for everyone. 257 tests, 0 failures.
+
+Status: FIXED (2026-07-13)
+
+---
+
+## [P2] Hotbar slot not cleared when item fully consumed via Tab key (2026-07-10)
+
+**Milestone found:** M7.5a
+**Reproduce:** Assign berries (or any consumable) to a hotbar slot. Consume the item to 0 via the default Tab action (`eat_food`). The hotbar slot still shows the item badge.
+**Expected:** When an item's stack reaches 0, any hotbar slot referencing that item is automatically cleared.
+**Actual:** `InventorySystem.RemoveItems` reduces the stack count but does not walk the hotbar array and null out matching slots. `SyncHotbarTo` is not called after removal, so the client's `LocalState` hotbar is stale.
+**Fix:** Added `PlayerInventory.ClearHotbarSlotsFor(itemId)` (nulls matching slots). Called from `InventorySystem.RemoveItems` when `!inv.Has(itemId)` after removal, from `ClearItem` always, and `TakeAll` via `Clear()` (which now also zeros all hotbar slots). `SyncHotbarTo` called in each path. 3 regression tests added to `InventoryTests.cs`. 257 tests, 0 failures.
+
+Status: FIXED (2026-07-13)
+
+---
+
 ## [P1] PlayerAnimator node paths wrong — animations not playing (2026-07-09)
 
 **Milestone found:** M5

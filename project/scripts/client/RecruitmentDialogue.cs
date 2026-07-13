@@ -207,13 +207,13 @@ public partial class RecruitmentDialogue : CanvasLayer
     private void RefreshButtonState()
     {
         if (!IsInsideTree()) return;
-        bool isFollowing = LocalState.FollowerNpcId == _currentVillagerId
-                           && !string.IsNullOrEmpty(_currentVillagerId);
+        // Recruit is available unless this NPC is already following someone.
+        bool isFollowing    = LocalState.FollowerNpcId == _currentVillagerId
+                              && !string.IsNullOrEmpty(_currentVillagerId);
         bool hasAnyFollower = !string.IsNullOrEmpty(LocalState.FollowerNpcId);
 
-        // Can recruit if: no one is following us and this NPC isn't already following someone
-        _recruitBtn.Disabled = hasAnyFollower;
-        // Can leave if: this specific NPC is following us
+        _recruitBtn.Disabled = hasAnyFollower; // can only lead one NPC at a time
+        // Leave stops the follow (NPC stays in settlement). Only available if this NPC is following us.
         _leaveBtn.Disabled   = !isFollowing;
     }
 

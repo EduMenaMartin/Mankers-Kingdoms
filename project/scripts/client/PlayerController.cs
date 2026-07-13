@@ -68,7 +68,8 @@ public partial class PlayerController : CharacterBody3D
 	private const string RECRUITMENT_DIALOGUE_PATH = "/root/GameWorld/RecruitmentDialogue";
 
 	// Path to StockpilePanel — opened when E key is pressed near the Kingdom Marker.
-	private const string STOCKPILE_PANEL_PATH = "/root/GameWorld/StockpilePanel";
+	private const string STOCKPILE_PANEL_PATH    = "/root/GameWorld/StockpilePanel";
+	private const string ASSIGNMENT_PANEL_PATH   = "/root/GameWorld/BuildingAssignmentPanel";
 
 	// Path to ProjectileSystem — used for untyped RPC (not used directly; BowController owns fire).
 	private const string PROJECTILE_SYSTEM_PATH = "/root/GameWorld/ProjectileSystem";
@@ -138,6 +139,11 @@ public partial class PlayerController : CharacterBody3D
 			EatFood();
 		if (@event.IsActionPressed("toggle_weapon"))
 			LocalState.ToggleWeaponMode();
+		if (@event.IsActionPressed("open_assignment") && LocalState.IsFounder)
+		{
+			var panel = GetNodeOrNull<BuildingAssignmentPanel>(ASSIGNMENT_PANEL_PATH);
+			if (panel != null) { panel.Open(); GetViewport().SetInputAsHandled(); }
+		}
 	}
 
 	// ── Class and stats announcement ─────────────────────────────────────────
@@ -300,23 +306,7 @@ public partial class PlayerController : CharacterBody3D
 			return;
 		}
 
-		// Priority 1: Station assignment — checked before recruitment so pressing E near a
-		// station with a follower in tow always assigns rather than re-opening dialogue.
-		if (!string.IsNullOrEmpty(LocalState.FollowerNpcId))
-		{
-			foreach (var hit in hits)
-			{
-				var collider     = hit["collider"].As<Node>();
-				var buildingNode = FindBuildingNode(collider);
-				if (buildingNode != null && buildingNode.Name.ToString().Contains("woodcutters_post"))
-				{
-					TryAssignFollowerToStation(buildingNode.Name.ToString());
-					return;
-				}
-			}
-		}
-
-		// Priority 2: Villager → open recruitment dialogue (only when no follower active).
+		// Priority 1: Villager → open recruitment dialogue.
 		foreach (var hit in hits)
 		{
 			if (hit["collider"].As<Node>() is not VillagerNode collider) continue;
@@ -329,7 +319,7 @@ public partial class PlayerController : CharacterBody3D
 		// Priority 3: Shelter → sleep.
 		foreach (var hit in hits)
 		{
-			var collider    = hit["collider"].As<Node>();
+			var collider     = hit["collider"].As<Node>();
 			var buildingNode = FindBuildingNode(collider);
 			if (buildingNode != null && buildingNode.Name.ToString().Contains("shelter"))
 			{
@@ -373,6 +363,18 @@ public partial class PlayerController : CharacterBody3D
 			}
 		}
 
+		// Priority 5b: Herbalist's Hut → craft bandage (no follower — assignment was priority 1).
+		foreach (var hit in hits)
+		{
+			var collider    = hit["collider"].As<Node>();
+			var buildingNode = FindBuildingNode(collider);
+			if (buildingNode != null && buildingNode.Name.ToString().Contains("herbalists_hut"))
+			{
+				TryCraftBandage();
+				return;
+			}
+		}
+
 		// Priority 6: Tree → chop (nearest).
 		Node? nearestTree = null;
 		float nearestDist = float.MaxValue;
@@ -400,17 +402,6 @@ public partial class PlayerController : CharacterBody3D
 			treeSystem.Call("ReceiveChop", treeId);
 		else
 			treeSystem.RpcId(1, "ReceiveChop", treeId);
-	}
-
-	private void TryAssignFollowerToStation(string stationNodeName)
-	{
-		var vs = GetNodeOrNull(VILLAGE_SYSTEM_PATH);
-		if (vs == null) return;
-
-		if (Multiplayer.IsServer())
-			vs.Call("RequestAssignToStation", stationNodeName);
-		else
-			vs.RpcId(1, "RequestAssignToStation", stationNodeName);
 	}
 
 	private void TryHarvestBush(StringName bushId)
@@ -446,6 +437,17 @@ public partial class PlayerController : CharacterBody3D
 			combatSystem.RpcId(1, "RequestCraftArrows");
 	}
 
+	private void TryCraftBandage()
+	{
+		var settlement = GetNodeOrNull(SETTLEMENT_SYSTEM_PATH);
+		if (settlement == null) return;
+
+		if (Multiplayer.IsServer())
+			settlement.Call("RequestCraftBandage");
+		else
+			settlement.RpcId(1, "RequestCraftBandage");
+	}
+
 	private void RequestPickupDrop(long dropId)
 	{
 		var healthSystem = GetNodeOrNull(HEALTH_SYSTEM_PATH);
@@ -459,6 +461,21 @@ public partial class PlayerController : CharacterBody3D
 
 	private void EatFood()
 	{
+		// If active hotbar slot holds a bandage, use it to heal instead of eating.
+		string? activeItem = LocalState.GetHotbarSlot(LocalState.ActiveHotbarSlot);
+		if (activeItem == "item.bandage" && LocalState.Inventory.Has("item.bandage"))
+		{
+			var healthSystem = GetNodeOrNull(HEALTH_SYSTEM_PATH);
+			if (healthSystem != null)
+			{
+				if (Multiplayer.IsServer())
+					healthSystem.Call("RequestUseBandage");
+				else
+					healthSystem.RpcId(1, "RequestUseBandage");
+			}
+			return;
+		}
+
 		// Quick client-side guard: skip the RPC if we have nothing edible.
 		// Mirrors FoodRegistry priority: cooked first, raw fallback.
 		bool hasFood = false;

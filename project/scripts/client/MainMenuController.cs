@@ -5,13 +5,15 @@ namespace MankersKingdoms.Client;
 
 public partial class MainMenuController : Control
 {
-	private Button _startSoloButton = null!;
-	private Button _hostButton = null!;
-	private Button _joinButton = null!;
-	private Button _optionsButton = null!;
-	private Button _exitButton = null!;
-	private LineEdit _addressInput = null!;
-	private Label _statusLabel = null!;
+	private Button        _startSoloButton = null!;
+	private Button        _loadButton      = null!;
+	private Button        _hostButton      = null!;
+	private Button        _joinButton      = null!;
+	private Button        _optionsButton   = null!;
+	private Button        _exitButton      = null!;
+	private LineEdit      _addressInput    = null!;
+	private Label         _statusLabel     = null!;
+	private LoadGamePanel _loadPanel       = null!;
 
 	public override void _Ready()
 	{
@@ -37,12 +39,36 @@ public partial class MainMenuController : Control
 		_joinButton.Pressed += OnJoin;
 		_optionsButton.Pressed += OnOptions;
 		_exitButton.Pressed += OnExit;
+
+		// Inject "Load Game" button after StartSolo in the same VBoxContainer.
+		var container = _startSoloButton.GetParent();
+		_loadButton = new Button { Text = Loc.T("menu.load_game") };
+		container.AddChild(_loadButton);
+		container.MoveChild(_loadButton, _startSoloButton.GetIndex() + 1);
+		_loadButton.Pressed += OnLoadGame;
+
+		// Add the save-selection panel (full-screen overlay, hidden by default).
+		_loadPanel = new LoadGamePanel();
+		_loadPanel.OnSaveSelected = OnSaveSelected;
+		_loadPanel.OnCancel       = () => _loadPanel.Hide();
+		_loadPanel.Hide();
+		AddChild(_loadPanel);
 	}
 
 	private void OnStartSolo()
 	{
 		GameSession.Intent = GameSession.SessionIntent.Solo;
 		GetTree().ChangeSceneToFile("res://scenes/CharacterCreateScreen.tscn");
+	}
+
+	private void OnLoadGame() => _loadPanel.ShowAndRefresh();
+
+	private void OnSaveSelected(string saveName)
+	{
+		// GameSession.SaveName, ChosenClassId, ChosenRaceId, RolledStats
+		// are already set by LoadGamePanel.OnLoadPressed() before this fires.
+		GameSession.Intent = GameSession.SessionIntent.Solo;
+		GetTree().ChangeSceneToFile("res://scenes/GameWorld.tscn");
 	}
 
 	private void OnHost()
@@ -84,8 +110,9 @@ public partial class MainMenuController : Control
 		AddKeyAction("eat_food",        Key.Tab);
 		AddKeyAction("toggle_weapon",   Key.Q);
 		AddKeyAction("open_map",        Key.M);
-		AddKeyAction("open_inventory",  Key.I);
-		AddKeyAction("char_sheet",      Key.K);
+		AddKeyAction("open_inventory",    Key.I);
+		AddKeyAction("char_sheet",        Key.K);
+		AddKeyAction("open_assignment",   Key.N);
 	}
 
 	private static void AddKeyAction(string action, Key key)

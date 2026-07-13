@@ -245,6 +245,8 @@ public partial class CharacterCreateScreen : Control
         GameSession.ChosenRaceId    = _selectedRaceId;
         GameSession.HumanChosenStat = _selectedHumanStat;
         GameSession.ChosenClassId   = _selectedClassId;
+        // Stamp a unique save slot name so the save lands in its own file.
+        GameSession.SaveName = $"save_{System.DateTime.Now:yyyyMMdd_HHmmss}";
         GetTree().ChangeSceneToFile("res://scenes/GameWorld.tscn");
     }
 

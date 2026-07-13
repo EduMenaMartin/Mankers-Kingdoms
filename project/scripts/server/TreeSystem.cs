@@ -19,7 +19,9 @@ public partial class TreeSystem : Node
     private PackedScene _woodDropScene = null!;
 
     // Server-only: HP per tree ID. SortedDictionary for deterministic iteration (ADR-0011).
-    private readonly SortedDictionary<string, int> _treeHp = new();
+    private readonly SortedDictionary<string, int> _treeHp      = new();
+    // Accumulated felled tree IDs — persisted in save so trees don't respawn on reload (M8).
+    private readonly SortedSet<string>             _felledTreeIds = new();
 
     private TreeConfig _treeCfg = TreeConfig.Default;
 
@@ -117,6 +119,7 @@ public partial class TreeSystem : Node
     private void FellTreeForNpc(string treeId)
     {
         _treeHp.Remove(treeId);
+        _felledTreeIds.Add(treeId);
         // Wood yield is returned to VillageSystem via ServerChopTree — no direct stockpile call.
         GD.Print($"[TreeSystem] NPC felled {treeId}");
 
@@ -128,6 +131,7 @@ public partial class TreeSystem : Node
     private void FellTree(string treeId, long byPeer)
     {
         _treeHp.Remove(treeId);
+        _felledTreeIds.Add(treeId);
 
         // Award woodcutting XP via the real skill system (M5).
         SkillSystem.Instance?.NotifyAction(byPeer, "skill.woodcutting");
@@ -142,6 +146,46 @@ public partial class TreeSystem : Node
 
         // Tell all peers (+ server itself) to remove the tree and spawn the wood prop.
         Rpc(MethodName.OnTreeFelled, treeId, dropPos, _treeCfg.WoodYield);
+    }
+
+    // ── Save / Load (M8) ─────────────────────────────────────────────────────
+
+    /// <summary>Returns IDs of all trees fully felled this session. Used by SaveSystem.</summary>
+    public List<string> GetFelledTreeIdsForSave() => new List<string>(_felledTreeIds);
+
+    /// <summary>
+    /// Re-hides trees that were felled in a previous session.
+    /// Removes each ID from _treeHp (so NPC job loops skip them) and fires
+    /// ClientRemoveTreeNode on all peers to despawn the visual node.
+    /// Partially-damaged trees (non-zero HP) are not persisted and reset to full.
+    /// Called by SaveSystem.TryLoad().
+    /// </summary>
+    public void RestoreFelledTreesFromSave(List<string> felledIds)
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        int restored = 0;
+        foreach (var id in felledIds)
+        {
+            if (!_treeHp.ContainsKey(id)) continue; // already gone or unknown
+            _treeHp.Remove(id);
+            _felledTreeIds.Add(id);
+            Rpc(MethodName.ClientRemoveTreeNode, id);
+            restored++;
+        }
+        GD.Print($"[TreeSystem] restored {restored} felled tree(s) from save");
+    }
+
+    /// <summary>
+    /// Removes a tree node on all peers without spawning any wood drop prop.
+    /// Used only for save/load restoration — the wood was already awarded in the prior session.
+    /// </summary>
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ClientRemoveTreeNode(string treeId)
+    {
+        var node = GetNodeOrNull<Node3D>(treeId);
+        node?.QueueFree();
     }
 
     // ── Fell broadcast ────────────────────────────────────────────────────────

@@ -184,6 +184,53 @@ public partial class SkillSystem : Node
             RpcId(peerId, MethodName.ClientApplySkillLevel, skillId, level);
     }
 
+    // ── Save / Load (M8) ─────────────────────────────────────────────────────
+
+    /// <summary>Returns the raw XP map for a peer (before bump and stat cap).</summary>
+    public Dictionary<string, int> GetXpForSave(long peerId)
+    {
+        _xp.TryGetValue(peerId, out var map);
+        return map != null
+            ? new Dictionary<string, int>(map)
+            : new Dictionary<string, int>();
+    }
+
+    /// <summary>Returns the class bump map for a peer.</summary>
+    public Dictionary<string, int> GetBumpsForSave(long peerId)
+    {
+        _bumps.TryGetValue(peerId, out var map);
+        return map != null
+            ? new Dictionary<string, int>(map)
+            : new Dictionary<string, int>();
+    }
+
+    /// <summary>
+    /// Overwrites XP and bumps for a peer from save data, then rebroadcasts effective levels.
+    /// Called by SaveSystem.TryLoad().
+    /// </summary>
+    public void RestoreSkillsFromSave(
+        long peerId,
+        Dictionary<string, int> xp,
+        Dictionary<string, int> bumps)
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        EnsurePeerEntries(peerId);
+        _xp[peerId].Clear();
+        foreach (var (skillId, rawXp) in xp)
+            _xp[peerId][skillId] = rawXp;
+
+        _bumps[peerId].Clear();
+        foreach (var (skillId, bump) in bumps)
+            _bumps[peerId][skillId] = bump;
+
+        BroadcastAllLevels(peerId);
+        GD.Print($"[Skill] peer {peerId} skills restored from save");
+    }
+
+    /// <summary>Re-sends all effective skill levels to a peer. Used for reconnect replay.</summary>
+    public void BroadcastLevelsTo(long peerId) => BroadcastAllLevels(peerId);
+
     // ── Client RPC ────────────────────────────────────────────────────────────
 
     [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = false,

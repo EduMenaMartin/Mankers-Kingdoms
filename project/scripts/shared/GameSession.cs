@@ -43,6 +43,23 @@ public static class GameSession
     /// </summary>
     public static string? HumanChosenStat { get; set; } = null;
 
+    /// <summary>
+    /// Name of the active save slot (maps to user://saves/{SaveName}.json).
+    /// Set to a timestamp when starting a new game via CharacterCreateScreen.
+    /// Set to the chosen filename when loading from the Load Game screen.
+    /// </summary>
+    public static string SaveName { get; set; } = "default";
+
+    /// <summary>
+    /// Raised by client UI (PauseMenu) when the player requests a save.
+    /// SaveSystem (server) subscribes and calls Save() in response.
+    /// This avoids a direct client → server import.
+    /// </summary>
+    public static event System.Action? SaveRequested;
+
+    /// <summary>Fire SaveRequested from client code.</summary>
+    public static void RequestSave() => SaveRequested?.Invoke();
+
     public static void Reset()
     {
         Intent          = SessionIntent.None;
@@ -51,5 +68,6 @@ public static class GameSession
         ChosenRaceId    = "race.human";
         RolledStats     = null;
         HumanChosenStat = null;
+        SaveName        = "default";
     }
 }

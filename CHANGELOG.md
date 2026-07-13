@@ -6,6 +6,42 @@ Follows [Keep a Changelog](https://keepachangelog.com/) conventions loosely.
 
 ---
 
+## [M7] — 2026-07-11 — Class-gated building (COMPLETE)
+
+M7 demo gate passed. All gameplay code, editor tasks, and post-gate fixes complete.
+
+### Added
+
+**Herbalist's Hut building (Phase 1)**
+- `BuildingRegistry` — `HerbalistsHut` added (id `building.herbalists_hut`, cost 20 wood, 4×3×4 footprint); `RequiresPresence` field removed from all buildings — gating redesigned to be shelter-based NPC roster
+- `SettlementSystem` — `RequestCraftBandage` RPC: costs 2 `item.herb` from player inventory, grants 1 `item.bandage`, awards `skill.foraging` XP; no class/presence gate
+- `BuildMenu` — presence-gate label/button system removed; panel simplified
+
+**Forager NPC job loop (Phase 2)**
+- `VillageSystem` — `_settlementNpcs SortedSet<string>` (NPC added on recruit, stays in roster after Leave — settlement membership is permanent once recruited); `_npcFounder SortedDictionary<string, long>`; `_lastForageTime SortedDictionary<string, float>`; `FORAGE_COOLDOWN = 30s`, `HERB_PER_FORAGE = 1`
+- `TickForagerJob` — called from `TickJobs` when station starts with `"building_herbalists_hut"` (Godot normalises `.` → `_` in node names); produces herb → `SettlementSystem.AddToStockpile` every 30 s
+- `RequestAssignNpcToStation` RPC — checks `_settlementNpcs` (no proximity/follower requirement; any recruited NPC can be assigned from the panel); validates shelter presence; resolves stationNode via GetNodeOrNull path; clears any active follow state before assigning
+- `RequestUnassignNpc` RPC — removes from `_workAssignments`, clears job state, broadcasts roster
+- `BroadcastVillageRoster` + `ClientSetVillageRoster` RPC — JSON array `[{id, name, archetypeKey, station}]` pushed to founder on every assignment change
+- `LocalState` — removed `RangerNpcPresent`/`RangerPresent`/`RangerPresentChanged`/`SetRangerNpcPresent`; added `VillageRosterJson`, `VillageRosterChanged` event, `SetVillageRoster(json)`
+
+**Bandage crafting and use (Phase 3)**
+- `HealthSystem` — removed `_playerClasses`/`GetPlayerClass`/class tracking (no longer needed without presence gate); added `RequestUseBandage` RPC: validates player alive + below max HP + has `item.bandage`; heal formula: `Mathf.Min(40f, 20f + (foraging / 5) * 1f)` (integer division for floor behaviour); range 20–40 HP
+- `PlayerController` — `EatFood()` (Tab): if active hotbar slot is `item.bandage` → `RequestUseBandage`; if not, falls through to food eat path; `TryCraftBandage()` added; E near Herbalist's Hut (priority 5b) → `RequestCraftBandage`; E near Shelter (founder, priority 1) → `BuildingAssignmentPanel.Open()`; removed `TryAssignFollowerToStation` helper
+- `BuildingAssignmentPanel` — new CanvasLayer Layer=31; Escape closes; two-column layout (left: NPC list with Select/Unassign; right: station list with current occupant); `RefreshAssignButton` enabled when both NPC + station selected; station scanning via `SettlementSystem` node children with `WORKABLE_PREFIXES = ["building_woodcutters_post", "building_herbalists_hut"]` (underscore form)
+- `data/lang/en.json` — `item.herb.name/desc`, `item.bandage.name/desc`, `building.herbalists_hut.name`; removed `warning.build.no_ranger`, `warning.craft.no_ranger`, `build.gate.no_ranger`
+
+### Fixed
+
+- **Station list empty in BuildingAssignmentPanel** — Godot 4 normalises dots to underscores in node names; `"building.woodcutters_post_x_z"` is stored as `"building_woodcutters_post_x_z"`. `WORKABLE_PREFIXES`, `StationDisplayName`, and `VillageSystem.TickJobs` forager route check all updated to use underscore form.
+
+### Tests
+- 254 tests, 0 failures
+- New suite: `ForagerSystemTests` (9 tests): registry presence, footprint, cost, station node name routing, archetype derivation (Wis→forager, Str→woodcutter, tie-break); `HerbalistsHut_RequiresRangerPresence` test removed (gate no longer exists); `AllBuildings_HaveNoPresenceRequirement` asserts null RequiresPresence on all entries
+- New suite: `BandageCraftingTests` (15 tests): heal formula at key breakpoints (level 0→20, 4→20, 5→21, 49→29, 50→30, 100→40 capped, 150→40 capped), integer division floor behaviour confirmed, base never below 20, cap never above 40
+
+---
+
 ## [M6] — 2026-07-10 — Village and recruitment (COMPLETE)
 
 M6 demo gate passed. All gameplay code, editor tasks, and post-gate fixes complete.

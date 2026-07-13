@@ -110,6 +110,38 @@ public partial class HealthSystem : Node
         GD.Print($"[Health] peer {sender} confirmed class {classId} ({kit.StartingItems.Length} stacks)");
     }
 
+    // ── Bandage use ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Client presses Tab with bandage in active hotbar slot.
+    /// Consumes 1 bandage, heals 20 + floor(ForagingLevel / 5) HP, capped at 40.
+    /// Does nothing if the player is already at full HP or has no bandage.
+    /// </summary>
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    public void RequestUseBandage()
+    {
+        if (!Multiplayer.IsServer()) return;
+
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender == 0) sender = 1L;
+
+        if (!_health.TryGetValue(sender, out var h)) return;
+        if (h.current >= h.max) return; // already full — don't consume
+        if (!InventorySystem.Instance.HasItems(sender, "item.bandage", 1)) return;
+
+        InventorySystem.Instance.RemoveItems(sender, "item.bandage", 1);
+
+        int foraging = SkillSystem.Instance?.GetSkillLevel(sender, "skill.foraging") ?? 0;
+        // Integer division gives floor(foraging/5) — matches "1 HP per 5 skill levels" design.
+        float heal   = Mathf.Min(
+            SettlementSystem.BANDAGE_MAX_HEAL,
+            SettlementSystem.BANDAGE_BASE_HEAL + (foraging / 5) * SettlementSystem.BANDAGE_HEAL_PER_5_SKILL
+        );
+        ApplyHeal(sender, heal);
+        GD.Print($"[Health] peer {sender} used bandage → healed {heal:F1} HP (Foraging {foraging})");
+    }
+
     // ── Server API ────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -134,6 +166,24 @@ public partial class HealthSystem : Node
     /// <summary>Returns a health snapshot, or null if the entity is not registered.</summary>
     public HealthData? GetHealth(long id) =>
         _health.TryGetValue(id, out var h) ? new HealthData(h.current, h.max) : null;
+
+    /// <summary>Returns the set of currently registered player peer IDs. Used by SaveSystem.</summary>
+    public IReadOnlyCollection<long> GetPlayerIds() => _players;
+
+    /// <summary>
+    /// Overwrites a peer's HP from save data and syncs to the client.
+    /// Called by SaveSystem.TryLoad().
+    /// </summary>
+    public void RestoreHpFromSave(long peerId, float hp)
+    {
+        if (!_health.ContainsKey(peerId)) return;
+        _health[peerId] = (Mathf.Max(1f, hp), PLAYER_MAX_HP); // clamp to at least 1 so player isn't dead on load
+        SendHealthTo(peerId);
+        GD.Print($"[Health] peer {peerId} HP restored to {hp:F1}");
+    }
+
+    /// <summary>Sends the current HP to a peer. Used for reconnect replay.</summary>
+    public void SyncHealthTo(long peerId) => SendHealthTo(peerId);
 
     /// <summary>
     /// Reduces entity HP by amount. Triggers death if HP reaches 0.

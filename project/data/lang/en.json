@@ -1,6 +1,7 @@
 {
   "splash.title": "Mankers Kingdoms",
   "menu.start_solo": "Start Solo",
+  "menu.load_game": "Load Game",
   "menu.host": "Host Multiplayer",
   "menu.join": "Join Multiplayer",
   "menu.options": "Options",
@@ -24,6 +25,10 @@
   "item.berry.desc": "A wild berry. Eat raw for a little hunger, or cook at a Cooking Fire for more.",
   "item.cooked_berry.name": "Cooked Berry",
   "item.cooked_berry.desc": "A roasted berry. Restores 40 hunger.",
+  "item.herb.name": "Herb",
+  "item.herb.desc": "A bundle of medicinal herbs, gathered by a Ranger. Used to craft bandages.",
+  "item.bandage.name": "Bandage",
+  "item.bandage.desc": "A herbal bandage. Heals 20 HP (more with high Foraging skill).",
   "item.arrow.name": "Arrow",
   "item.arrow.desc": "A wooden arrow, tipped with stone. Ammo for shortbows and longbows.",
   "building.shelter.name": "Shelter",
@@ -130,6 +135,7 @@
 
   "inventory.title": "Inventory",
   "inventory.empty": "Your inventory is empty.",
+  "inventory.hotbar_hint": "Hover an item + press 1–9 to assign to hotbar",
   "inventory.close_hint": "Press I or Escape to close",
 
   "charSheet.title": "Character",
@@ -154,6 +160,7 @@
 
   "building.woodcutters_post.name": "Woodcutter's Post",
   "building.stockpile.name": "Stockpile Drop",
+  "building.herbalists_hut.name": "Herbalist's Hut",
 
   "warning.assign.no_shelter": "Build a Shelter first — workers need somewhere to rest.",
   "warning.job.no_stockpile": "Build a Stockpile Drop — your woodcutter has nowhere to deposit wood.",
@@ -161,5 +168,14 @@
   "stockpile.title": "Settlement Stockpile",
   "stockpile.empty": "Stockpile is empty.",
   "stockpile.take_all": "Take All",
-  "stockpile.close_hint": "Press Escape to close"
+  "stockpile.close_hint": "Press Escape to close",
+  "pause.title": "Paused",
+  "pause.resume": "Resume",
+  "pause.save": "Save Game",
+  "pause.load": "Load Game",
+  "pause.quit_to_menu": "Quit to Main Menu",
+  "load_panel.title": "Load Game",
+  "load_panel.load": "Load",
+  "load_panel.cancel": "Cancel",
+  "load_panel.no_saves": "No saved games found."
 }

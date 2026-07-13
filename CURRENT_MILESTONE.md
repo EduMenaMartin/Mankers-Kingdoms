@@ -1,27 +1,29 @@
-# Current Milestone: M7 — Class-gated building
+# Current Milestone: M8 — Save/load and polish
 
-**Started:** 2026-07-10
-**Target demo:** Fighter player can't build Herbalist's Hut (locked in build menu) → recruits Ranger-archetype villager → assigns them to any station → Herbalist's Hut unlocks → player builds it → assigns Ranger NPC to it → herbs appear in stockpile → craft a bandage → Ranger NPC removed from settlement → Herbalist's Hut goes dormant.
+**Started:** 2026-07-11
+**Target demo:** Play for 30 minutes, quit, restart, resume exactly where left off.
 
-## Scope (from VERTICAL_SLICE.md §3.5 + §3.6)
+## Scope (from VERTICAL_SLICE.md §3.5 + §5 M8)
 
-- Herbalist's Hut — new building type, gated on Ranger-class NPC presence in settlement ⬜
-- Presence-gating logic: building locked when no Ranger-archetype assigned, dormant (not destroyed) when Ranger leaves ⬜
-- Foraging NPC job loop: Ranger NPC assigned to Herbalist's Hut produces herbs → settlement stockpile ⬜
-- Bandage crafting at Herbalist's Hut: E key → craft from herbs → heals 20 HP (no Medicine skill in v1) ⬜
+- JSON save/load of full world state (terrain seed, buildings, stockpile, NPC assignments, player inventories, positions, needs, skills, HP) ⬜
+- Autosave every 5 minutes + on host exit ⬜
+- Client reconnect handling ⬜
+- All existing systems tested with save→quit→reload cycle ⬜
+- Basic UI polish (readable, not pretty) ⬜
+- Localization file audit — confirm no hardcoded strings remain in gameplay code ⬜
+- Fog of war probe — full-map toggle screen (unseen/previously-seen/currently-visible), shared reveal across party, persisted in save data (see `docs/gdd/worldgen.md` §11) ⬜
 - Demo gate ⬜
 
-## Key decisions (pending / to be locked during M7)
+## Key decisions (to be locked during M8)
 
-- **Dormant vs locked:** When the Ranger NPC leaves, does the hut go locked (can't interact) or dormant (crafting menu opens but shows "no Ranger present" and disables craft)? — to decide.
-- **Presence check:** Is presence determined by NPC archetype tag (`archetype.forager`), class assignment, or a Ranger-class player being in the settlement? — to decide (v1 spec says "Ranger class present in settlement" — could be NPC or player Ranger).
-- **Herb item:** New item `item.herb` — base gather item; consumed 2→1 bandage at Hut — to confirm.
-- **Bandage heal amount:** Fixed 20 HP, no Medicine skill check in v1 — to confirm.
+- **Save format scope:** which systems serialize first? Suggested order: world seed → buildings → stockpile → NPC assignments → inventories → skill levels → player HP/needs → positions.
+- **Fog of war implementation:** full per-tile reveal map vs. radial snapshot — see `docs/gdd/worldgen.md` §11 for locked probe spec.
+- **Client reconnect:** does reconnect replay the full state via RPCs from server, or read a shared save file?
 
-## Out of scope for M7
+## Out of scope for M8
 
-- Full crafting tree depth beyond bandages
-- Herbalist's Hut tier 2 recipes
-- NPC Ranger having a ranged attack (NPCs are non-combatants in v1)
-- Morale / relationship tracking
-- Presence-gated buildings beyond Herbalist's Hut
+- Binary save format optimization (JSON for prototype)
+- Steam cloud saves
+- More than one language exposed
+- Tutorial / onboarding
+- Content additions (new buildings, monsters, items)

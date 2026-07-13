@@ -100,4 +100,45 @@ public class InventoryTests
         inv.ForceRemove("item.weapon.shortbow"); // not in inventory — should not throw
         Assert.Equal(3, inv.Count("resource.wood"));
     }
+
+    // ── Hotbar regression tests ───────────────────────────────────────────────
+    // Bug: hotbar slot was not cleared when the last stack of an item was consumed,
+    // leaving the slot label showing the item name after it was gone from inventory.
+
+    [Fact]
+    public void ClearHotbarSlotsFor_NullsMatchingSlots()
+    {
+        var inv = new PlayerInventory();
+        inv.Add("item.bandage", 1);
+        inv.SetHotbarSlot(2, "item.bandage");
+        inv.ClearHotbarSlotsFor("item.bandage");
+        Assert.Null(inv.GetHotbarSlot(2));
+    }
+
+    [Fact]
+    public void ClearHotbarSlotsFor_LeavesOtherSlotsUntouched()
+    {
+        var inv = new PlayerInventory();
+        inv.Add("item.bandage",  1);
+        inv.Add("resource.wood", 3);
+        inv.SetHotbarSlot(0, "item.bandage");
+        inv.SetHotbarSlot(1, "resource.wood");
+        inv.ClearHotbarSlotsFor("item.bandage");
+        Assert.Null(inv.GetHotbarSlot(0));
+        Assert.Equal("resource.wood", inv.GetHotbarSlot(1));
+    }
+
+    [Fact]
+    public void Clear_AlsoClearsAllHotbarSlots()
+    {
+        var inv = new PlayerInventory();
+        inv.Add("item.bandage",  2);
+        inv.Add("resource.wood", 5);
+        inv.SetHotbarSlot(0, "item.bandage");
+        inv.SetHotbarSlot(3, "resource.wood");
+        inv.Clear();
+        Assert.Empty(inv.Items);
+        Assert.Null(inv.GetHotbarSlot(0));
+        Assert.Null(inv.GetHotbarSlot(3));
+    }
 }

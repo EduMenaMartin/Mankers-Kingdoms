@@ -3,12 +3,40 @@ using System.Collections.Generic;
 namespace MankersKingdoms.Shared;
 
 /// <summary>
-/// Pure-C# inventory bag: maps item IDs to counts.
+/// Pure-C# inventory bag: maps item IDs to counts, plus 9 hotbar slot references.
 /// No Godot dependency — testable in xUnit.
 /// </summary>
 public sealed class PlayerInventory
 {
     private readonly SortedDictionary<string, int> _items = new();
+
+    // ── Hotbar (9 slots, indices 0–8) ─────────────────────────────────────────
+
+    private readonly string?[] _hotbarSlots = new string?[9];
+
+    /// <summary>Read-only view of the 9 hotbar slot itemIds (null = empty slot).</summary>
+    public IReadOnlyList<string?> HotbarSlots => _hotbarSlots;
+
+    /// <summary>
+    /// Assigns <paramref name="itemId"/> to the given hotbar slot.
+    /// If the same itemId is already in another slot, that slot is first cleared
+    /// (one item in one slot at a time).
+    /// Pass null to clear the slot.
+    /// </summary>
+    public void SetHotbarSlot(int slot, string? itemId)
+    {
+        if (slot < 0 || slot >= 9) return;
+        if (itemId != null)
+        {
+            for (int i = 0; i < 9; i++)
+                if (_hotbarSlots[i] == itemId) _hotbarSlots[i] = null;
+        }
+        _hotbarSlots[slot] = itemId;
+    }
+
+    /// <summary>Returns the itemId assigned to <paramref name="slot"/>, or null if empty.</summary>
+    public string? GetHotbarSlot(int slot) =>
+        (slot >= 0 && slot < 9) ? _hotbarSlots[slot] : null;
 
     public IReadOnlyDictionary<string, int> Items => _items;
 
@@ -51,5 +79,21 @@ public sealed class PlayerInventory
     public bool Has(string itemId, int count = 1) =>
         Count(itemId) >= count;
 
-    public void Clear() => _items.Clear();
+    /// <summary>
+    /// Clears any hotbar slot that references <paramref name="itemId"/>.
+    /// Called by InventorySystem after an item stack reaches zero, so no hotbar
+    /// slot can outlive the item it points to.
+    /// </summary>
+    public void ClearHotbarSlotsFor(string itemId)
+    {
+        for (int i = 0; i < 9; i++)
+            if (_hotbarSlots[i] == itemId) _hotbarSlots[i] = null;
+    }
+
+    /// <summary>Removes all items and clears all hotbar slot references.</summary>
+    public void Clear()
+    {
+        _items.Clear();
+        for (int i = 0; i < 9; i++) _hotbarSlots[i] = null;
+    }
 }

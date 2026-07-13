@@ -78,8 +78,8 @@ public partial class BuildMenu : CanvasLayer
 		panel.AnchorBottom = 0.5f;
 		panel.OffsetLeft   = -175f;
 		panel.OffsetRight  =  175f;
-		panel.OffsetTop    = -160f;
-		panel.OffsetBottom =  160f;
+		panel.OffsetTop    = -180f;
+		panel.OffsetBottom =  180f;
 		AddChild(panel);
 
 		var vbox = new VBoxContainer();
@@ -106,15 +106,15 @@ public partial class BuildMenu : CanvasLayer
 
 			var nameLabel = new Label
 			{
-				Text             = Loc.T(b.DisplayNameKey),
+				Text              = Loc.T(b.DisplayNameKey),
 				CustomMinimumSize = new Vector2(110f, 0f)
 			};
 			row.AddChild(nameLabel);
 
 			var costLabel = new Label
 			{
-				Text             = FormatCost(b),
-				CustomMinimumSize = new Vector2(80f, 0f),
+				Text                = FormatCost(b),
+				CustomMinimumSize   = new Vector2(80f, 0f),
 				HorizontalAlignment = HorizontalAlignment.Right
 			};
 			row.AddChild(costLabel);

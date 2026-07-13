@@ -157,6 +157,34 @@ public partial class NeedsSystem : Node
             RpcId(peerId, MethodName.ApplyNeeds, _hunger[peerId], _rest[peerId]);
     }
 
+    // ── Save / Load (M8) ─────────────────────────────────────────────────────
+
+    /// <summary>Returns the current hunger and rest values for a peer.</summary>
+    public (float hunger, float rest) GetNeeds(long peerId)
+    {
+        float h = _hunger.TryGetValue(peerId, out var hv) ? hv : 100f;
+        float r = _rest.TryGetValue(peerId, out var rv) ? rv : 100f;
+        return (h, r);
+    }
+
+    /// <summary>
+    /// Overwrites a peer's needs from save data and syncs to the client.
+    /// Called by SaveSystem.TryLoad().
+    /// </summary>
+    public void RestoreNeedsFromSave(long peerId, float hunger, float rest)
+    {
+        if (!_hunger.ContainsKey(peerId)) return;
+        _hunger[peerId] = Mathf.Clamp(hunger, 1f, 100f);
+        _rest[peerId]   = Mathf.Clamp(rest,   0f, 100f);
+
+        if (peerId == 1)
+            ApplyNeeds(_hunger[peerId], _rest[peerId]);
+        else
+            RpcId(peerId, MethodName.ApplyNeeds, _hunger[peerId], _rest[peerId]);
+
+        GD.Print($"[Needs] peer {peerId} needs restored (hunger={hunger:F1}, rest={rest:F1})");
+    }
+
     // ── RPCs ─────────────────────────────────────────────────────────────────
 
     /// <summary>

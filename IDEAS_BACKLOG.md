@@ -213,3 +213,47 @@ medieval/fantasy themed) — worth browsing there for ready-made foliage-
 sway, water, and ambient-particle shaders rather than building from
 scratch, same sourcing pattern already used for KayKit.
 
+### 2026-07-10 — [trivial-content] Footstep sounds via animation keyframes
+Godot's AnimationPlayer supports "Call Method" tracks — fire a footstep
+sound precisely on the foot-plant frame of Walking_A/B/C and Running_A/B
+(KayKit clips already in use per PlayerAnimator work), rather than a
+generic timer-based approach. Natural follow-up once PlayerAnimator
+exists. Needs sourced footstep sounds — freesound.org flagged as a free
+starting point (see docs/research or licensing notes if a dedicated SFX
+sourcing doc gets created later).
+
+### 2026-07-10 — [trivial-content] Footstep and landing dust particles
+Small particle burst on footstep/landing, distinct from the existing
+combat-crit particle effects already backlogged (2026-07-09) — this is
+movement-feedback, not combat-feedback. Cheap, reinforces "world reacts
+to the player" alongside foliage sway.
+
+### 2026-07-10 — [trivial-content] Player flash-on-pickup
+Brief white/colored flash on the player model when collecting a
+resource or item, same technique already logged for enemy hit-flash
+(2026-07-09's combat.md-adjacent polish), applied to the player side of
+pickups instead.
+
+### 2026-07-10 — [trivial-content] Emissive highlight for interactable objects
+Subtle glow/emissive outline on resource nodes, crafting stations, or
+recruitable NPCs to make them read clearly against the environment
+without needing distinct silhouettes or UI markers. Directly serves
+legibility (VERTICAL_SLICE.md §2's success criteria), not just cosmetics
+— worth prioritizing slightly above purely cosmetic polish items if a
+picking order is ever needed.
+
+### 2026-07-13 — [post-slice] Tree regrowth over time
+Felled trees should regrow after a configurable delay (e.g. 5–10 in-game minutes).
+Requires tracking regrowth timers per felled tree ID in TreeSystem, persisting them
+in SaveData alongside `FelledTreeIds`, and respawning the tree node (Rpc) when the
+timer expires. Regrowth timer should be saved as elapsed seconds-remaining so a
+save→quit→reload cycle preserves how far along each tree's regrowth is.
+Depends on: tree state save/load (done M8).
+
+### 2026-07-13 — [post-slice] Woodcutter NPC reforestation job
+A second job type for the Woodcutter's Post: "Reforester" role plants saplings near
+felled stumps to replenish the tree supply. Requires: sapling item, planting animation
+placeholder, TreeSystem.PlantTree(worldX, worldZ) server method that inserts a new
+seeded tree ID and starts its regrowth timer. Pairs with tree regrowth above.
+Gated on: tree regrowth system.
+

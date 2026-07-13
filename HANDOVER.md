@@ -6,10 +6,148 @@
 
 ## Current status
 
-**Milestone:** M7 — Class-gated building
-**Last session:** 2026-07-10 — M6 all four phases complete; demo gate passed; M6 formally closed.
-**Blockers:** None.
-**Awaiting:** M7 phase breakdown / Edu decision on pending design questions (see CURRENT_MILESTONE.md).
+**Milestone:** M8 — Save/load and polish
+**Last session:** 2026-07-14 — M8 Phase 2b complete. Named saves + Load Game UI (MainMenu Load Game button, PauseMenu, LoadGamePanel) fully implemented. One editor task pending.
+**Blockers:** Editor task — add `PauseMenu` CanvasLayer to `GameWorld.tscn` (attach `res://scripts/client/PauseMenu.cs`).
+**Awaiting:** Edu adds PauseMenu node → smoke-test Load Game flow → Phase 3 (fog of war, loc audit, demo gate).
+
+---
+
+## What was done this session (2026-07-14)
+
+### M8 Phase 2b — Named saves + Load Game UI — COMPLETE ✅ (code only; one editor task pending)
+
+**New files:**
+- `shared/SaveUtil.cs` — read-only save helpers (`ListSaves()`, `PeekSession()`); shared namespace so client can use without Server import
+- `client/LoadGamePanel.cs` — programmatic Control; save list with class/race info; sets `GameSession` fields on load; used by both MainMenu and PauseMenu
+- `client/PauseMenu.cs` — CanvasLayer Layer=50; Escape toggle; Resume/Save/Load/Quit buttons; embeds LoadGamePanel; uses `GameSession.RequestSave()` (no Server dependency)
+
+**Modified files:**
+- `shared/SaveData.cs` — `SessionSave` class + `Session` field (class/race/stats preserved in save file for Load Game without re-creating character)
+- `shared/GameSession.cs` — `SaveName` field; `SaveRequested` event + `RequestSave()` bridge
+- `server/SaveSystem.cs` — `SavePath` property (`user://saves/{SaveName}.json`); `EnsureSaveDir()`; saves/restores `data.Session`; subscribes `SaveRequested`
+- `client/CharacterCreateScreen.cs` — stamps `GameSession.SaveName` as `"save_{yyyyMMdd_HHmmss}"` on confirm
+- `client/MainMenuController.cs` — injects "Load Game" button after StartSolo; adds `LoadGamePanel` overlay
+- `data/lang/en.json` — `menu.load_game`, `pause.*`, `load_panel.*` loc keys
+
+**Architecture note:** PauseMenu (client) triggers saves via `GameSession.SaveRequested` event → SaveSystem subscribes. Avoids `using MankersKingdoms.Server` in client code.
+
+**Pending editor task:**
+- Add `PauseMenu` CanvasLayer node to `GameWorld.tscn` (any position; Layer=50 is set in code); attach script `res://scripts/client/PauseMenu.cs`
+
+**Next smoke test:**
+1. Start new game → play (place building, chop trees, gain XP)
+2. Press Escape → "Save Game" button → close pause menu
+3. Escape → "Quit to Main Menu"
+4. Main menu shows "Load Game" button → click → select save slot → click Load
+5. Resumes in same world with same buildings, skills, stockpile
+
+---
+
+## What was done this session (2026-07-13)
+
+### M8 Phase 1 — Save/load core — COMPLETE ✅ (code only; editor task pending)
+
+**Three design decisions locked:**
+1. **Serialization order:** world seed → markers → buildings → stockpile → NPC assignments → per-peer (inventory, skills, HP, needs, position)
+2. **Fog of war:** per-tile `byte[64,64]` (0=unseen, 1=seen, 2=visible); deferred to Phase 3
+3. **Client reconnect:** RPC replay (`SendFullStateToClient`) — no shared save file read; reuses existing sync infrastructure
+
+**New files:**
+- `shared/SaveData.cs` — v1 JSON schema: `SaveData`, `MarkerSave`, `BuildingSave`, `NpcAssignSave`, `PlayerSave`; version field from day 1
+- `server/SaveSystem.cs` — Node; `Save()` / `TryLoad()` / 5-min autosave / exit save; deferred load (one frame after `OnPlayerConnected`) so system defaults initialize before overwrite; `OnLatePlayerConnected` → `SendFullStateToClient` for reconnect replay
+
+**Modified files:**
+- `server/SettlementSystem.cs` — `_placedBuildings List<(string,Vector3)>` populated in `SpawnBuilding` (server-only branch); `GetSaveState()` returns (markers, buildings, stockpile); `RestoreFromSave()` calls `Rpc(SpawnMarker/SpawnBuilding)` so nodes appear on all peers
+- `server/SkillSystem.cs` — `GetXpForSave()`, `GetBumpsForSave()`, `RestoreSkillsFromSave()`, `BroadcastLevelsTo()` (public wrapper for reconnect)
+- `server/HealthSystem.cs` — `GetPlayerIds()`, `RestoreHpFromSave()` (clamps to ≥1), `SyncHealthTo()`
+- `server/NeedsSystem.cs` — `GetNeeds()`, `RestoreNeedsFromSave()` (clamped 1–100 hunger, 0–100 rest)
+- `server/InventorySystem.cs` — `RestoreInventoryFromSave()`, `SyncInventoryAndHotbarTo()`
+- `server/VillageSystem.cs` — `GetAssignmentsForSave()`, `RestoreAssignmentsFromSave()`, `BroadcastRosterToAll()`
+- `TODO.md` — M8 Phase 1 tasks checked off; Phase 2 (editor) + Phase 3 (fog of war, loc, demo gate) added
+
+**Tests:** 257, 0 failures (unchanged — all save/load code is server plumbing with no unit-testable pure logic)
+
+**Editor task (next):**
+1. Open `GameWorld.tscn`
+2. Add a `Node` as the **last child** of the root (after VillageSystem)
+3. Rename it `SaveSystem`
+4. Attach script: `res://scripts/server/SaveSystem.cs`
+5. Save scene — no Inspector settings needed
+
+**What's blocked:**
+- Smoke test can't run until editor task is done (SaveSystem node must be in the scene tree)
+
+---
+
+## What was done this session (2026-07-10, third entry)
+
+### M7 Phases 1–3 — Herbalist's Hut + forager loop + bandage — COMPLETE ✅
+
+**Design pivot (approved this session):** Ranger presence gate removed. Assignment is now shelter-based: any recruited NPC can be assigned to any workable station from a single Building Assignment Panel. Ranger NPC still needed to recruit (follows player to camp), but the *gate* is shelter presence in the settlement, not class/archetype.
+
+**Phase 1 — Herbalist's Hut (no gate)**
+- `shared/BuildingRegistry.cs` — `HerbalistsHut` added (`building.herbalists_hut`, 20 wood, 4×3×4 footprint); `RequiresPresence` field removed entirely from all entries
+- `server/SettlementSystem.cs` — `RequestCraftBandage` RPC (no dormancy check; uses `BANDAGE_HERB_COST=2`; grants `item.bandage` 1; calls `SkillSystem.Instance?.NotifyAction(sender, "skill.foraging")`)
+- `client/BuildMenu.cs` — gate label/button system removed; panel simplified back to -175/+175
+
+**Phase 2 — Forager NPC job loop**
+- `server/VillageSystem.cs` — `_settlementNpcs SortedSet<string>` (recruits added, not removed on Leave); `_npcFounder SortedDictionary<string,long>`; `_lastForageTime SortedDictionary<string,float>`; `TickForagerJob` (30s cooldown, `item.herb` → stockpile); `TickJobs` routes: `building.herbalists_hut` prefix → `TickForagerJob`, else woodcutter loop; `RequestAssignNpcToStation` checks `_settlementNpcs` (no proximity/follower requirement); `RequestUnassignNpc`; `BroadcastVillageRoster` + `ClientSetVillageRoster` RPC; `EscapeJson` helper
+- `shared/LocalState.cs` — removed `RangerNpcPresent`/`RangerPresent`/`RangerPresentChanged`/`SetRangerNpcPresent`; added `VillageRosterJson` + `VillageRosterChanged` event + `SetVillageRoster`
+
+**Phase 3 — Bandage crafting + use**
+- `server/HealthSystem.cs` — removed `_playerClasses`/`GetPlayerClass`/class tracking; added `RequestUseBandage` RPC (uses `item.bandage`; heal formula: `20 + (foraging/5)*1f`, cap 40)
+- `client/PlayerController.cs` — Tab (`EatFood`) checks active hotbar slot for `item.bandage` → `RequestUseBandage`; `TryCraftBandage()` added; E at Herbalist's Hut → craft bandage; E at Shelter (founder) → open BuildingAssignmentPanel (was: E at station with follower → assign)
+- `data/lang/en.json` — `item.herb.*`, `item.bandage.*` added; `warning.build.no_ranger`, `warning.craft.no_ranger`, `build.gate.no_ranger` removed
+
+**BuildingAssignmentPanel (new)**
+- `client/BuildingAssignmentPanel.cs` — CanvasLayer Layer=31; Escape closes; two-column layout (left: NPC list with Select/Unassign buttons; right: station list with current occupant); `RefreshAssignButton` enabled when both NPC + station selected; `OnAssignPressed` → `RequestAssignNpcToStation`; `SendUnassign` → `RequestUnassignNpc`; subscribes to `LocalState.VillageRosterChanged`
+- `WORKABLE_PREFIXES` = `["building.woodcutters_post", "building.herbalists_hut"]`
+
+**Tests**
+- `ForagerSystemTests.cs` — removed `HerbalistsHut_RequiresRangerPresence` (gate no longer exists); renamed `AllOtherBuildings_HaveNoPresenceRequirement` → `AllBuildings_HaveNoPresenceRequirement` (now asserts ALL buildings have null RequiresPresence)
+- `BandageCraftingTests.cs` — 15 tests; heal formula uses integer division `(foraging / 5)` — level 4 → 20f, level 5 → 21f, level 100 → 40f cap
+- **255 tests, 0 failures**
+
+**Editor tasks needed (Edu)**
+- Add `BuildingAssignmentPanel` CanvasLayer to `GameWorld.tscn`; attach `res://scripts/client/BuildingAssignmentPanel.cs`
+
+**Bug (logged, not fixed)**
+- BUGS.md: hotbar slot not cleared when item is fully consumed via Tab (e.g. last bandage used; slot still shows "Bandage")
+
+---
+
+## What was done this session (2026-07-10, second entry)
+
+### M7.5a — Hotbar — COMPLETE ✅
+
+**Rationale:** Pulled forward from M9 to before M7 because bandages (M7) need a quick-access slot to be usable in combat without opening the inventory.
+
+**New files:**
+- `client/HotbarHUD.cs` — CanvasLayer Layer=5; always-visible 9-slot bar anchored bottom-centre; yellow highlight on active slot; displays assigned item name. Number keys 1–9 → `LocalState.SetActiveHotbarSlot` + `LocalState.NotifyHotbarKeyPressed`.
+
+**Modified files:**
+- `shared/PlayerInventory.cs` — `string?[] _hotbarSlots[9]`; `SetHotbarSlot(int, string?)` with move semantics (item can only be in one slot); `GetHotbarSlot(int)`; `IReadOnlyList<string?> HotbarSlots`
+- `shared/LocalState.cs` — `ActiveHotbarSlot`, `HotbarSlotChanged` event, `ActiveHotbarSlotChanged` event, `HotbarKeyPressed` event; `SetHotbarSlot`, `SetActiveHotbarSlot`, `GetHotbarSlot`, `NotifyHotbarKeyPressed`
+- `server/InventorySystem.cs` — `RequestAssignHotbar(int slot, string itemId)` AnyPeer RPC (validates item in inventory); `ApplyHotbarSlot` Authority RPC; `SyncHotbarTo` (sends all 9 slots)
+- `client/InventoryPanel.cs` — hover detection via `GetGlobalRect().HasPoint(mousePos)` (NOT MouseEntered events — those don't re-fire after row rebuild); `_rowItems Dictionary<HBoxContainer,string>` rebuilt on each `Refresh()`; `RefreshBadges()` lightweight path (updates `[N]` badge labels without rebuilding rows); `OnHotbarKeyPressed` assigns hovered item; `OnHotbarSlotChanged` calls `RefreshBadges()` not full `Refresh()`; hotbar hint added to footer
+- `data/lang/en.json` — `inventory.hotbar_hint`
+
+**Bug fixed during session:**
+- First overwrite worked but second press of same slot didn't overwrite. Root cause: `OnHotbarSlotChanged` called `Refresh()` which rebuilt all rows; rebuilt rows don't auto-fire `MouseEntered`, so `_hoveredItemId` went null. Fix: replaced `MouseEntered`/`MouseExited` hover tracking with rect-based `GetHoveredItemId()` queried at key-press time; changed `OnHotbarSlotChanged` to call lightweight `RefreshBadges()` to preserve row identity.
+
+**Editor task remaining:**
+- Add `HotbarHUD` CanvasLayer to `GameWorld.tscn`; attach `res://scripts/client/HotbarHUD.cs`
+
+**230 tests, 0 failures (unchanged — all changes are UI layer)**
+
+### M7 design decisions — LOCKED
+
+All four design questions from CURRENT_MILESTONE.md resolved this session:
+1. **Both** player Ranger AND Ranger-archetype NPC count for presence gate
+2. **Dormant** (not destroyed/locked) when Ranger leaves
+3. **`item.herb`** — spawns randomly on map; gatherer NPC collects and brings back; consumed 2→1 bandage
+4. **Heal amount:** 20 HP base + Foraging skill bonus, cap at +20 max (so range 20–40 HP)
 
 ---
 
@@ -404,12 +542,9 @@ All four phases implemented and demo gate passed.
 
 ## What's next
 
-1. **M7 phase breakdown** — present to Edu for approval, then begin implementation.
-   - Phase 1: Herbalist's Hut building + presence-gating logic (locked when no Ranger NPC, dormant when Ranger leaves)
-   - Phase 2: Foraging NPC job loop at Herbalist's Hut → herbs into stockpile
-   - Phase 3: Bandage crafting at Herbalist's Hut (E key, 2 herbs → 1 bandage, heals 20 HP)
-   - Demo gate: Fighter can't build Hut → recruits Ranger villager → assigns → Hut unlocks → build it → herbs produced → craft bandage → Ranger leaves → Hut goes dormant
-2. **Pending M7 design decisions** (see CURRENT_MILESTONE.md): dormant-vs-locked behavior; presence check by archetype tag or class; herb item ID/recipe; bandage heal amount.
+1. **Editor task (blocks smoke test):** Add `PauseMenu` CanvasLayer to `GameWorld.tscn` → attach `res://scripts/client/PauseMenu.cs`. Layer=50 set in code; no Inspector settings.
+2. **Smoke-test Load Game:** new game → play → Escape → Save → Quit to Menu → Load Game → select slot → resumes correctly.
+3. **M8 Phase 3:** fog of war probe, loc audit, demo gate (30-min play → quit → resume).
 
 ---
 
@@ -431,6 +566,18 @@ The root `data/lang/en.json` was a stale duplicate and has been deleted. Do not 
 ---
 
 ## Session log
+
+### 2026-07-14 — M8 Phase 2b: named saves + Load Game UI
+- SaveUtil (shared): ListSaves() + PeekSession() — client-safe, no Server import
+- SaveData: SessionSave class embedded in save (class/race/stats for Load Game without CharacterCreateScreen)
+- GameSession: SaveName field; SaveRequested event + RequestSave() bridge (avoids client→server import)
+- SaveSystem: named save paths (user://saves/{SaveName}.json), EnsureSaveDir(), Session save/restore, SaveRequested subscription
+- CharacterCreateScreen: stamps SaveName timestamp on OnConfirm
+- LoadGamePanel (new): programmatic Control; auto-selects newest save; double-click to load; class/race detail from PeekSession
+- PauseMenu (new): CanvasLayer Layer=50; Escape toggle; Resume/Save/Load/Quit; embeds LoadGamePanel
+- MainMenuController: "Load Game" button injected after StartSolo; LoadGamePanel overlay
+- UX bug fixed: Load button was disabled by default — now auto-selects first save so it's immediately active
+- Editor task pending: PauseMenu CanvasLayer to GameWorld.tscn
 
 ### 2026-07-06 — M5 Phase 4: character sheet (213 tests)
 - CharacterSheet.cs: Layer 26, K key, race/class/stats/skills+caps, orange cap indicator
