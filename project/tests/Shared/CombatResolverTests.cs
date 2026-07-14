@@ -263,6 +263,53 @@ public class CombatResolverTests
     }
 
     [Fact]
+    public void PlayerTargetNumber_WithArmor_AddsArmorValue()
+    {
+        // Dex=12 (mod 0) + leather armor (ArmorValue=1, Light) → TN = 11.
+        Assert.Equal(11, CombatResolver.PlayerTargetNumber(dex: 12, armorValue: 1,
+            armorCategory: ArmorCategory.Light));
+    }
+
+    [Fact]
+    public void PlayerTargetNumber_WithShield_AddsShieldBonus()
+    {
+        // Dex=12 (mod 0) + shield (ShieldBonus=2) → TN = 12.
+        Assert.Equal(12, CombatResolver.PlayerTargetNumber(dex: 12, shieldBonus: 2));
+    }
+
+    [Fact]
+    public void PlayerTargetNumber_MediumArmor_CapsHighDexAtOne()
+    {
+        // Dex=18 → uncapped mod +2; medium armor caps Dex mod at +1 → TN = 10+1+armorValue.
+        Assert.Equal(14, CombatResolver.PlayerTargetNumber(dex: 18, armorValue: 3,
+            armorCategory: ArmorCategory.Medium));
+    }
+
+    [Fact]
+    public void PlayerTargetNumber_HeavyArmor_NukesDexMod()
+    {
+        // Dex=18 → heavy armor zeroes Dex mod → TN = 10+0+armorValue.
+        Assert.Equal(15, CombatResolver.PlayerTargetNumber(dex: 18, armorValue: 5,
+            armorCategory: ArmorCategory.Heavy));
+    }
+
+    [Fact]
+    public void PlayerTargetNumber_HeavyArmorWithShield_StacksCorrectly()
+    {
+        // Heavy armor: Dex mod ignored; armorValue=6 + shieldBonus=2 → TN=18.
+        Assert.Equal(18, CombatResolver.PlayerTargetNumber(dex: 18, armorValue: 6,
+            shieldBonus: 2, armorCategory: ArmorCategory.Heavy));
+    }
+
+    [Fact]
+    public void PlayerTargetNumber_MediumArmorLowDex_DoesNotRaiseFloor()
+    {
+        // Dex=8 → mod -1; medium armor cap of +1 only caps upward — negative mod still applies.
+        Assert.Equal(9, CombatResolver.PlayerTargetNumber(dex: 8, armorValue: 0,
+            armorCategory: ArmorCategory.Medium));
+    }
+
+    [Fact]
     public void PlayerDamageMod_Fighter_Melee_IsOne()
     {
         // Fighter Str=16 → mod +1 for melee damage. (combat.md §4.2)

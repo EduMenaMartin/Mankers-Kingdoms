@@ -153,3 +153,59 @@ VERTICAL_SLICE.md §3.10 and §3.5 currently describe the inventory only as "gri
 3. **Loot pile despawn timing** on death — needs a decision before M3 implementation, not architecturally blocking.
 4. **Equipped/hotbar slots** — separate from the grid (e.g. a weapon "in hand" and a quickbar of 4-6 consumables) — not yet specified. Recommend a small follow-up design pass once the core grid system works, since equipped-item logic (what's "in hand" for combat) already needs to exist for M4's combat system regardless of inventory grid style.
 5. **Auto-sort/auto-arrange button** — quality-of-life feature, not required for MVP but very commonly expected in Tetris-grid inventories. Consider for M3 or immediately post-M3 polish.
+
+---
+
+## 10. Equipment slots (addition)
+
+**Status:** locked. Closes a gap that existed since `docs/gdd/combat.md` was written — §2.2's Target Number formula and §4's damage formula have always assumed "equipped armor/weapon" as a concept, but no system ever formally defined how an item becomes equipped vs. simply carried. This section is that system.
+
+### 10.1 Three equipment slots — not full Minecraft 4-piece armor
+
+- **Main Hand** — the active weapon (Longsword, Shortbow, Dagger, etc., per `docs/gdd/equipment.md`'s catalog)
+- **Off-Hand** — a Shield, a second one-handed weapon (dual-wield), or locked/forced-empty while a **two-handed** weapon (per `equipment.md` §4's `two-handed` property) occupies Main Hand
+- **Body Armor** — a single slot for one full armor item (Leather, Chainmail, Plate, etc.)
+
+**Deliberately NOT split into Head/Chest/Legs/Feet** like literal Minecraft — `equipment.md`'s entire armor catalog already models armor as one item per suit (one `armor_value` per entry, not four). Fragmenting into 4 slots would require reworking that whole catalog into per-body-part pieces; a single Body Armor slot matches what's already built. Verified against the actual D&D SRD 5.1 armor table (Leather/Chain Mail/Plate/etc. are each one complete worn item in the source material, never combined or split by body part) — this single-slot design is D&D-faithful, not a simplification away from it.
+
+### 10.2 How equipped items feed combat.md — the gap this closes
+
+- `docs/gdd/combat.md` §2.2's Target Number formula (`10 + StatModifier(Dex) + ArmorValue + ShieldBonus`) now reads `ArmorValue` from whatever occupies **Body Armor**, and `ShieldBonus` from **Off-Hand** specifically if it holds a Shield (not a second weapon).
+- `combat.md` §4's damage formula reads `damage_dice`/`damage_type` from whatever occupies **Main Hand**.
+- `combat.md` §11 (armor category, movement/stealth penalties) reads `armor_category`, `str_requirement`, `stealth_disadvantage` from the **Body Armor** slot's occupant.
+
+None of these formulas change — this section only specifies *where* they now read their inputs from, closing what was previously an implicit assumption.
+
+### 10.3 Equip/unequip behavior
+
+- Dragging an item from the general inventory grid (Phase A, §3.2) into an equip slot **swaps**: whatever was previously equipped there returns to the general inventory grid (subject to the existing weight-cap and grid-space checks, §2), and the dragged item becomes equipped.
+- If the general inventory has no room/weight budget for the displaced item, the swap is **rejected** — the equip action fails cleanly rather than silently dropping an item.
+- Equipping a **two-handed** weapon into Main Hand automatically clears and locks Off-Hand until the two-handed weapon is unequipped.
+- Equip/unequip is instant — no crafting-delay or animation lock — consistent with the real-time, no-pause design (ADR-0004).
+
+### 10.4 Server authority
+
+Per ADR-0005/`ARCHITECTURE.md` §4.4's existing pattern: equip requests are client-initiated but **server-validated** — server checks the item exists in the requesting player's inventory, checks slot-type compatibility (a weapon can't go in Body Armor), checks the two-handed exclusivity rule, then updates both the equipped-slot state and the general inventory grid. Client shows the swap optimistically; server confirms or corrects, same prediction pattern used everywhere else in combat/movement.
+
+### 10.5 UI placement
+
+Equipment slots appear on the **Character Sheet** screen (already built, M5's `CharacterSheet.cs`) alongside the existing stats/skills/tool-tier display — a small paper-doll-style set of three slot icons, not a separate screen. The general inventory grid (Phase A's `InventoryPanel.cs`) stays as-is for carried-but-not-equipped items; dragging between the two panels is the equip/unequip interaction.
+
+### 10.6 Data model
+
+No new item fields needed — `equipment.md`'s existing schema (`damage_dice`, `damage_type`, `armor_value`, `armor_category`, `str_requirement`, `stealth_disadvantage`, `shield_bonus`) already has everything §10.2 needs. This section only adds:
+
+```json
+{
+  "equipped_main_hand": "item.weapon.longsword",
+  "equipped_off_hand": "item.armor.shield",
+  "equipped_body_armor": "item.armor.chainmail"
+}
+```
+...as three new fields on the character/player data (null when empty), not a change to any item definition.
+
+### 10.7 Open questions
+
+1. Whether NPCs (per `docs/gdd/combat.md` §6's gear-bearing humanoids) use this exact same three-slot model — recommend yes, for consistency, but not yet explicitly confirmed.
+2. Whether unequipping a two-handed weapon with a full inventory (no room for it to "go" anywhere) should be blocked entirely or handled some other way — edge case, low priority for v1.
+3. **Forward-compatible note for future magic items (post-slice, no action needed now):** core D&D armor is genuinely a single-slot-per-suit system, confirming §10.1's single Body Armor slot is the D&D-faithful choice, not a simplification away from it. Separately, D&D (especially 3rd/3.5e) has a distinct convention of **magic item accessory slots** — Head, Eyes, Neck, Shoulders, Waist, Wrists, Hands, Rings (×2), Feet — for non-armor magical bonuses (Cloak of Resistance, Boots of Speed, Ring of Protection, etc.), independent of the armor's own AC value. Since ADR-0006 defers all magic to post-slice, this isn't relevant now, but it's a clean, well-precedented extension point: when magic items eventually get designed, adding named accessory slots (Ring, Cloak, Boots) is a natural additive expansion to this three-slot system, not a rework of it.

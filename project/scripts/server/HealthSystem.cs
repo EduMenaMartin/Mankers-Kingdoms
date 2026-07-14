@@ -64,6 +64,7 @@ public partial class HealthSystem : Node
         {
             foreach (var item in kit.StartingItems)
                 InventorySystem.Instance.AddItem(peerId, item.ItemId, item.Count);
+            AutoEquipKitItems(peerId, kit);
             GD.Print($"[Health] peer {peerId} received {kit.ClassId} kit ({kit.StartingItems.Length} stacks)");
         }
     }
@@ -102,6 +103,8 @@ public partial class HealthSystem : Node
 
         foreach (var item in kit.StartingItems)
             InventorySystem.Instance.AddItem(sender, item.ItemId, item.Count);
+
+        AutoEquipKitItems(sender, kit);
 
         // Apply class skill bumps (M5): flat starting bonuses defined in ClassKitData.SkillBumps.
         SkillSystem.Instance?.ApplyBump(sender, kit.SkillBumps);
@@ -372,6 +375,32 @@ public partial class HealthSystem : Node
     private void ClientShowDeathMarker(long dropId, float worldX, float worldZ)
     {
         LocalState.SetDeathDrop(dropId, worldX, worldZ);
+    }
+
+    /// <summary>
+    /// Auto-equips starting items from a class kit into the appropriate equipment slots
+    /// (inventory.md §10.2). Inferred from WeaponRegistry / ArmorRegistry:
+    ///   weapon → Main Hand, shield → Off-Hand, other armor → Body Armor.
+    /// Non-weapon/non-armor items (arrows, food) are left in inventory unequipped.
+    /// </summary>
+    private static void AutoEquipKitItems(long peerId, ClassKitData kit)
+    {
+        foreach (var kitItem in kit.StartingItems)
+        {
+            var weapon = WeaponRegistry.Find(kitItem.ItemId);
+            if (weapon != null)
+            {
+                InventorySystem.Instance.EquipItem(peerId, EquipSlot.MainHand, kitItem.ItemId);
+                continue;
+            }
+            var armor = ArmorRegistry.Find(kitItem.ItemId);
+            if (armor != null)
+            {
+                var slot = armor.ShieldBonus > 0 ? EquipSlot.OffHand : EquipSlot.BodyArmor;
+                InventorySystem.Instance.EquipItem(peerId, slot, kitItem.ItemId);
+            }
+            // Arrows, food, resources — not equippable, stay in inventory.
+        }
     }
 
     /// <summary>Returns the world position of a connected player's node, or null.</summary>

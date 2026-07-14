@@ -119,11 +119,27 @@ public static class CombatResolver
     }
 
     /// <summary>
-    /// Player's Target Number.
-    /// Formula: 10 + StatModifier(Dex) + ArmorValue + ShieldBonus.
-    /// ArmorValue and ShieldBonus remain 0 until equipment slots are wired (M5).
+    /// Player's Target Number (combat.md §2.2 + inventory.md §10.2).
+    /// Formula: 10 + StatModifier(Dex, capped by armor category) + ArmorValue + ShieldBonus.
+    /// ArmorValue and ShieldBonus read from the player's equipped slots by CombatSystem.
+    /// ArmorCategory caps the Dex modifier per combat.md §11.1.
     /// </summary>
-    public static int PlayerTargetNumber(int dex) => 10 + StatModifier(dex);
+    public static int PlayerTargetNumber(
+        int           dex,
+        int           armorValue    = 0,
+        int           shieldBonus   = 0,
+        ArmorCategory armorCategory = ArmorCategory.Light)
+    {
+        int dexMod = StatModifier(dex);
+        // §11.1: armor category caps how much Dex contributes to defense.
+        dexMod = armorCategory switch
+        {
+            ArmorCategory.Medium => System.Math.Min(dexMod, 1),
+            ArmorCategory.Heavy  => 0,
+            _                    => dexMod  // Light: full modifier
+        };
+        return 10 + dexMod + armorValue + shieldBonus;
+    }
 
     /// <summary>
     /// Player's damage modifier.

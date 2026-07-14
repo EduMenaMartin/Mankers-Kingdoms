@@ -7,9 +7,66 @@
 ## Current status
 
 **Milestone:** M8 — Save/load and polish
-**Last session:** 2026-07-14 — M8 Phase 2b complete. Named saves + Load Game UI (MainMenu Load Game button, PauseMenu, LoadGamePanel) fully implemented. One editor task pending.
-**Blockers:** Editor task — add `PauseMenu` CanvasLayer to `GameWorld.tscn` (attach `res://scripts/client/PauseMenu.cs`).
-**Awaiting:** Edu adds PauseMenu node → smoke-test Load Game flow → Phase 3 (fog of war, loc audit, demo gate).
+**Last session:** 2026-07-15 — M8 Phase 2c + polish complete. Equipment slots fully implemented, ESC fallback fixed (BuildMenu), CharacterSheet styled with StyleBoxFlat (dark parchment panel, gold borders, inset slot buttons).
+**Blockers:** None.
+**Awaiting:** Smoke-test Load Game + equipment slots → M8 Phase 3 (fog of war, loc audit, demo gate).
+
+---
+
+## What was done this session (2026-07-15)
+
+### ESC as game menu fallback — COMPLETE ✅
+
+Single change: `BuildMenu._UnhandledInput` now handles `ui_cancel` before the `build_menu` check, calling `CloseMenu()` (which also restores combat mode) and marking the event handled. All other panels already handled Escape correctly. `PauseMenu` (Layer 50) continues to catch all unhandled Escape presses.
+
+### CharacterSheet — StyleBoxFlat visual polish — COMPLETE ✅
+
+- Palette block of `COL_*` Color constants at class top (one place to change the theme)
+- Main panel: near-black warm background + 2px antique gold border + 6px rounded corners + content padding
+- Title: gold colour, font size 20
+- Separators: gold-tinted (`Color(0.40, 0.30, 0.12, 0.80)`)
+- Section headers (Stats / Equipment / Skills): brighter gold, font size 13
+- Race/class and column labels: muted warm grey
+- Equipment slot buttons: dark-inset normal state, warm amber hover, amber pressed; styled via `StyleSlotButton(btn)`
+- Equip picker panel: same dark background, gold border, floating above main panel
+- Picker item buttons: gold hover for equip options; reddish-muted tint + red-border hover for Unequip
+- Cap labels: same green/orange logic, slightly more saturated for dark-background readability
+- Helper methods: `MakePanel`, `MakeFill`, `StyleSlotButton`, `StylePickerButton`, `MakeSectionHeader`, `MakeColLabel`, `MakeSeparator`
+
+---
+
+## What was done this session (2026-07-14, continued)
+
+### M8 Phase 2c — Equipment slots (inventory.md §10) — COMPLETE ✅
+
+**New files:**
+- `shared/EquipSlot.cs` — enum MainHand=0, OffHand=1, BodyArmor=2
+
+**Modified files:**
+- `shared/PlayerInventory.cs` — three nullable equipped fields; `GetEquipped`/`SetEquipped`/`ClearEquippedSlotsFor`; `Clear()` resets all equipment slots
+- `shared/SaveData.cs` — `PlayerSave.EquippedMainHand/OffHand/BodyArmor` (all nullable; additive change, no version bump)
+- `shared/LocalState.cs` — `EquippedMainHand/OffHand/BodyArmor` properties; `GetEquipped`/`SetEquipped`; `EquippedSlotChanged` event
+- `shared/CombatResolver.cs` — `PlayerTargetNumber` gains optional `armorValue`, `shieldBonus`, `armorCategory` params; ArmorCategory.Medium caps Dex mod at +1, Heavy zeroes it
+- `server/InventorySystem.cs` — `RemoveItems`/`ClearItem`/`TakeAll` evict equipped slots on empty; `RestoreInventoryFromSave` with 3 optional equipped params; `SyncInventoryAndHotbarTo` now also syncs equipped; `EquipItem` server API; `RequestEquipItem` AnyPeer RPC; `SyncEquippedSlotsTo` + `ApplyEquippedSlot` Authority RPC
+- `server/CombatSystem.cs` — `GetPlayerTargetNumber` reads armor+shield from equipped slots; shield validation in `RequestSetBlocking` and `RequestMeleeAttack` block gate reads equipped slot first (legacy save fallback to inventory check if null)
+- `server/HealthSystem.cs` — `AutoEquipKitItems(peerId, kit)` infers slot from WeaponRegistry/ArmorRegistry; called on connect and class change
+- `server/SaveSystem.cs` — saves and restores `ps.EquippedMainHand/OffHand/BodyArmor`
+- `client/CharacterSheet.cs` — Equipment section between Stats and Skills (3 slot rows with buttons); persistent `_equipPicker` panel built once in `_Ready()`; `OpenPicker(slot)` lists compatible inventory items + Unequip; `OnPickerItemSelected` sends `RequestEquipItem` via node string Rpc (avoids Server import); `OnEquippedSlotChanged` refreshes button labels; Escape closes picker before closing sheet
+- `data/lang/en.json` — 6 new charSheet.slot.* and charSheet.equipment keys
+- `tests/Shared/InventoryTests.cs` — 6 new equipment slot tests (SetEquipped, GetEquipped, null clears, ClearEquippedSlotsFor, Clear resets, all-three independent)
+- `tests/Shared/CombatResolverTests.cs` — 6 new PlayerTargetNumber tests (armor adds value, shield adds bonus, Medium caps high Dex at +1, Heavy zeroes Dex, Heavy+shield stacks, Medium doesn't raise low Dex)
+
+**Architecture note:** `CharacterSheet` (Client) sends `RequestEquipItem` via `GetNodeOrNull<Node>(path)?.Rpc("RequestEquipItem", ...)` — string-based RPC avoids importing Server namespace from Client, same pattern as `CombatFeedbackHUD`.
+
+**Editor task still pending (from Phase 2b):**
+- Add `PauseMenu` CanvasLayer to `GameWorld.tscn`; attach `res://scripts/client/PauseMenu.cs`. Layer=50 set in code.
+
+**Smoke test to run after editor task:**
+1. Start new game (Fighter); press K → CharacterSheet opens
+2. Longsword should show in Main Hand; Shield in Off Hand (auto-equipped by AutoEquipKitItems)
+3. Click Main Hand button → picker opens; select a different weapon or Unequip → button label updates
+4. Escape → picker closes (not sheet); Escape again → sheet closes
+5. Check that armor TN affects combat (fight a goblin, compare with/without armor equipped)
 
 ---
 
@@ -542,9 +599,10 @@ All four phases implemented and demo gate passed.
 
 ## What's next
 
-1. **Editor task (blocks smoke test):** Add `PauseMenu` CanvasLayer to `GameWorld.tscn` → attach `res://scripts/client/PauseMenu.cs`. Layer=50 set in code; no Inspector settings.
-2. **Smoke-test Load Game:** new game → play → Escape → Save → Quit to Menu → Load Game → select slot → resumes correctly.
+1. **Smoke-test Load Game + equipment slots:** new game → play → Escape → Save → Quit to Menu → Load Game → select slot → resumes correctly; press K → Equipment section shows auto-equipped longsword/shield; click a slot → picker opens; Escape closes picker then sheet.
+2. **M8 Phase 3:** fog of war probe, loc audit, demo gate.
 3. **M8 Phase 3:** fog of war probe, loc audit, demo gate (30-min play → quit → resume).
+4. **Post-M8 (M9):** NPC idle at village marker; shelter capacity (4 NPCs/shelter). Plan in TODO.md §M9.
 
 ---
 
@@ -566,6 +624,21 @@ The root `data/lang/en.json` was a stale duplicate and has been deleted. Do not 
 ---
 
 ## Session log
+
+### 2026-07-15 — ESC fallback fix + CharacterSheet StyleBoxFlat polish
+- BuildMenu: ui_cancel handler added — Escape now closes build menu (+ restores combat mode) before PauseMenu sees it
+- CharacterSheet: full StyleBoxFlat pass — dark parchment panel, antique gold borders/separators, inset slot buttons with hover/pressed states, gold section headers, muted subtext labels, reddish Unequip button; palette in COL_* constants
+
+### 2026-07-14 — M8 Phase 2c: equipment slots (inventory.md §10) — 12 new tests
+- EquipSlot enum; PlayerInventory equipped fields; LocalState equipped state + EquippedSlotChanged event
+- CombatResolver.PlayerTargetNumber armor/shield/category optional params
+- InventorySystem: EquipItem server API + RequestEquipItem RPC + SyncEquippedSlotsTo + ApplyEquippedSlot
+- CombatSystem: GetPlayerTargetNumber reads from equipped slots; shield gates check EquippedOffHand first
+- HealthSystem: AutoEquipKitItems infers slot from WeaponRegistry/ArmorRegistry at kit distribution
+- SaveSystem: saves and restores 3 equipped slot fields per player (additive, no version bump)
+- CharacterSheet: Equipment section with slot buttons + inline item picker; string-based Rpc to avoid Server import
+- en.json: charSheet.equipment + charSheet.slot.* keys
+- 6 new InventoryTests + 6 new CombatResolverTests
 
 ### 2026-07-14 — M8 Phase 2b: named saves + Load Game UI
 - SaveUtil (shared): ListSaves() + PeekSession() — client-safe, no Server import

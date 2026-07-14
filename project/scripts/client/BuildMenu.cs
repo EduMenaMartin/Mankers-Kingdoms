@@ -40,6 +40,13 @@ public partial class BuildMenu : CanvasLayer
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
+		if (Visible && @event.IsActionPressed("ui_cancel"))
+		{
+			CloseMenu();
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
 		if (!@event.IsActionPressed("build_menu")) return;
 
 		if (!Visible)

@@ -6,6 +6,41 @@ Follows [Keep a Changelog](https://keepachangelog.com/) conventions loosely.
 
 ---
 
+## [M8] — in progress — Save/load and polish
+
+### Added (2026-07-14 – 2026-07-15)
+
+**Named saves + Load Game UI (Phase 2b)**
+- `shared/SaveUtil.cs` — `ListSaves()` + `PeekSession()` client-safe helpers; no Server import needed
+- `shared/GameSession.cs` — `SaveName` field; `SaveRequested` event + `RequestSave()` bridge (PauseMenu → SaveSystem without cross-namespace import)
+- `shared/SaveData.cs` — `SessionSave` class (class/race/stats) + `Session` field; embedded in every save so Load Game restores character without re-running CharacterCreateScreen
+- `server/SaveSystem.cs` — `SavePath` uses `GameSession.SaveName`; `EnsureSaveDir()`; saves/restores `data.Session`; subscribes `SaveRequested`
+- `client/LoadGamePanel.cs` — programmatic Control; `SaveUtil.ListSaves()` populates list newest-first; class/race detail from `PeekSession()`; auto-selects slot 0; double-click to load
+- `client/PauseMenu.cs` — CanvasLayer Layer=50; Escape toggle; Resume/Save/Load/Quit; embeds `LoadGamePanel`
+- `client/MainMenuController.cs` — "Load Game" button injected after StartSolo; `LoadGamePanel` overlay added
+- `data/lang/en.json` — `menu.load_game`, `pause.*`, `load_panel.*` keys
+
+**Equipment slots — inventory.md §10 (Phase 2c)**
+- `shared/EquipSlot.cs` — enum: MainHand=0, OffHand=1, BodyArmor=2
+- `shared/PlayerInventory.cs` — three nullable equipped fields; `GetEquipped`/`SetEquipped`/`ClearEquippedSlotsFor`; `Clear()` resets equipped slots
+- `shared/SaveData.cs` — `PlayerSave.EquippedMainHand/OffHand/BodyArmor` (nullable; additive — no version bump)
+- `shared/LocalState.cs` — equipped properties; `GetEquipped`/`SetEquipped`; `EquippedSlotChanged` event
+- `shared/CombatResolver.cs` — `PlayerTargetNumber` optional `armorValue`, `shieldBonus`, `armorCategory` params; Medium caps Dex mod at +1, Heavy zeroes it
+- `server/InventorySystem.cs` — `EquipItem` server API; `RequestEquipItem` RPC; `SyncEquippedSlotsTo`; `ApplyEquippedSlot` RPC; slot eviction on `RemoveItems`/`ClearItem`/`TakeAll`
+- `server/CombatSystem.cs` — `GetPlayerTargetNumber` reads equipped armor + shield; block gate uses equipped OffHand first
+- `server/HealthSystem.cs` — `AutoEquipKitItems` infers MainHand/OffHand/BodyArmor from WeaponRegistry/ArmorRegistry at kit distribution
+- `server/SaveSystem.cs` — saves and restores three equipped fields per player
+- `client/CharacterSheet.cs` — Equipment section (3 slot rows + buttons); inline `_equipPicker` panel; compatible-item filtering; `RequestEquipItem` via string-based Rpc (no Server import); live refresh on `EquippedSlotChanged`
+
+**ESC fallback + CharacterSheet visual polish (Phase 3 partial)**
+- `client/BuildMenu.cs` — `ui_cancel` handler: Escape now closes build menu (and restores combat mode) before reaching PauseMenu; all other panels already handled Escape correctly
+- `client/CharacterSheet.cs` — StyleBoxFlat pass: dark warm-charcoal background, antique gold border + separators, inset slot buttons with hover/pressed states, muted subtext labels, gold section headers; `COL_*` palette constants for easy re-theming
+
+### Tests
+- 12 new tests: 6 `InventoryTests` (equipment slot CRUD) + 6 `CombatResolverTests` (`PlayerTargetNumber` armor/shield/ArmorCategory variants)
+
+---
+
 ## [M7] — 2026-07-11 — Class-gated building (COMPLETE)
 
 M7 demo gate passed. All gameplay code, editor tasks, and post-gate fixes complete.

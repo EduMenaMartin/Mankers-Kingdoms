@@ -539,10 +539,28 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [x] `client/PauseMenu.cs` — CanvasLayer Layer=50; Escape toggle; Resume/Save/Load/Quit buttons; embeds `LoadGamePanel`; uses `GameSession.RequestSave()` (no Server import)
 - [x] `client/MainMenuController.cs` — injects "Load Game" button after StartSolo; creates `LoadGamePanel` overlay
 - [x] `data/lang/en.json` — `menu.load_game`, `pause.*`, `load_panel.*` loc keys
-- [ ] **Editor (Edu):** Add `PauseMenu` CanvasLayer to `GameWorld.tscn` — any position; Layer=50 set in code; attach `res://scripts/client/PauseMenu.cs`
+- [x] **Editor (Edu):** Add `PauseMenu` CanvasLayer to `GameWorld.tscn` — done 2026-07-15
 - [ ] Smoke-test Load Game: new game → play → save (Escape → Save) → quit to menu → Load Game → select slot → resumes in same world with same state
 
+### Phase 2c — Equipment slots (inventory.md §10) ✅
+> Wires armor and shield values into combat TN per combat.md §2.2; auto-equips class kit gear; adds equip UI to CharacterSheet.
+- [x] `shared/EquipSlot.cs` — enum: MainHand=0, OffHand=1, BodyArmor=2
+- [x] `shared/PlayerInventory.cs` — three nullable equipped fields + `GetEquipped`/`SetEquipped`/`ClearEquippedSlotsFor`; `Clear()` resets equipped slots
+- [x] `shared/SaveData.cs` — `PlayerSave.EquippedMainHand/OffHand/BodyArmor` (nullable, additive — no version bump)
+- [x] `shared/LocalState.cs` — `EquippedMainHand/OffHand/BodyArmor`; `GetEquipped`/`SetEquipped`; `EquippedSlotChanged` event
+- [x] `shared/CombatResolver.cs` — `PlayerTargetNumber` gains optional `armorValue`, `shieldBonus`, `armorCategory` params; ArmorCategory.Medium caps Dex mod at +1, Heavy zeroes it
+- [x] `server/InventorySystem.cs` — `RemoveItems`/`ClearItem`/`TakeAll` evict equipped slots; `RestoreInventoryFromSave` restores equipped slots; `SyncInventoryAndHotbarTo` now syncs equipped too; `EquipItem` server API; `RequestEquipItem` AnyPeer RPC; `SyncEquippedSlotsTo` + `ApplyEquippedSlot` Authority RPC
+- [x] `server/CombatSystem.cs` — `GetPlayerTargetNumber` reads armor+shield from equipped slots; `RequestSetBlocking` validates shield in OffHand; block gate in `RequestMeleeAttack` uses equipped slot check
+- [x] `server/HealthSystem.cs` — `AutoEquipKitItems` infers slot from WeaponRegistry/ArmorRegistry; called on connect + class change
+- [x] `server/SaveSystem.cs` — saves and restores equipped slots per player
+- [x] `client/CharacterSheet.cs` — Equipment section (3 slot rows with buttons) between Stats and Skills; `BuildPicker()` creates persistent floating picker; `OpenPicker(slot)` populates with compatible items + Unequip; `OnPickerItemSelected` sends `RequestEquipItem` RPC; `OnEquippedSlotChanged` refreshes button labels; Escape closes picker before closing sheet
+- [x] `data/lang/en.json` — `charSheet.equipment`, `charSheet.slot.*` loc keys
+- [x] `tests/Shared/InventoryTests.cs` — 6 new equipment slot tests
+- [x] `tests/Shared/CombatResolverTests.cs` — 6 new `PlayerTargetNumber` armor/shield/category tests
+
 ### Phase 3 — Remaining M8 scope
+- [x] **ESC as game menu fallback** — `BuildMenu` now handles `ui_cancel` to close itself before Escape bubbles to PauseMenu; all other panels (RecruitmentDialogue, StockpilePanel, BuildingAssignmentPanel, InventoryPanel, CharacterSheet, PlacementController, WorldMapScreen) already handled Escape correctly; PauseMenu (Layer 50) catches Escape when nothing else is open
+- [x] **CharacterSheet StyleBoxFlat polish** — dark parchment panel, antique gold border/separators, inset slot buttons with hover/pressed states, gold section headers; palette in `COL_*` constants at class top
 - [ ] Fog of war probe — full-map toggle (unseen/seen/visible), shared reveal, persisted in save (see `docs/gdd/worldgen.md` §11)
 - [ ] Localization audit — grep for string literals in gameplay code; ensure 0 hardcoded player-facing strings remain
 - [ ] Demo gate: play 30 min solo → quit → restart → resume exactly where left off
@@ -550,6 +568,24 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 ### Captured (scope TBD)
 - [ ] Building construction progress — visual indicator while a building is being placed/constructed
 - [ ] NPC collision with buildings — NPCs currently walk through placed buildings
+
+---
+
+## M9 — NPC village life (planned)
+
+> **Scope note:** Features below are post-slice candidates captured from Edu's 2026-07-14 session. Present for approval before M9 planning begins.
+
+### NPC idle behaviour after recruitment
+- [ ] When a recruited NPC has no job assignment, they walk to the settlement's Kingdom Marker and idle within its radius (random wander, not stationary)
+- [ ] `server/VillageSystem.cs` — add `Idle` NPC state; `TickIdle()` picks a random target inside marker radius (uniform circle sample), NPC walks there at follow speed, waits 5–10s, picks new target
+- [ ] Wake trigger: NPC transitions Idle → Working when assigned, Idle → Follow when recruited
+
+### House capacity
+- [ ] Each Shelter building supports up to 4 NPCs for rest (sleep replenishment)
+- [ ] `server/VillageSystem.cs` — `_shelterCapacity SortedDictionary<string buildingId, int occupants>`; on sleep request find nearest shelter with capacity < 4; if full, NPC stays awake (rest drains but no crash)
+- [ ] Capacity persisted in save (as occupant count per building ID in `NpcAssignments`)
+
+> **When:** NPC idle is M9 Phase 1 (first thing). House capacity is M9 Phase 2 (after idle, since idle needs a destination and capacity affects rest logic).
 
 ---
 

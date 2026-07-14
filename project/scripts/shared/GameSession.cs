@@ -68,6 +68,8 @@ public static class GameSession
         ChosenRaceId    = "race.human";
         RolledStats     = null;
         HumanChosenStat = null;
-        SaveName        = "default";
+        // SaveName intentionally NOT reset: _ExitTree fires after Reset() and must write
+        // to the correct slot. New games stamp a fresh timestamp in CharacterCreateScreen;
+        // load games set it in LoadGamePanel. Neither path needs Reset() to clear this.
     }
 }

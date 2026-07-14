@@ -373,6 +373,40 @@ public static class LocalState
     /// </summary>
     public static void NotifyHotbarKeyPressed(int slot) => HotbarKeyPressed?.Invoke(slot);
 
+    // ── Equipment slots (inventory.md §10) ───────────────────────────────────
+
+    public static string? EquippedMainHand  { get; private set; }
+    public static string? EquippedOffHand   { get; private set; }
+    public static string? EquippedBodyArmor { get; private set; }
+
+    /// <summary>
+    /// Fired when any equipment slot changes for the local player.
+    /// Parameters: (slot, new itemId or null if unequipped).
+    /// Subscribed by CharacterSheet to refresh slot labels.
+    /// </summary>
+    public static event System.Action<EquipSlot, string?>? EquippedSlotChanged;
+
+    /// <summary>Returns the item currently equipped in <paramref name="slot"/> for the local player.</summary>
+    public static string? GetEquipped(EquipSlot slot) => slot switch
+    {
+        EquipSlot.MainHand  => EquippedMainHand,
+        EquipSlot.OffHand   => EquippedOffHand,
+        EquipSlot.BodyArmor => EquippedBodyArmor,
+        _                   => null
+    };
+
+    /// <summary>Called by InventorySystem.ApplyEquippedSlot RPC (runs on owning peer).</summary>
+    public static void SetEquipped(EquipSlot slot, string? itemId)
+    {
+        switch (slot)
+        {
+            case EquipSlot.MainHand:  EquippedMainHand  = itemId; break;
+            case EquipSlot.OffHand:   EquippedOffHand   = itemId; break;
+            case EquipSlot.BodyArmor: EquippedBodyArmor = itemId; break;
+        }
+        EquippedSlotChanged?.Invoke(slot, itemId);
+    }
+
     // ── Skill levels ──────────────────────────────────────────────────────────
 
     /// <summary>

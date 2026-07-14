@@ -141,4 +141,74 @@ public class InventoryTests
         Assert.Null(inv.GetHotbarSlot(0));
         Assert.Null(inv.GetHotbarSlot(3));
     }
+
+    // ── Equipment slot tests (inventory.md §10) ───────────────────────────────
+
+    [Fact]
+    public void SetEquipped_StoresItemInSlot()
+    {
+        var inv = new PlayerInventory();
+        inv.SetEquipped(EquipSlot.MainHand, "item.weapon.longsword");
+        Assert.Equal("item.weapon.longsword", inv.EquippedMainHand);
+    }
+
+    [Fact]
+    public void GetEquipped_ReturnsCorrectSlot()
+    {
+        var inv = new PlayerInventory();
+        inv.SetEquipped(EquipSlot.OffHand,   "item.armor.shield");
+        inv.SetEquipped(EquipSlot.BodyArmor, "item.armor.leather");
+        Assert.Equal("item.armor.shield",  inv.GetEquipped(EquipSlot.OffHand));
+        Assert.Equal("item.armor.leather", inv.GetEquipped(EquipSlot.BodyArmor));
+        Assert.Null(inv.GetEquipped(EquipSlot.MainHand));
+    }
+
+    [Fact]
+    public void SetEquipped_NullClearsSlot()
+    {
+        var inv = new PlayerInventory();
+        inv.SetEquipped(EquipSlot.MainHand, "item.weapon.longsword");
+        inv.SetEquipped(EquipSlot.MainHand, null);
+        Assert.Null(inv.EquippedMainHand);
+    }
+
+    [Fact]
+    public void ClearEquippedSlotsFor_RemovesMatchingItem()
+    {
+        var inv = new PlayerInventory();
+        inv.SetEquipped(EquipSlot.MainHand,  "item.weapon.longsword");
+        inv.SetEquipped(EquipSlot.OffHand,   "item.armor.shield");
+        inv.SetEquipped(EquipSlot.BodyArmor, "item.armor.leather");
+        inv.ClearEquippedSlotsFor("item.weapon.longsword");
+        Assert.Null(inv.EquippedMainHand);
+        // Other slots untouched.
+        Assert.Equal("item.armor.shield",  inv.EquippedOffHand);
+        Assert.Equal("item.armor.leather", inv.EquippedBodyArmor);
+    }
+
+    [Fact]
+    public void Clear_AlsoClearsAllEquippedSlots()
+    {
+        var inv = new PlayerInventory();
+        inv.Add("item.weapon.longsword", 1);
+        inv.SetEquipped(EquipSlot.MainHand,  "item.weapon.longsword");
+        inv.SetEquipped(EquipSlot.OffHand,   "item.armor.shield");
+        inv.SetEquipped(EquipSlot.BodyArmor, "item.armor.leather");
+        inv.Clear();
+        Assert.Null(inv.EquippedMainHand);
+        Assert.Null(inv.EquippedOffHand);
+        Assert.Null(inv.EquippedBodyArmor);
+    }
+
+    [Fact]
+    public void AllThreeSlots_Independent()
+    {
+        var inv = new PlayerInventory();
+        inv.SetEquipped(EquipSlot.MainHand,  "item.weapon.longsword");
+        inv.SetEquipped(EquipSlot.OffHand,   "item.armor.shield");
+        inv.SetEquipped(EquipSlot.BodyArmor, "item.armor.chain_mail");
+        Assert.Equal("item.weapon.longsword", inv.EquippedMainHand);
+        Assert.Equal("item.armor.shield",     inv.EquippedOffHand);
+        Assert.Equal("item.armor.chain_mail", inv.EquippedBodyArmor);
+    }
 }

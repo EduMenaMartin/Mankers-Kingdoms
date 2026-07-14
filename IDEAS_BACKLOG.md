@@ -84,6 +84,16 @@ interact directly with an NPC (E key) to view/take from their inventory. NPCs in
 the settlement stockpile to deposit harvested goods automatically. Prerequisite: M6 settlement
 stockpile foundation (already planned).
 
+### 2026-07-15 — [post-slice] Scene-based UI for character sheet and inventory panels
+
+Currently CharacterSheet and InventoryPanel are built entirely in C# code (no `.tscn`). This works and Claude can maintain it fully, but it prevents using Godot's visual tooling: StyleBox editors, NinePatchRect for slot frames, texture backgrounds (parchment, stone), icon sprites for equipment slots.
+
+**When to do it:** After M9 demo gate, as part of a dedicated UI polish sprint.
+
+**Workflow:** Claude writes `.cs` script with `[Export]`-annotated node refs; Edu creates the `.tscn` in the editor and wires up `%UniqueNameAccess` paths. Claude never touches `.tscn` per project rules.
+
+**What it unlocks:** proper slot frame art (NinePatchRect), parchment background textures, equipment slot icons (sword/shield/armor silhouettes), drag-and-drop item assignment.
+
 ### 2026-07-02 — [post-slice] Content loading from repo-root `data/` via filesystem
 
 Currently `data/lang/en.json` lives both at repo root (`data/lang/`) and duplicated inside the Godot project (`project/data/lang/`) as a workaround for `res://` access limits. The proper architecture loads all content from the repo-root `data/` directory using filesystem paths resolved relative to the game executable — consistent with how mods load content. Needs a content loader system. Not needed until M3+ (mod loading milestone).

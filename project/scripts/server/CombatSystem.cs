@@ -94,11 +94,38 @@ public partial class CombatSystem : Node
         _playerStats[peerId] = stats;
     }
 
-    /// <summary>Returns the Target Number for a player peer (combat.md §2.2).</summary>
+    /// <summary>
+    /// Returns the Target Number for a player peer (combat.md §2.2 + inventory.md §10.2).
+    /// Reads ArmorValue, ShieldBonus, and ArmorCategory from the player's equipped slots.
+    /// </summary>
     public int GetPlayerTargetNumber(long peerId)
     {
-        var s = _playerStats.TryGetValue(peerId, out var st) ? st : _defaultStats;
-        return CombatResolver.PlayerTargetNumber(s.Dex);
+        var s   = _playerStats.TryGetValue(peerId, out var st) ? st : _defaultStats;
+        var inv = InventorySystem.Instance?.GetInventory(peerId);
+
+        int           armorValue    = 0;
+        int           shieldBonus   = 0;
+        ArmorCategory armorCategory = ArmorCategory.Light;
+
+        if (inv != null)
+        {
+            if (inv.EquippedBodyArmor != null)
+            {
+                var armor = ArmorRegistry.Find(inv.EquippedBodyArmor);
+                if (armor != null)
+                {
+                    armorValue    = armor.ArmorValue;
+                    armorCategory = armor.ArmorCategory;
+                }
+            }
+            if (inv.EquippedOffHand == "item.armor.shield")
+            {
+                var shield = ArmorRegistry.Find("item.armor.shield");
+                if (shield != null) shieldBonus = shield.ShieldBonus;
+            }
+        }
+
+        return CombatResolver.PlayerTargetNumber(s.Dex, armorValue, shieldBonus, armorCategory);
     }
 
     /// <summary>Returns the stored StatBlock for a player peer, or safe defaults.</summary>
@@ -183,8 +210,11 @@ public partial class CombatSystem : Node
         _swingReady[sender] = _elapsed + weapon.SwingCooldown;
 
         // ── Block gate (combat.md §2.5): blocking with a shield nullifies the attack ──
-        if (_blocking.TryGetValue(targetEntityId, out bool isBlocking) && isBlocking
-            && InventorySystem.Instance.HasItems(targetEntityId, "item.armor.shield", 1))
+        var targetInv      = InventorySystem.Instance?.GetInventory(targetEntityId);
+        bool targetHasShield = targetInv?.EquippedOffHand == "item.armor.shield"
+                            || (targetInv?.EquippedOffHand == null
+                                && InventorySystem.Instance.HasItems(targetEntityId, "item.armor.shield", 1));
+        if (_blocking.TryGetValue(targetEntityId, out bool isBlocking) && isBlocking && targetHasShield)
         {
             GD.Print($"[Combat] entity {targetEntityId} blocked attack from peer {sender}");
             GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
@@ -237,7 +267,13 @@ public partial class CombatSystem : Node
 
         if (!_blocking.ContainsKey(sender)) return;
 
-        bool hasShield = InventorySystem.Instance.HasItems(sender, "item.armor.shield", 1);
+        // Shield must be equipped in Off-Hand (inventory.md §10.3).
+        // For saves predating the equipment slot system (EquippedOffHand == null),
+        // fall back to inventory ownership so legacy saves don't silently lose blocking.
+        var playerInv  = InventorySystem.Instance?.GetInventory(sender);
+        bool hasShield = playerInv?.EquippedOffHand == "item.armor.shield"
+                      || (playerInv?.EquippedOffHand == null
+                          && InventorySystem.Instance.HasItems(sender, "item.armor.shield", 1));
         _blocking[sender] = isBlocking && hasShield;
     }
 

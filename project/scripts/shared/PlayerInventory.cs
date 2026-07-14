@@ -90,10 +90,54 @@ public sealed class PlayerInventory
             if (_hotbarSlots[i] == itemId) _hotbarSlots[i] = null;
     }
 
-    /// <summary>Removes all items and clears all hotbar slot references.</summary>
+    /// <summary>Removes all items and clears all hotbar slot and equipment references.</summary>
     public void Clear()
     {
         _items.Clear();
         for (int i = 0; i < 9; i++) _hotbarSlots[i] = null;
+        _equippedMainHand  = null;
+        _equippedOffHand   = null;
+        _equippedBodyArmor = null;
+    }
+
+    // ── Equipment slots (inventory.md §10.1) ──────────────────────────────────
+
+    private string? _equippedMainHand;
+    private string? _equippedOffHand;
+    private string? _equippedBodyArmor;
+
+    public string? EquippedMainHand  => _equippedMainHand;
+    public string? EquippedOffHand   => _equippedOffHand;
+    public string? EquippedBodyArmor => _equippedBodyArmor;
+
+    /// <summary>Returns the item ID equipped in <paramref name="slot"/>, or null if empty.</summary>
+    public string? GetEquipped(EquipSlot slot) => slot switch
+    {
+        EquipSlot.MainHand  => _equippedMainHand,
+        EquipSlot.OffHand   => _equippedOffHand,
+        EquipSlot.BodyArmor => _equippedBodyArmor,
+        _                   => null
+    };
+
+    /// <summary>Sets the equipped item for <paramref name="slot"/>. Pass null to clear.</summary>
+    public void SetEquipped(EquipSlot slot, string? itemId)
+    {
+        switch (slot)
+        {
+            case EquipSlot.MainHand:  _equippedMainHand  = itemId; break;
+            case EquipSlot.OffHand:   _equippedOffHand   = itemId; break;
+            case EquipSlot.BodyArmor: _equippedBodyArmor = itemId; break;
+        }
+    }
+
+    /// <summary>
+    /// Clears any equipment slot that holds <paramref name="itemId"/>.
+    /// Called by InventorySystem when the last stack of an item is consumed.
+    /// </summary>
+    public void ClearEquippedSlotsFor(string itemId)
+    {
+        if (_equippedMainHand  == itemId) _equippedMainHand  = null;
+        if (_equippedOffHand   == itemId) _equippedOffHand   = null;
+        if (_equippedBodyArmor == itemId) _equippedBodyArmor = null;
     }
 }
