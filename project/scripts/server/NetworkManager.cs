@@ -84,7 +84,10 @@ public partial class NetworkManager : Node
     public void Close()
     {
         Multiplayer.MultiplayerPeer?.Close();
-        Multiplayer.MultiplayerPeer = null;
+        // Reset to OfflineMultiplayerPeer (not null) so GetUniqueId() keeps returning 1.
+        // Setting null makes GetUniqueId() return 0, breaking IsMultiplayerAuthority() checks
+        // on the next scene load (grey screen + player dot at map origin).
+        Multiplayer.MultiplayerPeer = new OfflineMultiplayerPeer();
         GD.Print("[NetworkManager] connection closed");
     }
 

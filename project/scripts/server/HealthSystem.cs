@@ -91,6 +91,14 @@ public partial class HealthSystem : Node
         long sender = Multiplayer.GetRemoteSenderId();
         if (sender == 0) sender = 1L;
 
+        // When loading from a save, the inventory, equipment, and skills are already restored
+        // by SaveSystem.TryLoad() (which runs in deferred slot 2, before AnnounceClass fires
+        // in deferred slot 4). Re-giving the kit here would overwrite the restored state.
+        // Note: this guard is M8-safe for solo play. In a future multiplayer load scenario,
+        // newly-joining peers (not in the save) would also be skipped — those cases need a
+        // per-peer "was this peer in the save?" check.
+        if (SaveSystem.SaveWasLoaded) return;
+
         var kit = ClassKitRegistry.Find(classId) ?? ClassKitRegistry.Find("class.fighter");
         if (kit == null) return;
 

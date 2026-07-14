@@ -2,6 +2,30 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [P1] Grey screen + player at top-left of minimap after Load Game (2026-07-14)
+
+**Milestone found:** M8
+**Reproduce:** Start solo game → play → quit to main menu → Load Game → grey 3D viewport, player dot at minimap top-left corner.
+**Expected:** World renders normally with camera following the player.
+**Actual:** `NetworkManager.Close()` (called in `_ExitTree`) set `Multiplayer.MultiplayerPeer = null`. On the next GameWorld load in Solo mode, no peer is created, so the peer stays null. In Godot 4, `Multiplayer.GetUniqueId()` returns **0** when the peer is null (not 1). This causes `IsMultiplayerAuthority()` to return false (authority=1 ≠ unique=0), so `_isLocalPlayer = false`, `_camera.MakeCurrent()` is never called → grey screen. `MinimapHUD` also looks for `Player_0` which doesn't exist, leaving `_playerMapPos = (0,0)` = map top-left.
+**Fix:** `NetworkManager.Close()` now resets to `new OfflineMultiplayerPeer()` instead of `null`, keeping `GetUniqueId() = 1` across scene reloads.
+
+Status: FIXED (2026-07-14)
+
+---
+
+## [P2] Starting kit re-given after load, overwriting restored inventory (2026-07-14)
+
+**Milestone found:** M8
+**Reproduce:** Save game with inventory accumulated beyond starting kit → quit to main menu → Load → inventory shows only starting kit items.
+**Expected:** Restored inventory from save persists.
+**Actual:** `PlayerController.AnnounceClass()` fires deferred (after `SaveSystem.TryLoad()` restores inventory) and calls `HealthSystem.RequestSetClass`, which clears and re-distributes the starting kit. Deferred slot order: `TryLoad` (slot 2) → `AnnounceClass` (slot 4).
+**Fix:** `SaveSystem.SaveWasLoaded` static bool, reset to false in `_Ready()` and set to true just before the restore block in `TryLoad()`. `HealthSystem.RequestSetClass` returns early when `SaveSystem.SaveWasLoaded` is true. M8 solo-safe; future multiplayer reconnects need a per-peer "was in save" check.
+
+Status: FIXED (2026-07-14)
+
+---
+
 ## [P2] Load Game panel "Load" button disabled on open — no visible way to load (2026-07-14)
 
 **Milestone found:** M8
