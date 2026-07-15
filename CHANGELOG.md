@@ -6,7 +6,20 @@ Follows [Keep a Changelog](https://keepachangelog.com/) conventions loosely.
 
 ---
 
-## [M8] — in progress — Save/load and polish
+## [M9] — in progress — Vertical slice playtest
+
+### Pre-playtest content fixes (2026-07-15)
+
+- **WorldSeed now randomised per new game** — `CharacterCreateScreen.OnConfirm()` calls `GameSession.WorldSeed = (uint)GD.Randi()` before scene transition. Previously every new game produced the same world (seed was always `42u`).
+- **Herb patch system** — `shared/HerbPatchData.cs` + `shared/HerbGenerator.cs` (30 patches, XOR salt `0x48455242u`); `server/HerbSystem.cs` spawns purple sphere nodes on all peers deterministically; 60s harvest cooldown; exposes server NPC API.
+- **Forager NPC movement loop** — replaced static 30s timer (`TickForagerJob` produced herbs without moving) with a woodcutter-style loop: NPC finds nearest herb patch or berry bush, walks to it, harvests, carries up to 6 items, walks to Stockpile Drop, deposits herbs and berries separately into settlement stockpile. `BushSystem` gained `GetAvailableBushIds`, `GetBushPosition`, `IsAvailable`, `ForagerHarvestBush` NPC API.
+- **Sickle at Foraging 15** — `SkillRegistry` Foraging `ToolTiers` now grants `item.tool.sickle`; loc keys added.
+- **Stew Pot at Cooking 10** — `SkillRegistry` Cooking `ToolTiers` now grants `item.tool.stew_pot`; loc keys added.
+- **Wooden Wall + Wooden Gate** — `BuildingRegistry` adds both building types (Wall: 5 wood, 2×3×0.4; Gate: 10 wood, same); loc keys added. Scenes are editor tasks.
+
+---
+
+## [M8] — 2026-07-15 — Save/load and polish (COMPLETE)
 
 ### Added (2026-07-14 – 2026-07-15)
 

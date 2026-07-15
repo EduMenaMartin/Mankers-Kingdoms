@@ -61,9 +61,16 @@ public partial class VillageSystem : Node
     private const float DEPOSIT_RANGE      = 2f;
 
     // ── Server-only: Forager state ────────────────────────────────────────────
-    private readonly SortedDictionary<string, float> _lastForageTime = new(); // villagerId → elapsed at last forage
-    private const float FORAGE_COOLDOWN  = 30.0f; // seconds between herb yields
-    private const int   HERB_PER_FORAGE  = 1;     // herbs produced per forage tick
+    // Movement-based loop: NPC finds nearest herb patch or berry bush, walks to it,
+    // harvests, carries items back to stockpile when at capacity.
+    private readonly SortedDictionary<string, string> _foragerTarget        = new(); // villagerId → target node name
+    private readonly SortedDictionary<string, int>    _foragerCarriedHerbs  = new(); // villagerId → herbs carried
+    private readonly SortedDictionary<string, int>    _foragerCarriedBerries= new(); // villagerId → berries carried
+    private readonly SortedDictionary<string, string> _foragerWalkToDeposit = new(); // villagerId → stockpile node name
+
+    private const int   FORAGER_CARRY_CAPACITY  = 6;
+    private const float FORAGE_RANGE            = 1.5f;
+    private const float MAX_FORAGE_SEARCH_RANGE = 200f;
 
     // ── Warning throttle ──────────────────────────────────────────────────────
     private readonly SortedDictionary<string, float> _lastWarnTime = new(); // villagerId → _elapsed at last warn
@@ -160,6 +167,7 @@ public partial class VillageSystem : Node
 
         TickResting((float)delta);
         TickDeposit((float)delta);
+        TickForagerDeposit((float)delta);
         TickFollow((float)delta);
         TickJobs((float)delta);
     }
@@ -380,8 +388,12 @@ public partial class VillageSystem : Node
         _workFounder.Remove(npcId);
         _jobTargetTree.Remove(npcId);
         _lastChopTime.Remove(npcId);
-        _lastForageTime.Remove(npcId);
         _walkingToDeposit.Remove(npcId);
+        // Forager state
+        _foragerTarget.Remove(npcId);
+        _foragerCarriedHerbs.Remove(npcId);
+        _foragerCarriedBerries.Remove(npcId);
+        _foragerWalkToDeposit.Remove(npcId);
 
         if (_villagers.TryGetValue(npcId, out var data))
             GD.Print($"[VillageSystem] {data.Name} unassigned — now idle");
@@ -441,16 +453,17 @@ public partial class VillageSystem : Node
 
         foreach (var (villagerId, stationNodeName) in _workAssignments)
         {
-            if (_walkingToShelter.ContainsKey(villagerId))  continue;
-            if (_sleeping.ContainsKey(villagerId))          continue;
-            if (_walkingToDeposit.ContainsKey(villagerId))  continue;
+            if (_walkingToShelter.ContainsKey(villagerId))        continue;
+            if (_sleeping.ContainsKey(villagerId))                 continue;
+            if (_walkingToDeposit.ContainsKey(villagerId))         continue;
+            if (_foragerWalkToDeposit.ContainsKey(villagerId))     continue;
             if (!_positions.TryGetValue(villagerId, out var npcPos)) continue;
 
             // Route to forager loop when assigned to a Herbalist's Hut.
             // Note: Godot normalises dots to underscores in node names.
             if (stationNodeName.StartsWith("building_herbalists_hut", System.StringComparison.Ordinal))
             {
-                TickForagerJob(villagerId, stationNodeName);
+                TickForagerJob(villagerId, delta);
                 continue;
             }
 
@@ -534,25 +547,186 @@ public partial class VillageSystem : Node
     // ── Forager job tick ──────────────────────────────────────────────────────
 
     /// <summary>
-    /// Called each physics tick for an NPC assigned to a Herbalist's Hut.
-    /// Produces HERB_PER_FORAGE herbs into the settlement stockpile every FORAGE_COOLDOWN seconds.
-    /// Production is skipped if the hut is dormant (Ranger presence lost) — the NPC is still
-    /// assigned and will resume when a Ranger returns. V1 simplification: no world herb spawn
-    /// nodes; the NPC forages from the hut's area implicitly.
+    /// Movement-based forager loop. NPC walks to the nearest available herb patch or
+    /// berry bush, harvests it, carries items back to the stockpile when at capacity.
+    /// Mirrors the woodcutter loop — find target → move → harvest → haul → deposit.
     /// </summary>
-    private void TickForagerJob(string villagerId, string stationNodeName)
+    private void TickForagerJob(string villagerId, float delta)
     {
-        // Hut must still exist under SettlementSystem.
-        var hutNode = GetNodeOrNull($"/root/GameWorld/SettlementSystem/{stationNodeName}");
-        if (hutNode == null) return;
+        if (!_positions.TryGetValue(villagerId, out var npcPos)) return;
 
-        // Cooldown check.
-        float lastForage = _lastForageTime.TryGetValue(villagerId, out var lf) ? lf : -FORAGE_COOLDOWN;
-        if (_elapsed - lastForage < FORAGE_COOLDOWN) return;
+        // Check carry capacity first.
+        _foragerCarriedHerbs.TryGetValue(villagerId, out int herbs);
+        _foragerCarriedBerries.TryGetValue(villagerId, out int berries);
+        int totalCarried = herbs + berries;
 
-        _lastForageTime[villagerId] = _elapsed;
-        SettlementSystem.Instance?.AddToStockpile("item.herb", HERB_PER_FORAGE);
-        GD.Print($"[VillageSystem] NPC {villagerId} foraged {HERB_PER_FORAGE} herb(s)");
+        if (totalCarried >= FORAGER_CARRY_CAPACITY)
+        {
+            string sp = FindNearestStockpile(npcPos);
+            if (!string.IsNullOrEmpty(sp))
+            {
+                _foragerWalkToDeposit[villagerId] = sp;
+                GD.Print($"[VillageSystem] NPC {villagerId} carrying {totalCarried} — heading to stockpile {sp}");
+            }
+            else
+            {
+                // No stockpile built yet — warn founder.
+                _lastWarnTime.TryGetValue(villagerId, out float lastWarn);
+                if (_elapsed - lastWarn >= WARN_THROTTLE_SEC)
+                {
+                    _lastWarnTime[villagerId] = _elapsed;
+                    long founder = _workFounder.TryGetValue(villagerId, out long f) ? f : 0L;
+                    if (founder != 0L)
+                        SendWarningToPeer(founder, Loc.T("warning.job.no_stockpile"));
+                }
+            }
+            return;
+        }
+
+        // Validate or acquire a forage target.
+        string targetId = _foragerTarget.TryGetValue(villagerId, out var t) ? t : "";
+        if (!string.IsNullOrEmpty(targetId) && !IsForageTargetAvailable(targetId))
+            targetId = ""; // target was harvested by someone else
+
+        if (string.IsNullOrEmpty(targetId))
+        {
+            targetId = FindNearestForageTarget(npcPos);
+            _foragerTarget[villagerId] = targetId;
+            if (string.IsNullOrEmpty(targetId)) return; // nothing in range
+        }
+
+        Vector3 targetPos = GetForageTargetPosition(targetId);
+        float   distSq    = (targetPos.X - npcPos.X) * (targetPos.X - npcPos.X)
+                          + (targetPos.Z - npcPos.Z) * (targetPos.Z - npcPos.Z);
+
+        if (distSq > FORAGE_RANGE * FORAGE_RANGE)
+        {
+            MoveNpcToward(villagerId, targetPos, delta);
+        }
+        else
+        {
+            int yielded = HarvestForageTarget(targetId);
+            _foragerTarget[villagerId] = ""; // clear so we find a new target next tick
+
+            if (yielded <= 0) return;
+
+            if (targetId.StartsWith("bush_", System.StringComparison.Ordinal))
+            {
+                _foragerCarriedBerries.TryGetValue(villagerId, out int b);
+                _foragerCarriedBerries[villagerId] = b + yielded;
+                GD.Print($"[VillageSystem] NPC {villagerId} picked berry at {targetId} ({b + yielded} berries carried)");
+            }
+            else
+            {
+                _foragerCarriedHerbs.TryGetValue(villagerId, out int h);
+                _foragerCarriedHerbs[villagerId] = h + yielded;
+                GD.Print($"[VillageSystem] NPC {villagerId} picked herb at {targetId} ({h + yielded} herbs carried)");
+            }
+        }
+    }
+
+    // ── Forager deposit tick ──────────────────────────────────────────────────
+
+    private void TickForagerDeposit(float delta)
+    {
+        var arrived = new List<string>();
+
+        foreach (var (villagerId, stockpileNodeName) in _foragerWalkToDeposit)
+        {
+            if (!_positions.TryGetValue(villagerId, out var pos)) continue;
+
+            var stockpileNode = GetNodeOrNull<Node3D>($"/root/GameWorld/SettlementSystem/{stockpileNodeName}");
+            if (stockpileNode == null)
+            {
+                arrived.Add(villagerId); // stockpile removed
+                continue;
+            }
+
+            float dx = stockpileNode.GlobalPosition.X - pos.X;
+            float dz = stockpileNode.GlobalPosition.Z - pos.Z;
+            if (dx * dx + dz * dz <= DEPOSIT_RANGE * DEPOSIT_RANGE)
+                arrived.Add(villagerId);
+            else
+                MoveNpcToward(villagerId, stockpileNode.GlobalPosition, delta);
+        }
+
+        foreach (var id in arrived)
+        {
+            _foragerWalkToDeposit.Remove(id);
+
+            _foragerCarriedHerbs.TryGetValue(id, out int herbs);
+            _foragerCarriedBerries.TryGetValue(id, out int berries);
+
+            if (herbs > 0)
+            {
+                SettlementSystem.Instance?.AddToStockpile("item.herb", herbs);
+                _foragerCarriedHerbs[id] = 0;
+                GD.Print($"[VillageSystem] NPC {id} deposited {herbs} herb(s)");
+            }
+            if (berries > 0)
+            {
+                SettlementSystem.Instance?.AddToStockpile("item.berry", berries);
+                _foragerCarriedBerries[id] = 0;
+                GD.Print($"[VillageSystem] NPC {id} deposited {berries} berry/ies");
+            }
+        }
+    }
+
+    // ── Forage target helpers ─────────────────────────────────────────────────
+
+    private bool IsForageTargetAvailable(string targetId)
+    {
+        if (targetId.StartsWith("bush_", System.StringComparison.Ordinal))
+            return BushSystem.Instance?.IsAvailable(targetId) ?? false;
+        return HerbSystem.Instance?.IsAvailable(targetId) ?? false;
+    }
+
+    private string FindNearestForageTarget(Vector3 fromPos)
+    {
+        string bestId     = "";
+        float  bestDistSq = MAX_FORAGE_SEARCH_RANGE * MAX_FORAGE_SEARCH_RANGE;
+
+        // Herb patches first — herbs are more valuable (bandage ingredient).
+        var hs = HerbSystem.Instance;
+        if (hs != null)
+        {
+            foreach (var hId in hs.GetAvailableHerbPatchIds())
+            {
+                var pos = hs.GetHerbPosition(hId);
+                float dx = pos.X - fromPos.X, dz = pos.Z - fromPos.Z;
+                float distSq = dx * dx + dz * dz;
+                if (distSq < bestDistSq) { bestDistSq = distSq; bestId = hId; }
+            }
+        }
+
+        // Berry bushes as secondary targets.
+        var bs = BushSystem.Instance;
+        if (bs != null)
+        {
+            foreach (var bId in bs.GetAvailableBushIds())
+            {
+                var pos = bs.GetBushPosition(bId);
+                float dx = pos.X - fromPos.X, dz = pos.Z - fromPos.Z;
+                float distSq = dx * dx + dz * dz;
+                if (distSq < bestDistSq) { bestDistSq = distSq; bestId = bId; }
+            }
+        }
+
+        return bestId;
+    }
+
+    private static Vector3 GetForageTargetPosition(string targetId)
+    {
+        if (targetId.StartsWith("bush_", System.StringComparison.Ordinal))
+            return BushSystem.Instance?.GetBushPosition(targetId) ?? Vector3.Zero;
+        return HerbSystem.Instance?.GetHerbPosition(targetId) ?? Vector3.Zero;
+    }
+
+    private static int HarvestForageTarget(string targetId)
+    {
+        if (targetId.StartsWith("bush_", System.StringComparison.Ordinal))
+            return BushSystem.Instance?.ForagerHarvestBush(targetId) ?? 0;
+        return HerbSystem.Instance?.ForagerHarvestHerb(targetId) ?? 0;
     }
 
     // ── Deposit tick ──────────────────────────────────────────────────────────
@@ -782,9 +956,10 @@ public partial class VillageSystem : Node
                 RpcId(peer, MethodName.ClientClearFollower);
         }
 
-        // Stop any in-progress haul walk; carried wood persists so the NPC deposits it
-        // when they resume work after sleeping (TickJobs checks carry cap on wake).
+        // Stop any in-progress haul walk; carried items persist so the NPC deposits them
+        // when they resume work after sleeping.
         _walkingToDeposit.Remove(villagerId);
+        _foragerWalkToDeposit.Remove(villagerId);
 
         long suspendedFounder = 0L;
         if (_workAssignments.TryGetValue(villagerId, out string stationToResume))
@@ -796,8 +971,7 @@ public partial class VillageSystem : Node
             _workFounder.Remove(villagerId);
             _jobTargetTree.Remove(villagerId);
             _lastChopTime.Remove(villagerId);
-            _lastForageTime.Remove(villagerId);
-
+            _foragerTarget.Remove(villagerId);
         }
 
         Vector3 shelterPos = FindNearestShelterPosition(

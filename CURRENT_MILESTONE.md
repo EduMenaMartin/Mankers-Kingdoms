@@ -1,29 +1,28 @@
-# Current Milestone: M8 — Save/load and polish
+# Current Milestone: M9 — Vertical slice playtest
 
-**Started:** 2026-07-11
-**Target demo:** Play for 30 minutes, quit, restart, resume exactly where left off.
+**Started:** 2026-07-15
+**Target demo:** Play with a friend for a real 30–60 minute session. Log what breaks, what confuses, what feels bad. Fix critical bugs only.
 
-## Scope (from VERTICAL_SLICE.md §3.5 + §5 M8)
+## Scope (from VERTICAL_SLICE.md §3.6)
 
-- JSON save/load of full world state (terrain seed, buildings, stockpile, NPC assignments, player inventories, positions, needs, skills, HP) ⬜
-- Autosave every 5 minutes + on host exit ⬜
-- Client reconnect handling ⬜
-- All existing systems tested with save→quit→reload cycle ⬜
-- Basic UI polish (readable, not pretty) ⬜
-- Localization file audit — confirm no hardcoded strings remain in gameplay code ⬜
-- Fog of war probe — full-map toggle screen (unseen/previously-seen/currently-visible), shared reveal across party, persisted in save data (see `docs/gdd/worldgen.md` §11) ⬜
-- Demo gate ⬜
+- Play a real session with another person (not solo dev testing)
+- Both players on the same world (host + join over LAN/ENet)
+- Log: crashes, confusing UI, blocking bugs, missing feedback
+- Fix: P0 (crash) and P1 (major blocker) bugs found during playtest
+- Do NOT add features — this is a bug-fix and quality pass only
 
-## Key decisions (to be locked during M8)
+## Success criteria (VERTICAL_SLICE.md §6)
 
-- **Save format scope:** which systems serialize first? Suggested order: world seed → buildings → stockpile → NPC assignments → inventories → skill levels → player HP/needs → positions.
-- **Fog of war implementation:** full per-tile reveal map vs. radial snapshot — see `docs/gdd/worldgen.md` §11 for locked probe spec.
-- **Client reconnect:** does reconnect replay the full state via RPCs from server, or read a shared save file?
+After the M9 playtest, all three must be yes:
 
-## Out of scope for M8
+1. **Fun.** Two people want to keep playing after the first session.
+2. **Legible.** Both players understand what to do next without developer help.
+3. **Stable.** No crashes or state corruption during the session.
 
-- Binary save format optimization (JSON for prototype)
-- Steam cloud saves
-- More than one language exposed
-- Tutorial / onboarding
-- Content additions (new buildings, monsters, items)
+## Out of scope for M9
+
+- New buildings, monsters, items, classes
+- UI redesigns
+- Performance optimization
+- Content additions
+- Inventory Phase B (shape-based grid — post-slice)

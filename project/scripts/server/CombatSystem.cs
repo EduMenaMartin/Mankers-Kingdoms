@@ -125,6 +125,9 @@ public partial class CombatSystem : Node
             }
         }
 
+        // Apply armor debuff (e.g. SunderingHit crit effect).
+        armorValue += (int)(BuffSystem.Instance?.GetAdditiveModifier(peerId, BuffStat.ArmorValue) ?? 0f);
+
         return CombatResolver.PlayerTargetNumber(s.Dex, armorValue, shieldBonus, armorCategory);
     }
 
@@ -206,6 +209,20 @@ public partial class CombatSystem : Node
             return;
         }
 
+        // ── Stun gate: stunned attacker cannot swing (no cooldown consumed) ─────
+        if (BuffSystem.Instance?.IsBuffActive(sender, BuffStat.Stun) == true)
+        {
+            GD.Print($"[Combat] peer {sender} is stunned — attack blocked");
+            return;
+        }
+
+        // ── Disarm gate: disarmed attacker cannot use their weapon ────────────
+        if (BuffSystem.Instance?.IsBuffActive(sender, BuffStat.Disarm) == true)
+        {
+            GD.Print($"[Combat] peer {sender} is disarmed — attack blocked");
+            return;
+        }
+
         // Commit cooldown before any early-returns below — the swing has happened.
         _swingReady[sender] = _elapsed + weapon.SwingCooldown;
 
@@ -228,18 +245,27 @@ public partial class CombatSystem : Node
         int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId, stats.Str, stats.Dex, meleeLevel);
         // §12.2: fighting defensively lowers hit chance for that swing only.
         if (IsBlocking(sender)) attackBonus -= 3;
+        // Apply attack bonus debuff (e.g. OffBalance fumble effect).
+        attackBonus += (int)(BuffSystem.Instance?.GetAdditiveModifier(sender, BuffStat.AttackBonus) ?? 0f);
         int targetNumber = GetEntityTargetNumber(targetEntityId);
         int damageMod    = CombatResolver.PlayerDamageMod(weaponId, stats.Str, stats.Dex);
 
-        var (hit, damage, isCrit) = CombatResolver.ResolveAttack(
+        var (hit, damage, isCrit, isFumble) = CombatResolver.ResolveAttack(
             attackBonus, targetNumber, weapon.DamageDice, damageMod, _combatRng);
 
         if (!hit)
         {
             GD.Print($"[Combat] peer {sender} missed entity {targetEntityId} " +
-                     $"(roll+{attackBonus} vs TN {targetNumber})");
+                     $"(roll+{attackBonus} vs TN {targetNumber}){(isFumble ? " FUMBLE" : "")}");
             GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
                 ?.Rpc("ShowCombatResult", targetPos.Value, false, 0, false);
+
+            // Apply fumble effect to the attacker.
+            if (isFumble && BuffSystem.Instance != null)
+            {
+                var fumble = CombatResolver.RollFumbleEffect(_combatRng);
+                BuffSystem.Instance.ApplyFumbleEffect(fumble, sender);
+            }
             return;
         }
 
@@ -249,6 +275,13 @@ public partial class CombatSystem : Node
             ?.Rpc("ShowCombatResult", targetPos.Value, true, damage, isCrit);
         GD.Print($"[Combat] peer {sender} hit entity {targetEntityId} with {weaponId} " +
                  $"for {damage}{(isCrit ? " (CRIT)" : "")} (TN {targetNumber}, AB {attackBonus})");
+
+        // Apply crit effect to the defender.
+        if (isCrit && BuffSystem.Instance != null)
+        {
+            var crit = CombatResolver.RollCritEffect(_combatRng);
+            BuffSystem.Instance.ApplyCritEffect(crit, targetEntityId);
+        }
     }
 
     /// <summary>

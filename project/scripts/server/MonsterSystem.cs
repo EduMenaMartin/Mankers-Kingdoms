@@ -278,18 +278,34 @@ public partial class MonsterSystem : Node
                 return;
             }
 
+            // Stun gate: a stunned monster cannot attack (§5.2 symmetry).
+            if (BuffSystem.Instance?.IsBuffActive(m.Id, BuffStat.Stun) == true)
+            {
+                GD.Print($"[Monster] {m.TypeId} {m.Id} is stunned — attack skipped");
+                return;
+            }
+
             // Melee attack roll (combat.md §2.2): 1d20 + AttackBonus vs player's TargetNumber.
+            int effectiveAB = data.AttackBonus +
+                              (int)(BuffSystem.Instance?.GetAdditiveModifier(m.Id, BuffStat.AttackBonus) ?? 0f);
             int targetNumber = CombatSystem.Instance?.GetPlayerTargetNumber(m.TargetPeer)
                                ?? CombatResolver.PlayerTargetNumber(12);
-            var (hit, damage, isCrit) = CombatResolver.ResolveAttack(
-                data.AttackBonus, targetNumber, data.DamageDice, damageMod: 0, _monsterRng);
+            var (hit, damage, isCrit, isFumble) = CombatResolver.ResolveAttack(
+                effectiveAB, targetNumber, data.DamageDice, damageMod: 0, _monsterRng);
 
             if (!hit)
             {
                 GD.Print($"[Monster] {m.TypeId} {m.Id} missed peer {m.TargetPeer} " +
-                         $"(AB {data.AttackBonus} vs TN {targetNumber})");
+                         $"(AB {effectiveAB} vs TN {targetNumber}){(isFumble ? " FUMBLE" : "")}");
                 GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
                     ?.Rpc("ShowCombatResult", targetPos.Value, false, 0, false);
+
+                // §5.2 symmetry: monsters fumble too.
+                if (isFumble && BuffSystem.Instance != null)
+                {
+                    var fumble = CombatResolver.RollFumbleEffect(_monsterRng);
+                    BuffSystem.Instance.ApplyFumbleEffect(fumble, m.Id);
+                }
                 return;
             }
 
@@ -297,7 +313,14 @@ public partial class MonsterSystem : Node
             GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
                 ?.Rpc("ShowCombatResult", targetPos.Value, true, damage, isCrit);
             GD.Print($"[Monster] {m.TypeId} {m.Id} melee hits peer {m.TargetPeer} " +
-                     $"for {damage}{(isCrit ? " (CRIT)" : "")} (AB {data.AttackBonus} vs TN {targetNumber})");
+                     $"for {damage}{(isCrit ? " (CRIT)" : "")} (AB {effectiveAB} vs TN {targetNumber})");
+
+            // §5.2 symmetry: monsters can crit too.
+            if (isCrit && BuffSystem.Instance != null)
+            {
+                var crit = CombatResolver.RollCritEffect(_monsterRng);
+                BuffSystem.Instance.ApplyCritEffect(crit, m.TargetPeer);
+            }
         }
     }
 

@@ -20,6 +20,7 @@
 [ext_resource type="Script" uid="uid://bku8801n6s53u" path="res://scripts/server/BushSystem.cs" id="14_rpagb"]
 [ext_resource type="Script" uid="uid://whn1yqkbxxgg" path="res://scripts/server/NestSystem.cs" id="15_jfovg"]
 [ext_resource type="Script" uid="uid://cpy1uu1nbxbkn" path="res://scripts/client/HealthHUD.cs" id="18_2usp3"]
+[ext_resource type="Script" uid="uid://cxn83rt38yjlr" path="res://scripts/server/HerbSystem.cs" id="20_7y62o"]
 [ext_resource type="Script" uid="uid://b3hmua34etwts" path="res://scripts/client/WeaponHUD.cs" id="20_5425a"]
 [ext_resource type="Script" uid="uid://ccsafq64o5nbp" path="res://scripts/server/VillageSystem.cs" id="20_hsayn"]
 [ext_resource type="Script" uid="uid://qj6txy04yndl" path="res://scripts/client/WorldMapScreen.cs" id="21_l32dp"]
@@ -37,6 +38,7 @@
 [ext_resource type="AudioStream" uid="uid://dlr2y1y7v4nda" path="res://assets/Ambient Music/And The Manker Begins _2.mp3" id="35_g7gxu"]
 [ext_resource type="Script" uid="uid://bdywp5c8pvjhc" path="res://scripts/client/BuildingAssignmentPanel.cs" id="36_0kkfd"]
 [ext_resource type="Script" uid="uid://b1pbr23x2ibgo" path="res://scripts/server/SaveSystem.cs" id="37_tsbmo"]
+[ext_resource type="Script" uid="uid://dccajg6eu8ol4" path="res://scripts/server/FogSystem.cs" id="38_bkpwk"]
 [ext_resource type="Script" uid="uid://wqd2myyfk8h8" path="res://scripts/client/PauseMenu.cs" id="38_g7gxu"]
 
 [sub_resource type="AudioStreamPlaylist" id="AudioStreamPlaylist_785i0"]
@@ -113,6 +115,9 @@ script = ExtResource("13_rpagb")
 [node name="BushSystem" type="Node" parent="." unique_id=1595227944]
 script = ExtResource("14_rpagb")
 
+[node name="HerbSystem" type="Node" parent="." unique_id=111757963]
+script = ExtResource("20_7y62o")
+
 [node name="VillageSystem" type="Node" parent="." unique_id=1135487248]
 script = ExtResource("20_hsayn")
 
@@ -135,6 +140,8 @@ script = ExtResource("24_n7y4l")
 
 [node name="SkillSystem" type="Node" parent="." unique_id=769992534]
 script = ExtResource("25_fy50r")
+
+[node name="BuffSystem" type="Node" parent="." unique_id=369850128]
 
 [node name="InventoryPanel" type="CanvasLayer" parent="." unique_id=1576874739]
 layer = 25
@@ -163,6 +170,9 @@ autoplay = true
 
 [node name="SaveSystem" type="Node" parent="." unique_id=397512884]
 script = ExtResource("37_tsbmo")
+
+[node name="FogSystem" type="Node" parent="." unique_id=1209867456]
+script = ExtResource("38_bkpwk")
 
 [node name="PauseMenu" type="CanvasLayer" parent="." unique_id=1120122145]
 script = ExtResource("38_g7gxu")

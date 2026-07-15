@@ -119,7 +119,7 @@ public class CombatResolverTests
         int hitCount = 0;
         for (int i = 0; i < 100; i++)
         {
-            var (hit, _, _) = CombatResolver.ResolveAttack(20, 2, "1d6", 0, rng);
+            var (hit, _, _, _) = CombatResolver.ResolveAttack(20, 2, "1d6", 0, rng);
             if (hit) hitCount++;
         }
         // With AB=20 and TN=2, only natural 1 misses (5% chance) — expect > 85 hits in 100.
@@ -134,7 +134,7 @@ public class CombatResolverTests
         int missCount = 0;
         for (int i = 0; i < 100; i++)
         {
-            var (hit, _, _) = CombatResolver.ResolveAttack(0, 100, "1d6", 0, rng);
+            var (hit, _, _, _) = CombatResolver.ResolveAttack(0, 100, "1d6", 0, rng);
             if (!hit) missCount++;
         }
         // Natural 20 always hits (~5% chance) — expect > 85 misses in 100.
@@ -150,7 +150,7 @@ public class CombatResolverTests
         bool foundMiss = false;
         for (int i = 0; i < 50; i++)
         {
-            var (hit, damage, _) = CombatResolver.ResolveAttack(0, 21, "1d8", 0, rng);
+            var (hit, damage, _, _) = CombatResolver.ResolveAttack(0, 21, "1d8", 0, rng);
             if (!hit)
             {
                 Assert.Equal(0, damage);
@@ -168,7 +168,7 @@ public class CombatResolverTests
         var rng = new System.Random(42);
         for (int i = 0; i < 100; i++)
         {
-            var (hit, damage, _) = CombatResolver.ResolveAttack(20, 2, "1d4", damageMod: -10, rng);
+            var (hit, damage, _, _) = CombatResolver.ResolveAttack(20, 2, "1d4", damageMod: -10, rng);
             if (hit)
                 Assert.True(damage >= 1, $"Hit must deal at least 1 damage, got {damage}");
         }
@@ -186,7 +186,7 @@ public class CombatResolverTests
         int hitCount = 0;
         for (int i = 0; i < 200; i++)
         {
-            var (hit, _, _) = CombatResolver.ResolveAttack(10, 20, "1d6", 0, rng);
+            var (hit, _, _, _) = CombatResolver.ResolveAttack(10, 20, "1d6", 0, rng);
             if (hit) hitCount++;
         }
         // Rolls 10-20 (11 outcomes out of 20) hit, plus natural 20 always hits.
@@ -206,13 +206,98 @@ public class CombatResolverTests
         int hitsNormal = 0, hitsBlocked = 0;
         for (int i = 0; i < 1000; i++)
         {
-            var (hit1, _, _) = CombatResolver.ResolveAttack(5, 12, "1d8", 0, rngNormal);
-            var (hit2, _, _) = CombatResolver.ResolveAttack(2, 12, "1d8", 0, rngBlocked);
+            var (hit1, _, _, _) = CombatResolver.ResolveAttack(5, 12, "1d8", 0, rngNormal);
+            var (hit2, _, _, _) = CombatResolver.ResolveAttack(2, 12, "1d8", 0, rngBlocked);
             if (hit1) hitsNormal++;
             if (hit2) hitsBlocked++;
         }
         Assert.True(hitsBlocked < hitsNormal,
             $"Block penalty must reduce hits: {hitsBlocked} blocked < {hitsNormal} normal");
+    }
+
+    // ── §5.2 fumble asymmetry rule ────────────────────────────────────────────
+
+    [Fact]
+    public void ResolveAttack_Nat1_IsFumble_WhenBonusWouldNotSave()
+    {
+        // AB=0, TN=15: 1+0=1 < 15 → nat-1 is a true fumble.
+        // We can't force the RNG to roll 1, but we can verify the rule via a large
+        // sample — every nat-1 in this configuration MUST be a fumble.
+        var rng = new System.Random(99);
+        int nat1Count = 0, fumbleCount = 0;
+        for (int i = 0; i < 5000; i++)
+        {
+            // Save RNG state indirectly: re-run with a separate seeded RNG to check the roll.
+            // Instead, verify via the invariant: if !hit && isFumble → fumble is valid.
+            var (hit, _, _, isFumble) = CombatResolver.ResolveAttack(0, 15, "1d6", 0, rng);
+            if (!hit && isFumble) fumbleCount++;
+            if (!hit) nat1Count++;
+        }
+        // With AB=0, TN=15: every nat-1 qualifies as fumble (1+0=1 < 15 always).
+        // Roughly 5% of 5000 rolls = ~250 nat-1s; all should be fumbles.
+        // We just verify some fumbles were registered without over-constraining the count.
+        Assert.True(fumbleCount > 0, "Expected at least one fumble with AB=0 vs TN=15 in 5000 rolls");
+    }
+
+    [Fact]
+    public void ResolveAttack_Nat1_NotFumble_WhenBonusCarries()
+    {
+        // AB=20, TN=2: 1+20=21 ≥ 2 → nat-1 is a normal miss, NOT a fumble (§5.2 asymmetry).
+        var rng = new System.Random(77);
+        for (int i = 0; i < 5000; i++)
+        {
+            var (_, _, _, isFumble) = CombatResolver.ResolveAttack(20, 2, "1d6", 0, rng);
+            Assert.False(isFumble,
+                "A skilled attacker whose bonus carries nat-1 past TN should NEVER fumble (§5.2)");
+        }
+    }
+
+    // ── Crit / fumble table rolling ───────────────────────────────────────────
+
+    [Fact]
+    public void RollCritEffect_AlwaysReturnsValidEntry()
+    {
+        var rng = new System.Random(0);
+        for (int i = 0; i < 500; i++)
+        {
+            var effect = CombatResolver.RollCritEffect(rng);
+            Assert.True(System.Enum.IsDefined(typeof(CritEffect), effect),
+                $"RollCritEffect returned out-of-range value {(int)effect}");
+        }
+    }
+
+    [Fact]
+    public void RollFumbleEffect_AlwaysReturnsValidEntry()
+    {
+        var rng = new System.Random(0);
+        for (int i = 0; i < 500; i++)
+        {
+            var effect = CombatResolver.RollFumbleEffect(rng);
+            Assert.True(System.Enum.IsDefined(typeof(FumbleEffect), effect),
+                $"RollFumbleEffect returned out-of-range value {(int)effect}");
+        }
+    }
+
+    [Fact]
+    public void RollCritEffect_CoverageAcrossAllEntries()
+    {
+        // Over enough rolls, every CritEffect entry should appear at least once.
+        var rng  = new System.Random(42);
+        var seen = new System.Collections.Generic.HashSet<CritEffect>();
+        for (int i = 0; i < 1000; i++)
+            seen.Add(CombatResolver.RollCritEffect(rng));
+        Assert.Equal(5, seen.Count); // 5 entries in CritEffect enum
+    }
+
+    [Fact]
+    public void RollFumbleEffect_CoverageAcrossAllEntries()
+    {
+        // Over enough rolls, every FumbleEffect entry should appear at least once.
+        var rng  = new System.Random(42);
+        var seen = new System.Collections.Generic.HashSet<FumbleEffect>();
+        for (int i = 0; i < 1000; i++)
+            seen.Add(CombatResolver.RollFumbleEffect(rng));
+        Assert.Equal(4, seen.Count); // 4 entries in FumbleEffect enum
     }
 
     // ── Player helpers ────────────────────────────────────────────────────────

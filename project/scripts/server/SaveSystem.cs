@@ -163,6 +163,10 @@ public partial class SaveSystem : Node
             }
         }
 
+        // Fog-of-war grid (worldgen.md §11.4).
+        if (FogSystem.Instance != null)
+            data.FogBase64 = FogSystem.Instance.GetFogBase64();
+
         // Session character data (so Load Game can restore GameSession without CharacterCreateScreen).
         data.Session = new SessionSave
         {
@@ -248,6 +252,9 @@ public partial class SaveSystem : Node
             GameSession.HumanChosenStat = data.Session.HumanChosenStat;
         }
 
+        // Restore fog-of-war grid (worldgen.md §11.4).
+        FogSystem.Instance?.RestoreFogFromBase64(data.FogBase64);
+
         // Restore felled trees (hide nodes that were cut last session).
         TreeSystem.Instance?.RestoreFelledTreesFromSave(data.FelledTreeIds);
 
@@ -311,6 +318,9 @@ public partial class SaveSystem : Node
         SkillSystem.Instance?.BroadcastLevelsTo(peerId);
         HealthSystem.Instance?.SyncHealthTo(peerId);
         VillageSystem.Instance?.BroadcastRosterToAll();
+
+        // Re-send fog state (otherwise the new client starts with a black map).
+        FogSystem.Instance?.SendFogToClient(peerId);
 
         GD.Print($"[Save] Full state replayed to reconnected peer {peerId}");
     }

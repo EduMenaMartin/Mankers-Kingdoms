@@ -93,6 +93,43 @@ public partial class BushSystem : Node
         }
     }
 
+    // ── Server NPC API (called by VillageSystem) ──────────────────────────────
+
+    /// <summary>Returns IDs of all berry bushes that are ready to harvest.</summary>
+    public IReadOnlyList<string> GetAvailableBushIds()
+    {
+        var list = new List<string>();
+        foreach (var id in _bushNodes.Keys)
+        {
+            if (!_cooldowns.ContainsKey(id))
+                list.Add(id);
+        }
+        return list;
+    }
+
+    /// <summary>Returns the world position of the bush, or Vector3.Zero if not found.</summary>
+    public Vector3 GetBushPosition(string bushId) =>
+        _bushNodes.TryGetValue(bushId, out var node) ? node.GlobalPosition : Vector3.Zero;
+
+    /// <summary>True if the bush is ready to harvest.</summary>
+    public bool IsAvailable(string bushId) => !_cooldowns.ContainsKey(bushId);
+
+    /// <summary>
+    /// Marks the bush harvested (cooldown started) and returns the berry count yielded (1).
+    /// Returns 0 if the bush is already on cooldown or unknown.
+    /// Does NOT add berries to any player inventory — caller (VillageSystem) handles stockpile deposit.
+    /// </summary>
+    public int ForagerHarvestBush(string bushId)
+    {
+        if (_cooldowns.ContainsKey(bushId)) return 0;
+        if (!_bushNodes.ContainsKey(bushId)) return 0;
+
+        _cooldowns[bushId] = _elapsed + HARVEST_COOLDOWN;
+        Rpc(MethodName.SetBushVisible, bushId, false);
+        GD.Print($"[BushSystem] NPC harvested {bushId} → +1 berry (respawn in {HARVEST_COOLDOWN}s)");
+        return 1;
+    }
+
     // ── RPCs ──────────────────────────────────────────────────────────────────
 
     /// <summary>Client pressed E near a bush.</summary>

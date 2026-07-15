@@ -148,12 +148,15 @@ public partial class ProjectileSystem : Node
 					// combat.md §4: Damage = WeaponDice + StatModifier(GoverningStat).
 					int attackBonus;
 					int damageMod;
-					if (proj.OriginPeerId < MONSTER_ID_THRESHOLD)
+					bool isPlayerShot = proj.OriginPeerId < MONSTER_ID_THRESHOLD;
+					if (isPlayerShot)
 					{
 						var pStats     = CombatSystem.Instance?.GetPlayerStats(proj.OriginPeerId)
 										 ?? new StatBlock(13, 12, 10, 10);
 						int skillLevel = SkillSystem.Instance?.GetSkillLevel(proj.OriginPeerId, "skill.ranged") ?? 0;
 						attackBonus    = CombatResolver.PlayerAttackBonus(proj.WeaponId, pStats.Str, pStats.Dex, skillLevel);
+						// Apply attack bonus debuff (e.g. OffBalance fumble effect on the shooter).
+						attackBonus   += (int)(BuffSystem.Instance?.GetAdditiveModifier(proj.OriginPeerId, BuffStat.AttackBonus) ?? 0f);
 						damageMod      = CombatResolver.PlayerDamageMod(proj.WeaponId, pStats.Str, pStats.Dex);
 					}
 					else
@@ -161,6 +164,7 @@ public partial class ProjectileSystem : Node
 						// combat.md §13.5 Q3: applying same asymmetric model to monster ranged (not yet confirmed).
 						var mData   = MonsterSystem.Instance?.GetMonsterData(proj.OriginPeerId);
 						attackBonus = mData?.AttackBonus ?? 0;
+						attackBonus += (int)(BuffSystem.Instance?.GetAdditiveModifier(proj.OriginPeerId, BuffStat.AttackBonus) ?? 0f);
 						damageMod   = 0;
 					}
 
@@ -176,13 +180,20 @@ public partial class ProjectileSystem : Node
 					dmg = System.Math.Max(1, dmg);
 					HealthSystem.Instance.ApplyDamage(targetId.Value, dmg);
 					// Only award skill XP for player-fired shots (monster shots have origin ≥ 10001).
-					if (proj.OriginPeerId < MONSTER_ID_THRESHOLD)
+					if (isPlayerShot)
 						SkillSystem.Instance?.NotifyAction(proj.OriginPeerId, "skill.ranged");
 					var hitPos = new Vector3(proj.PosX, proj.PosY, proj.PosZ);
 					GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
 						?.Rpc("ShowCombatResult", hitPos, true, dmg, isCrit);
 					GD.Print($"[Projectile] {proj.WeaponId} (id {id}) hit entity {targetId.Value} " +
 							 $"for {dmg}{(isCrit ? " (CRIT)" : "")} dmg (roll {roll}+{attackBonus}={rollTotal})");
+
+					// Apply crit effect to the defender (§5.2 symmetry: player and monster shots alike).
+					if (isCrit && BuffSystem.Instance != null)
+					{
+						var crit = CombatResolver.RollCritEffect(_projectileRng);
+						BuffSystem.Instance.ApplyCritEffect(crit, targetId.Value);
+					}
 				}
 			}
 
@@ -235,6 +246,20 @@ public partial class ProjectileSystem : Node
 		if (!HealthSystem.Instance.IsAlive(sender))
 		{
 			GD.Print($"[Projectile] dead peer {sender} cannot fire");
+			return;
+		}
+
+		// Stun gate: a stunned player cannot fire.
+		if (BuffSystem.Instance?.IsBuffActive(sender, BuffStat.Stun) == true)
+		{
+			GD.Print($"[Projectile] peer {sender} is stunned — cannot fire");
+			return;
+		}
+
+		// Disarm gate: a disarmed player cannot use their weapon.
+		if (BuffSystem.Instance?.IsBuffActive(sender, BuffStat.Disarm) == true)
+		{
+			GD.Print($"[Projectile] peer {sender} is disarmed — cannot fire");
 			return;
 		}
 

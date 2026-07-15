@@ -6,10 +6,107 @@
 
 ## Current status
 
-**Milestone:** M8 — Save/load and polish
-**Last session:** 2026-07-15 — M8 Phase 2c + polish complete. Equipment slots fully implemented, ESC fallback fixed (BuildMenu), CharacterSheet styled with StyleBoxFlat (dark parchment panel, gold borders, inset slot buttons).
+**Milestone:** M9 — Vertical slice playtest
+**Last session:** 2026-07-15 — Pre-playtest content fixes: WorldSeed, sickle/stew_pot tool tiers, Wooden Wall+Gate, forager movement redesign + herb system.
 **Blockers:** None.
-**Awaiting:** Smoke-test Load Game + equipment slots → M8 Phase 3 (fog of war, loc audit, demo gate).
+**Decisions needed from Edu:** None outstanding.
+
+**Next action (editor tasks for Edu — required before playtest):**
+1. Add `HerbSystem` node (script: `res://scripts/server/HerbSystem.cs`) to `GameWorld.tscn` after `BushSystem`. Plain `Node`, no special properties.
+2. Create `scenes/WoodenWall.tscn` — Node3D + StaticBody3D + BoxMesh (2×3×0.4) + BoxShape3D on collision layer 8.
+3. Create `scenes/WoodenGate.tscn` — same dimensions as WoodenWall (interactable door is post-slice).
+4. Schedule the M9 playtest session with a friend.
+
+**After editor tasks:** build and smoke-test — confirm herb patches appear as purple spheres on the map, forager NPC walks to herbs/berries rather than standing still, and new worlds are visually different from each other.
+
+---
+
+## What was done this session (2026-07-15, session 3)
+
+### WorldSeed randomisation — FIXED ✅
+
+- `client/CharacterCreateScreen.cs` `OnConfirm()`: added `GameSession.WorldSeed = (uint)GD.Randi();` before `ChangeSceneToFile`. Each new game now gets a unique procedural world.
+- `BUGS.md`: entry marked FIXED (2026-07-15).
+
+### Sickle at Foraging 15 — COMPLETE ✅
+
+`shared/SkillRegistry.cs`: Foraging `ToolTiers` changed from `Array.Empty` to `[new ToolTierData(MinLevel: 15, GrantedItemId: "item.tool.sickle")]`.  
+`data/lang/en.json`: `item.tool.sickle.name/desc` added.
+
+### Stew Pot at Cooking 10 — COMPLETE ✅
+
+`shared/SkillRegistry.cs`: Cooking `ToolTiers` changed from `Array.Empty` to `[new ToolTierData(MinLevel: 10, GrantedItemId: "item.tool.stew_pot")]`.  
+`data/lang/en.json`: `item.tool.stew_pot.name/desc` added.
+
+### Wooden Wall + Wooden Gate — COMPLETE (code; editor tasks pending) ✅
+
+`shared/BuildingRegistry.cs`: `WoodenWall` (5 wood, 2×3×0.4) and `WoodenGate` (10 wood, 2×3×0.4) added to `All` array.  
+`data/lang/en.json`: `building.wooden_wall.name` + `building.wooden_gate.name` added.  
+**Editor tasks required:**
+- Create `scenes/WoodenWall.tscn` — Node3D + BoxMesh (2×3×0.4) + StaticBody3D + BoxShape3D on collision layer 8
+- Create `scenes/WoodenGate.tscn` — same dimensions (interactable door is post-slice)
+
+### Herb system + Forager movement redesign — COMPLETE (code; editor task pending) ✅
+
+**New files:**
+- `shared/HerbPatchData.cs` — record: Index, WorldX, WorldZ, WorldY
+- `shared/HerbGenerator.cs` — 30 herb patches, XOR salt `0x48455242u` ("HERB"), same slope/height constraints as BushGenerator
+- `server/HerbSystem.cs` — spawns purple sphere nodes (Layer 6, 32u); 60s harvest cooldown; server NPC API: `GetAvailableHerbPatchIds()`, `GetHerbPosition()`, `IsAvailable()`, `ForagerHarvestHerb()`
+
+**Modified files:**
+- `server/BushSystem.cs` — added NPC API: `GetAvailableBushIds()`, `GetBushPosition()`, `IsAvailable()`, `ForagerHarvestBush()`. ForagerHarvestBush does NOT add to player inventory (VillageSystem stockpile-deposits at carry capacity).
+- `server/VillageSystem.cs`:
+  - Replaced `_lastForageTime` dict + `FORAGE_COOLDOWN` + `HERB_PER_FORAGE` constants with `_foragerTarget`, `_foragerCarriedHerbs`, `_foragerCarriedBerries`, `_foragerWalkToDeposit` (all SortedDictionary) + `FORAGER_CARRY_CAPACITY=6`, `FORAGE_RANGE=1.5f`, `MAX_FORAGE_SEARCH_RANGE=200f`
+  - `TickForagerJob(villagerId, delta)` — movement loop: check carry → find nearest herb/berry target → walk → harvest → when at capacity walk to stockpile
+  - `TickForagerDeposit(delta)` — mirrors TickDeposit; deposits herbs to `item.herb` + berries to `item.berry` in stockpile
+  - Helpers: `IsForageTargetAvailable`, `FindNearestForageTarget` (prefers herbs over berries), `GetForageTargetPosition`, `HarvestForageTarget`
+  - `TickJobs`: added `_foragerWalkToDeposit.ContainsKey` skip guard; routing call updated to `TickForagerJob(villagerId, delta)`
+  - `_PhysicsProcess`: added `TickForagerDeposit` call after `TickDeposit`
+  - `RequestUnassignNpc` + `SuspendForRest`: both clear new forager state dicts
+
+**Editor task required:**
+- Add `HerbSystem` node (script: `res://scripts/server/HerbSystem.cs`) to `GameWorld.tscn` after `BushSystem`. Plain Node, no special properties.
+
+---
+
+## What was done this session (2026-07-15, session 2)
+
+### Delete save button — COMPLETE ✅
+
+`client/LoadGamePanel.cs`:
+- Added `_deleteButton` field; Delete button in HBox between Load/Cancel
+- `OnDeletePressed()` uses `DirAccess.Open(SaveUtil.SaveDir)?.Remove("{name}.json")`; calls `Refresh()`
+- Button disabled when no save selected; enabled on selection and on Refresh auto-select
+- `data/lang/en.json`: `load_panel.delete = "Delete"`
+
+### ESC overlap fix — COMPLETE ✅
+
+Root cause: PauseMenu is last child of GameWorld → gets `_UnhandledInput` first → called `Open()` + `SetInputAsHandled()` before panels saw the event.
+
+Fix: `PauseMenu._UnhandledInput` now calls `AnyGamePanelVisible()` before opening. Checks 7 paths: WorldMapScreen, BuildingAssignmentPanel, StockpilePanel, RecruitmentDialogue, InventoryPanel, CharacterSheet, BuildMenu. If any is visible, returns WITHOUT `SetInputAsHandled()` so the event propagates to the panel's own handler.
+
+### Fog of war — COMPLETE ✅ (one editor task pending)
+
+**New files:**
+- `shared/FogOfWarData.cs` — 64×64 `byte[,]` grid (UNSEEN=0, SEEN=1, VISIBLE=2); `UpdateVisibility(positions)`: downgrades VISIBLE→SEEN then marks tiles within 40m as VISIBLE; `ToBytes()`/`FromBytes()` for save; `VISION_RADIUS = 40f` (reuses territory radius per worldgen.md §11.3)
+- `server/FogSystem.cs` — Node; updates every 1.5s from player positions; `BroadcastFog()` sends Base64 to all peers (CallLocal=true so server also gets update); `SendFogToClient(peerId)` for late-connect; `GetFogBase64()`/`RestoreFogFromBase64()` for save
+
+**Modified files:**
+- `shared/LocalState.cs` — `FogSnapshot FogOfWarData?`; `FogChanged` event; `SetFog(fog)` called by FogSystem RPC
+- `shared/SaveData.cs` — `string? FogBase64` field (additive; null in old saves = all-UNSEEN; no version bump needed)
+- `server/SaveSystem.cs` — `Save()`: `data.FogBase64 = FogSystem.GetFogBase64()`; `TryLoad()`: `FogSystem.RestoreFogFromBase64(data.FogBase64)`; `SendFullStateToClient`: calls `FogSystem.SendFogToClient(peerId)`
+- `client/WorldMapScreen.cs` — `_fogTex ImageTexture?`; `BakeFogTexture(fog)` builds RGBA8 overlay (transparent=VISIBLE, dark60%=SEEN, black=UNSEEN); subscribes `LocalState.FogChanged`; `_MapDrawControl.FogTex` drawn after terrain and before entities; `_ExitTree` unsubscribes
+
+**Editor task required:**
+- Add `FogSystem` node (script: `res://scripts/server/FogSystem.cs`) to `GameWorld.tscn`, after VillageSystem and before SaveSystem. Plain `Node` — no special properties, Layer, or position needed.
+
+### Localization audit — COMPLETE ✅
+
+25 new loc keys added. All hardcoded player-facing strings eliminated from:
+- `BuildingAssignmentPanel.cs` — 8 strings (title, cols, select/selected/idle/unassign/close/hint/status)
+- `BuildMenu.cs` — 4 strings (title, place, marker_hint, close_hint)
+- `CombatFeedbackHUD.cs` — 2 strings (block!, miss) + added `using MankersKingdoms.Shared`
+- `WorldMapScreen.cs` — 9 strings (close hint, YOU, DROP, 6 legend entries)
 
 ---
 
@@ -624,6 +721,25 @@ The root `data/lang/en.json` was a stale duplicate and has been deleted. Do not 
 ---
 
 ## Session log
+
+### 2026-07-15 — M9 pre-playtest content fixes (session 3)
+- **WorldSeed randomisation**: `CharacterCreateScreen.OnConfirm()` now calls `GameSession.WorldSeed = (uint)GD.Randi()`. Every new game produces a different procedural world. BUGS.md [P2] closed.
+- **Sickle at Foraging 15**: `SkillRegistry` Foraging ToolTiers now grants `item.tool.sickle`. `en.json` name/desc added.
+- **Stew Pot at Cooking 10**: `SkillRegistry` Cooking ToolTiers now grants `item.tool.stew_pot`. `en.json` name/desc added.
+- **Wooden Wall + Gate**: `BuildingRegistry` adds `WoodenWall` (5 wood, 2×3×0.4) and `WoodenGate` (10 wood, 2×3×0.4); `en.json` keys added. Scenes are editor tasks.
+- **Herb system (new)**: `shared/HerbPatchData.cs` + `shared/HerbGenerator.cs` (30 patches, XOR salt `0x48455242`); `server/HerbSystem.cs` — purple sphere nodes, 60s cooldown, NPC API (`GetAvailableHerbPatchIds`, `GetHerbPosition`, `IsAvailable`, `ForagerHarvestHerb`). Needs editor task: add HerbSystem node to GameWorld.tscn after BushSystem.
+- **Forager NPC movement redesign**: replaced static 30s timer with woodcutter-style movement loop. NPC now walks to nearest herb patch or berry bush, harvests, carries up to 6 items, walks to stockpile to deposit. New state: `_foragerTarget`, `_foragerCarriedHerbs`, `_foragerCarriedBerries`, `_foragerWalkToDeposit`. New tick: `TickForagerDeposit`. BushSystem gained NPC API (`GetAvailableBushIds`, `GetBushPosition`, `IsAvailable`, `ForagerHarvestBush`). Forager prefers herbs over berries when both are in range.
+
+### 2026-07-15 — Buff/debuff system (combat.md §5.4 Phase A implementation)
+- New shared: `CritEffect` (5 entries), `FumbleEffect` (4 entries), `BuffStat`, `BuffAmountType`, `ActiveBuff` (record), `BuffCalculator` (pure static, testable)
+- New server: `BuffSystem` Node — `AddBuff/RemoveBuffs/ClearAllBuffs`, query API (`GetAdditiveModifier`, `GetMultiplicativeModifier`, `IsBuffActive`), `ApplyCritEffect`/`ApplyFumbleEffect`, bleed DoT tick (1s interval via `_Process`), lazy expired-entry sweep
+- `CombatResolver`: `ResolveAttack` gains `isFumble` return (§5.2 asymmetry: nat-1 only fumbles if 1+AB < TN); `RollCritEffect`/`RollFumbleEffect` static methods
+- `CombatSystem`: stun/disarm gates before cooldown commit; AB debuff applied to attack roll; armor debuff applied in `GetPlayerTargetNumber`; crit/fumble effects applied after resolution
+- `HealthSystem`: `ApplyDamage` multiplies by `IncomingDamage` multiplier (vulnerability); `KillPlayer`/`KillMonster` clear buffs
+- `MonsterSystem`: stun gate in `TickAttack`; monster AB debuff; monster crit/fumble (§5.2 symmetry)
+- `ProjectileSystem`: stun/disarm gates in `RequestFireProjectile`; AB debuff on shooter; crit effect on hit
+- New tests: 4 new `CombatResolverTests` (fumble asymmetry ×2, crit/fumble coverage ×2); 22 new `BuffCalculatorTests` (condensation correctness including the two-+50%-buffs = ×2.0 key case)
+- MoveSpeed buff: tracked server-side, client sync (RPC to peer) deferred with TODO comments
 
 ### 2026-07-15 — ESC fallback fix + CharacterSheet StyleBoxFlat polish
 - BuildMenu: ui_cancel handler added — Escape now closes build menu (+ restores combat mode) before PauseMenu sees it

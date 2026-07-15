@@ -2,6 +2,18 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [P2] Every new game generates the same world — WorldSeed never randomised (2026-07-15)
+
+**Milestone found:** M2 (terrain), discovered M9
+**Reproduce:** Start a new game → play → quit → start another new game → identical world layout.
+**Expected:** Each new game produces a different procedural world.
+**Actual:** `GameSession.WorldSeed` is initialised to `42u` and never changed. `CharacterCreateScreen.OnConfirm()` stamps a unique `SaveName` but never sets `WorldSeed`. All generators (Terrain, Tree, Bush, Nest, HerbPatch) read `GameSession.WorldSeed` and always produce identical output.
+**Fix:** Added `GameSession.WorldSeed = (uint)GD.Randi();` in `CharacterCreateScreen.OnConfirm()` before `ChangeSceneToFile`. Debug log removed.
+
+Status: FIXED (2026-07-15)
+
+---
+
 ## [P1] Grey screen + player at top-left of minimap after Load Game (2026-07-14)
 
 **Milestone found:** M8

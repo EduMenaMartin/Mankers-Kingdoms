@@ -26,8 +26,9 @@ public partial class WorldMapScreen : CanvasLayer
     private const string PLAYERS_PATH  = "/root/GameWorld/Players";
     private const string SETTLEMENT_PATH = "/root/GameWorld/SettlementSystem";
 
-    private _MapDrawControl _mapDraw  = null!;
+    private _MapDrawControl _mapDraw      = null!;
     private bool            _texBaked;
+    private ImageTexture?   _fogTex;       // rebuilt whenever FogChanged fires
 
     private float   _halfW, _halfH;
     private Vector2 _playerMapPos;
@@ -58,12 +59,14 @@ public partial class WorldMapScreen : CanvasLayer
         float ringPx = TERRITORY_W / (_halfW * 2f) * MAP_PANEL;
         _mapDraw = new _MapDrawControl(nestDots, MAP_PANEL, ringPx)
         {
-            AnchorLeft   = 0.5f, AnchorRight  = 0.5f,
-            AnchorTop    = 0.5f, AnchorBottom = 0.5f,
-            OffsetLeft   = -(MAP_PANEL * 0.5f),
-            OffsetRight  =  (MAP_PANEL * 0.5f),
-            OffsetTop    = -(MAP_PANEL * 0.5f + 30f), // shift up to leave room for legend
-            OffsetBottom =  (MAP_PANEL * 0.5f - 30f),
+            AnchorLeft     = 0.5f, AnchorRight  = 0.5f,
+            AnchorTop      = 0.5f, AnchorBottom = 0.5f,
+            OffsetLeft     = -(MAP_PANEL * 0.5f),
+            OffsetRight    =  (MAP_PANEL * 0.5f),
+            OffsetTop      = -(MAP_PANEL * 0.5f + 30f), // shift up to leave room for legend
+            OffsetBottom   =  (MAP_PANEL * 0.5f - 30f),
+            YouLabel       = Loc.T("map.you"),
+            DeathDropLabel = Loc.T("map.death_drop_label"),
         };
         AddChild(_mapDraw);
 
@@ -73,7 +76,7 @@ public partial class WorldMapScreen : CanvasLayer
         // ── Close hint ────────────────────────────────────────────────────────
         var hint = new Label
         {
-            Text                = "M / Escape — close map",
+            Text                = Loc.T("map.close_hint"),
             HorizontalAlignment = HorizontalAlignment.Center,
             AnchorLeft          = 0f, AnchorRight  = 1f,
             AnchorTop           = 1f, AnchorBottom = 1f,
@@ -84,6 +87,11 @@ public partial class WorldMapScreen : CanvasLayer
 
         var ss = GetNodeOrNull(SETTLEMENT_PATH);
         ss?.Connect("MarkerPlanted", new Callable(this, MethodName.OnMarkerPlanted));
+
+        // Subscribe to fog updates so the overlay texture is rebuilt whenever data arrives.
+        LocalState.FogChanged += OnFogChanged;
+        // Bake immediately if fog data arrived before the map was opened.
+        if (LocalState.FogSnapshot != null) BakeFogTexture(LocalState.FogSnapshot);
     }
 
     public override void _Process(double _delta)
@@ -107,6 +115,7 @@ public partial class WorldMapScreen : CanvasLayer
 
         _mapDraw.PlayerPos         = _playerMapPos;
         _mapDraw.MarkerMapPos      = _markerMapPos;
+        _mapDraw.FogTex            = _fogTex;
         var dd = LocalState.DeathDropWorldPos;
         _mapDraw.DeathMarkerMapPos = dd.HasValue ? ToMap(dd.Value.X, dd.Value.Z) : (Vector2?)null;
         _mapDraw.QueueRedraw();
@@ -119,6 +128,11 @@ public partial class WorldMapScreen : CanvasLayer
             Visible = !Visible;
             GetViewport().SetInputAsHandled();
         }
+    }
+
+    public override void _ExitTree()
+    {
+        LocalState.FogChanged -= OnFogChanged;
     }
 
     // ── Signal ────────────────────────────────────────────────────────────────
@@ -146,12 +160,12 @@ public partial class WorldMapScreen : CanvasLayer
 
         (string label, Color color)[] entries =
         [
-            ("You",          Colors.White),
-            ("Wolf nest",    new Color(1.00f, 0.55f, 0.10f)),
-            ("Goblin nest",  new Color(0.30f, 0.90f, 0.30f)),
-            ("Bandit camp",  new Color(0.90f, 0.20f, 0.20f)),
-            ("Your marker",  new Color(0.35f, 0.75f, 1.00f)),
-            ("Death drop",   new Color(1.00f, 0.15f, 0.15f)),
+            (Loc.T("map.legend.player"),      Colors.White),
+            (Loc.T("map.legend.wolf_nest"),   new Color(1.00f, 0.55f, 0.10f)),
+            (Loc.T("map.legend.goblin_nest"), new Color(0.30f, 0.90f, 0.30f)),
+            (Loc.T("map.legend.bandit_camp"), new Color(0.90f, 0.20f, 0.20f)),
+            (Loc.T("map.legend.marker"),      new Color(0.35f, 0.75f, 1.00f)),
+            (Loc.T("map.legend.death_drop"),  new Color(1.00f, 0.15f, 0.15f)),
         ];
 
         foreach (var (text, col) in entries)
@@ -172,6 +186,32 @@ public partial class WorldMapScreen : CanvasLayer
             hbox.AddChild(lbl);
             hbox.AddChild(spacer);
         }
+    }
+
+    // ── Fog ───────────────────────────────────────────────────────────────────
+
+    private void OnFogChanged()
+    {
+        if (LocalState.FogSnapshot != null)
+            BakeFogTexture(LocalState.FogSnapshot);
+    }
+
+    private void BakeFogTexture(FogOfWarData fog)
+    {
+        var img = Image.CreateEmpty(fog.Width, fog.Height, false, Image.Format.Rgba8);
+        for (int x = 0; x < fog.Width; x++)
+        for (int z = 0; z < fog.Height; z++)
+        {
+            var col = fog.GetCell(x, z) switch
+            {
+                FogOfWarData.VISIBLE => new Color(0f, 0f, 0f, 0f),    // no overlay — terrain shows
+                FogOfWarData.SEEN    => new Color(0f, 0f, 0f, 0.60f), // semi-transparent dark
+                _                    => new Color(0f, 0f, 0f, 1f),    // UNSEEN — solid black
+            };
+            img.SetPixel(x, z, col);
+        }
+        _fogTex = ImageTexture.CreateFromImage(img);
+        if (Visible) _mapDraw.QueueRedraw();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -227,9 +267,12 @@ public partial class WorldMapScreen : CanvasLayer
     private sealed partial class _MapDrawControl : Control
     {
         public ImageTexture? TerrainTex;
+        public ImageTexture? FogTex;
         public Vector2       PlayerPos;
         public Vector2?      MarkerMapPos;
         public Vector2?      DeathMarkerMapPos;
+        public string        YouLabel       = "YOU";
+        public string        DeathDropLabel = "DROP";
 
         private readonly List<(Vector2 pos, Color color, string label)> _nestDots;
         private readonly float _mapSize;
@@ -254,6 +297,10 @@ public partial class WorldMapScreen : CanvasLayer
             if (TerrainTex != null)
                 DrawTextureRect(TerrainTex, rect, false);
 
+            // Fog overlay — drawn after terrain, before entities.
+            if (FogTex != null)
+                DrawTextureRect(FogTex, rect, false);
+
             // Territory ring.
             if (MarkerMapPos.HasValue)
             {
@@ -277,7 +324,7 @@ public partial class WorldMapScreen : CanvasLayer
                 DrawLine(p + new Vector2(-8f, -8f), p + new Vector2(8f, 8f), red, 2.5f);
                 DrawLine(p + new Vector2(8f, -8f),  p + new Vector2(-8f, 8f), red, 2.5f);
                 DrawString(ThemeDB.FallbackFont, p + new Vector2(11f, -6f),
-                           "DROP", HorizontalAlignment.Left, -1, 11, red);
+                           DeathDropLabel, HorizontalAlignment.Left, -1, 11, red);
             }
 
             // Player dot.
@@ -286,7 +333,7 @@ public partial class WorldMapScreen : CanvasLayer
 
             // "YOU" label near player.
             DrawString(ThemeDB.FallbackFont, PlayerPos + new Vector2(10f, -6f),
-                       "YOU", HorizontalAlignment.Left, -1, 12, Colors.White);
+                       YouLabel, HorizontalAlignment.Left, -1, 12, Colors.White);
 
             // Border.
             DrawRect(rect, new Color(0.60f, 0.60f, 0.60f, 0.80f), false, 1.5f);

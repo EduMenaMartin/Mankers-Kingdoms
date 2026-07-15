@@ -205,6 +205,11 @@ public partial class HealthSystem : Node
         if (!_health.TryGetValue(entityId, out var h)) return;
         if (h.current <= 0f) return; // already dead — ignore
 
+        // Apply vulnerability multiplier (e.g. Overextended fumble effect).
+        // Multiplicative condensation: effective = amount * (1 + Σ factors) — see BuffCalculator.
+        float vulnMultiplier = BuffSystem.Instance?.GetMultiplicativeModifier(entityId, BuffStat.IncomingDamage) ?? 1f;
+        amount *= vulnMultiplier;
+
         float newHp = Mathf.Max(0f, h.current - amount);
         _health[entityId] = (newHp, h.max);
 
@@ -236,6 +241,7 @@ public partial class HealthSystem : Node
     private void KillPlayer(long peerId)
     {
         GD.Print($"[Health] peer {peerId} died — dropping inventory, respawning");
+        BuffSystem.Instance?.ClearAllBuffs(peerId);
 
         // Snapshot and clear inventory, then spawn a physical item drop at the death position.
         var dropped = InventorySystem.Instance.TakeAll(peerId);
@@ -279,6 +285,7 @@ public partial class HealthSystem : Node
     {
         // MonsterSystem polls IsAlive() each tick and handles loot drop + despawn.
         GD.Print($"[Health] monster {monsterId} died");
+        BuffSystem.Instance?.ClearAllBuffs(monsterId);
         // HP stays at 0 until MonsterSystem calls UnregisterEntity after handling the death.
     }
 

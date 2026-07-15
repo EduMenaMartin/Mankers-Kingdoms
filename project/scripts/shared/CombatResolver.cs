@@ -73,14 +73,16 @@ public static class CombatResolver
     ///
     ///   roll = 1d20
     ///   natural 20 → always hit; critical: roll damageDice twice.
-    ///   natural  1 → always miss (fumble table deferred to Phase A).
+    ///   natural  1 → always miss; fumble if (1 + attackBonus) &lt; targetNumber (§5.2 asymmetry).
     ///   otherwise  → hit if (roll + attackBonus) ≥ targetNumber.
     ///
-    /// On hit returns (true, damage, isCrit) with minimum 1 damage.
-    /// On miss returns (false, 0, false).
-    /// isCrit is true only on a natural 20.
+    /// On hit  returns (true,  damage ≥ 1, isCrit, false).
+    /// On miss returns (false, 0,          false,   isFumble).
+    /// isCrit  = natural 20.
+    /// isFumble = natural 1 AND the bonus would not have saved the roll (§5.2 asymmetry rule:
+    ///   a skilled attacker whose bonus carries nat-1 past TN does NOT fumble — just misses).
     /// </summary>
-    public static (bool hit, int damage, bool isCrit) ResolveAttack(
+    public static (bool hit, int damage, bool isCrit, bool isFumble) ResolveAttack(
         int           attackBonus,
         int           targetNumber,
         string        damageDice,
@@ -89,20 +91,38 @@ public static class CombatResolver
     {
         int roll = rng.Next(1, 21); // 1d20
         bool isCrit = (roll == 20);
+        // §5.2 asymmetry: fumble only when nat-1 AND the bonus wouldn't have saved it.
+        bool isFumble = (roll == 1) && (1 + attackBonus < targetNumber);
 
         bool hit;
         if      (roll == 20) hit = true;
         else if (roll ==  1) hit = false;
         else                 hit = (roll + attackBonus) >= targetNumber;
 
-        if (!hit) return (false, 0, false);
+        if (!hit) return (false, 0, false, isFumble);
 
         int damage = RollDice(damageDice, rng) + damageMod;
         if (isCrit && !string.IsNullOrEmpty(damageDice))
             damage += RollDice(damageDice, rng); // critical: roll damage dice a second time
 
-        return (true, System.Math.Max(1, damage), isCrit);
+        return (true, System.Math.Max(1, damage), isCrit, false);
     }
+
+    // ── Crit / fumble effect tables ───────────────────────────────────────────
+
+    /// <summary>
+    /// Randomly selects one of the five critical-hit effects (combat.md §5.4 Phase A).
+    /// Equal-weight for v1; weighting is a balancing pass.
+    /// </summary>
+    public static CritEffect RollCritEffect(System.Random rng) =>
+        (CritEffect)rng.Next(0, 5);
+
+    /// <summary>
+    /// Randomly selects one of the four fumble complications (combat.md §5.4 Phase A).
+    /// Equal-weight for v1; weighting is a balancing pass.
+    /// </summary>
+    public static FumbleEffect RollFumbleEffect(System.Random rng) =>
+        (FumbleEffect)rng.Next(0, 4);
 
     // ── Player helpers ────────────────────────────────────────────────────────
 

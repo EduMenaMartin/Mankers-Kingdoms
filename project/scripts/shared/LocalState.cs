@@ -433,4 +433,22 @@ public static class LocalState
         _skillLevels[skillId] = level;
         SkillLevelChanged?.Invoke(skillId, level);
     }
+
+    // ── Fog of war ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Current fog-of-war grid, or null if no fog data has been received yet.
+    /// Set by FogSystem.ClientApplyFog RPC. Read by WorldMapScreen to render the overlay.
+    /// </summary>
+    public static FogOfWarData? FogSnapshot { get; private set; }
+
+    /// <summary>Fired when the fog grid is updated. Subscribed by WorldMapScreen.</summary>
+    public static event System.Action? FogChanged;
+
+    /// <summary>Called by FogSystem.ClientApplyFog RPC on the client.</summary>
+    public static void SetFog(FogOfWarData fog)
+    {
+        FogSnapshot = fog;
+        FogChanged?.Invoke();
+    }
 }

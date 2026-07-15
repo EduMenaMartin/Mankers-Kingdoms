@@ -1,4 +1,5 @@
 using Godot;
+using MankersKingdoms.Shared;
 
 namespace MankersKingdoms.Client;
 
@@ -62,13 +63,13 @@ public partial class CombatFeedbackHUD : Node
 
         if (!hit && damage == -1)
         {
-            label.Text     = "Block!";
+            label.Text     = Loc.T("combat.block");
             label.Modulate = new Color(0.4f, 0.8f, 1f);  // cyan
             label.FontSize = 13;
         }
         else if (!hit)
         {
-            label.Text     = "Miss";
+            label.Text     = Loc.T("combat.miss");
             label.Modulate = new Color(1f, 1f, 1f);   // white
             label.FontSize = 12;
         }

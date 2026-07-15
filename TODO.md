@@ -510,6 +510,8 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 
 ---
 
+## M8 ✅ COMPLETE (2026-07-15)
+
 ## M8 — Save/load and polish
 
 **Goal:** Play for 30 minutes, quit, restart, resume exactly where you left off.
@@ -540,7 +542,7 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [x] `client/MainMenuController.cs` — injects "Load Game" button after StartSolo; creates `LoadGamePanel` overlay
 - [x] `data/lang/en.json` — `menu.load_game`, `pause.*`, `load_panel.*` loc keys
 - [x] **Editor (Edu):** Add `PauseMenu` CanvasLayer to `GameWorld.tscn` — done 2026-07-15
-- [ ] Smoke-test Load Game: new game → play → save (Escape → Save) → quit to menu → Load Game → select slot → resumes in same world with same state
+- [x] Smoke-test Load Game: new game → play → save (Escape → Save) → quit to menu → Load Game → select slot → resumes in same world with same state
 
 ### Phase 2c — Equipment slots (inventory.md §10) ✅
 > Wires armor and shield values into combat TN per combat.md §2.2; auto-equips class kit gear; adds equip UI to CharacterSheet.
@@ -559,11 +561,14 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [x] `tests/Shared/CombatResolverTests.cs` — 6 new `PlayerTargetNumber` armor/shield/category tests
 
 ### Phase 3 — Remaining M8 scope
-- [x] **ESC as game menu fallback** — `BuildMenu` now handles `ui_cancel` to close itself before Escape bubbles to PauseMenu; all other panels (RecruitmentDialogue, StockpilePanel, BuildingAssignmentPanel, InventoryPanel, CharacterSheet, PlacementController, WorldMapScreen) already handled Escape correctly; PauseMenu (Layer 50) catches Escape when nothing else is open
+- [x] **ESC as game menu fallback (partial)** — `BuildMenu` handles `ui_cancel`; all other panels have `if (!Visible) return;` guards; PauseMenu (Layer 50) catches Escape when nothing else is open
+- [x] **ESC overlap fix** — `AnyGamePanelVisible()` in PauseMenu; checks 7 panel paths; returns WITHOUT `SetInputAsHandled()` when a panel is open so the panel's own handler fires
 - [x] **CharacterSheet StyleBoxFlat polish** — dark parchment panel, antique gold border/separators, inset slot buttons with hover/pressed states, gold section headers; palette in `COL_*` constants at class top
-- [ ] Fog of war probe — full-map toggle (unseen/seen/visible), shared reveal, persisted in save (see `docs/gdd/worldgen.md` §11)
-- [ ] Localization audit — grep for string literals in gameplay code; ensure 0 hardcoded player-facing strings remain
-- [ ] Demo gate: play 30 min solo → quit → restart → resume exactly where left off
+- [x] **Buff/debuff system** — `shared/BuffStat, BuffAmountType, ActiveBuff, BuffCalculator, CritEffect, FumbleEffect`; `server/BuffSystem`; hooked into CombatSystem (stun/disarm gates, AB debuff, armor debuff, crit/fumble effect application), HealthSystem (vulnerability multiplier, clear on death), MonsterSystem (stun gate, monster crit/fumble symmetry §5.2), ProjectileSystem (stun/disarm gates, AB debuff, crit effect on hit)
+- [x] **Delete save button** — `LoadGamePanel`: Delete button alongside Load/Cancel; `DirAccess` removes `user://saves/{name}.json`; `load_panel.delete` loc key
+- [x] **Fog of war** — `shared/FogOfWarData` (64×64 byte grid, UNSEEN/SEEN/VISIBLE, 40m vision radius); `server/FogSystem` (1.5s update, shared reveal, Base64 RPC broadcast); `LocalState.FogSnapshot + FogChanged`; `SaveData.FogBase64`; `WorldMapScreen` fog overlay (solid black/dark grey/transparent per state); `SaveSystem` save+restore+late-connect push
+- [x] **Localization audit** — 19 new loc keys; fixed `BuildingAssignmentPanel` (6 strings), `BuildMenu` (4 strings), `CombatFeedbackHUD` (2 strings), `WorldMapScreen` (9 strings); 0 hardcoded player-facing strings remain
+- [x] Demo gate: play 30 min solo → quit → restart → resume exactly where left off ✅ PASSED (2026-07-15)
 
 ### Captured (scope TBD)
 - [ ] Building construction progress — visual indicator while a building is being placed/constructed
@@ -571,21 +576,32 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 
 ---
 
-## M9 — NPC village life (planned)
+## M9 — Vertical slice playtest
 
-> **Scope note:** Features below are post-slice candidates captured from Edu's 2026-07-14 session. Present for approval before M9 planning begins.
+**Goal:** Play a real 30–60 min session with a friend. Log what breaks, confuses, or feels bad. Fix P0/P1 bugs only.
 
-### NPC idle behaviour after recruitment
-- [ ] When a recruited NPC has no job assignment, they walk to the settlement's Kingdom Marker and idle within its radius (random wander, not stationary)
-- [ ] `server/VillageSystem.cs` — add `Idle` NPC state; `TickIdle()` picks a random target inside marker radius (uniform circle sample), NPC walks there at follow speed, waits 5–10s, picks new target
-- [ ] Wake trigger: NPC transitions Idle → Working when assigned, Idle → Follow when recruited
+### Pre-playtest content fixes (2026-07-15) ✅ code complete
+- [x] **WorldSeed randomisation** — `CharacterCreateScreen.OnConfirm()` sets `GameSession.WorldSeed = (uint)GD.Randi()`. Every new game now produces a unique world.
+- [x] **Sickle at Foraging 15** — `SkillRegistry` Foraging ToolTiers grants `item.tool.sickle`; `en.json` name/desc added.
+- [x] **Stew Pot at Cooking 10** — `SkillRegistry` Cooking ToolTiers grants `item.tool.stew_pot`; `en.json` name/desc added.
+- [x] **Wooden Wall + Gate** — `BuildingRegistry` adds `WoodenWall` (5 wood) and `WoodenGate` (10 wood); `en.json` keys added. Scenes pending (see editor tasks below).
+- [x] **Herb patches (HerbGenerator + HerbSystem)** — 30 deterministic herb patch nodes (purple spheres) with 60s harvest cooldown; server NPC API exposed.
+- [x] **Forager NPC movement loop** — replaced static 30s timer with woodcutter-style movement: NPC walks to nearest herb patch or berry bush, harvests, carries (cap 6), walks to stockpile, deposits herbs + berries separately. BushSystem gained NPC harvest API.
 
-### House capacity
-- [ ] Each Shelter building supports up to 4 NPCs for rest (sleep replenishment)
-- [ ] `server/VillageSystem.cs` — `_shelterCapacity SortedDictionary<string buildingId, int occupants>`; on sleep request find nearest shelter with capacity < 4; if full, NPC stays awake (rest drains but no crash)
-- [ ] Capacity persisted in save (as occupant count per building ID in `NpcAssignments`)
+### Editor tasks (Edu — required before playtest)
+- [ ] Add `HerbSystem` node (script: `res://scripts/server/HerbSystem.cs`) to `GameWorld.tscn` after `BushSystem`. Plain `Node`.
+- [ ] Create `scenes/WoodenWall.tscn` — Node3D + StaticBody3D + BoxMesh 2×3×0.4 + BoxShape3D, collision layer 8.
+- [ ] Create `scenes/WoodenGate.tscn` — same spec as WoodenWall (no interaction yet).
 
-> **When:** NPC idle is M9 Phase 1 (first thing). House capacity is M9 Phase 2 (after idle, since idle needs a destination and capacity affects rest logic).
+### Playtest session
+- [ ] Schedule and run 30–60 min session with a friend (host + join over LAN/ENet)
+- [ ] Log: crashes, confusing UI, blocking bugs, missing feedback
+- [ ] Fix P0 (crash) and P1 (major blocker) bugs found during session
+
+### Success criteria (all three must be yes)
+- [ ] **Fun** — both players want to keep playing after the session
+- [ ] **Legible** — both players understand what to do next without developer help
+- [ ] **Stable** — no crashes or state corruption during the session
 
 ---
 

@@ -71,8 +71,32 @@ public static class BuildingRegistry
         Width: 4f, Height: 3f, Depth: 4f
     );
 
+    /// <summary>
+    /// Placed in a line to form a perimeter wall. One segment, 2 m wide.
+    /// Scene is an editor task — two vertical planks and a horizontal rail.
+    /// </summary>
+    public static readonly BuildingData WoodenWall = new(
+        Id:             "building.wooden_wall",
+        DisplayNameKey: "building.wooden_wall.name",
+        ScenePath:      "res://scenes/WoodenWall.tscn",
+        Cost:           new Dictionary<string, int> { ["resource.wood"] = 5 },
+        Width: 2f, Height: 3f, Depth: 0.4f
+    );
+
+    /// <summary>
+    /// Hinged gate that fits a 2 m wall gap. Allows NPCs and founders to pass.
+    /// Scene is an editor task — same height as WoodenWall.
+    /// </summary>
+    public static readonly BuildingData WoodenGate = new(
+        Id:             "building.wooden_gate",
+        DisplayNameKey: "building.wooden_gate.name",
+        ScenePath:      "res://scenes/WoodenGate.tscn",
+        Cost:           new Dictionary<string, int> { ["resource.wood"] = 10 },
+        Width: 2f, Height: 3f, Depth: 0.4f
+    );
+
     public static readonly IReadOnlyList<BuildingData> All =
-        new[] { Shelter, StorageChest, Workbench, CookingFire, WoodcuttersPost, StockpileDrop, HerbalistsHut };
+        new[] { Shelter, StorageChest, Workbench, CookingFire, WoodcuttersPost, StockpileDrop, HerbalistsHut, WoodenWall, WoodenGate };
 
     public static BuildingData? Find(string id) =>
         All.FirstOrDefault(b => b.Id == id);

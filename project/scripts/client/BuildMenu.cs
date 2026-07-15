@@ -34,7 +34,7 @@ public partial class BuildMenu : CanvasLayer
 		foreach (var btn in _placeButtons.Values)
 		{
 			btn.Disabled    = !isFounder;
-			btn.TooltipText = isFounder ? "" : "Plant a Kingdom Marker first (F key)";
+			btn.TooltipText = isFounder ? "" : Loc.T("build.marker_hint");
 		}
 	}
 
@@ -98,7 +98,7 @@ public partial class BuildMenu : CanvasLayer
 		// Title.
 		var title = new Label
 		{
-			Text                = "Build",
+			Text                = Loc.T("build.title"),
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		vbox.AddChild(title);
@@ -126,7 +126,7 @@ public partial class BuildMenu : CanvasLayer
 			};
 			row.AddChild(costLabel);
 
-			var btn = new Button { Text = "Place" };
+			var btn = new Button { Text = Loc.T("build.place") };
 			var id  = b.Id; // capture for lambda
 			btn.Pressed += () => OnPlacePressed(id);
 			row.AddChild(btn);
@@ -137,7 +137,7 @@ public partial class BuildMenu : CanvasLayer
 
 		var closeBtn = new Button
 		{
-			Text                = "Close  [B]",
+			Text                = Loc.T("build.close_hint"),
 			SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter
 		};
 		closeBtn.Pressed += CloseMenu;

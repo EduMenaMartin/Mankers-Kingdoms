@@ -13,7 +13,7 @@ namespace MankersKingdoms.Shared;
 ///   skill.cooking     — cooking food at fire (governs: Wis)
 ///
 /// XpPerLevel = 5, XpPerAction = 1: 75 actions = level 15 (M5 demo gate).
-/// Tool tier: Woodcutting 15 → item.tool.bronze_axe.
+/// Tool tiers: Woodcutting 15 → bronze_axe; Foraging 15 → sickle; Cooking 10 → stew_pot.
 /// </summary>
 public static class SkillRegistry
 {
@@ -63,7 +63,10 @@ public static class SkillRegistry
             GoverningStats: new[] { "wis" },
             XpPerAction:    XP_PER_ACTION,
             XpPerLevel:     XP_PER_LEVEL,
-            ToolTiers:      System.Array.Empty<ToolTierData>()
+            ToolTiers:      new[]
+            {
+                new ToolTierData(MinLevel: 15, GrantedItemId: "item.tool.sickle")
+            }
         ),
         new(
             Id:             "skill.cooking",
@@ -71,7 +74,10 @@ public static class SkillRegistry
             GoverningStats: new[] { "wis" },
             XpPerAction:    XP_PER_ACTION,
             XpPerLevel:     XP_PER_LEVEL,
-            ToolTiers:      System.Array.Empty<ToolTierData>()
+            ToolTiers:      new[]
+            {
+                new ToolTierData(MinLevel: 10, GrantedItemId: "item.tool.stew_pot")
+            }
         ),
     };
 

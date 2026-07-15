@@ -247,6 +247,8 @@ public partial class CharacterCreateScreen : Control
         GameSession.ChosenClassId   = _selectedClassId;
         // Stamp a unique save slot name so the save lands in its own file.
         GameSession.SaveName = $"save_{System.DateTime.Now:yyyyMMdd_HHmmss}";
+        // Each new game gets a fresh random world. See BUGS.md [P2] for why this was missing.
+        GameSession.WorldSeed = (uint)Godot.GD.Randi();
         GetTree().ChangeSceneToFile("res://scenes/GameWorld.tscn");
     }
 
