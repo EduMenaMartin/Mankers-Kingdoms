@@ -45,7 +45,8 @@ public partial class MeleeController : Node
                 case MouseButton.Left when mb.Pressed:
                     // Only attack in combat mode; build mode owns LMB for placement.
                     // Only consume when a melee weapon is equipped and melee mode is active.
-                    if (LocalState.InCombatMode && GetEquippedMeleeWeapon() != null)
+                    // §15: mutual exclusivity — cannot attack while holding block.
+                    if (LocalState.InCombatMode && !_isBlocking && GetEquippedMeleeWeapon() != null)
                     {
                         TryMeleeAttack();
                         GetViewport().SetInputAsHandled();
@@ -102,6 +103,7 @@ public partial class MeleeController : Node
 
         if (_isBlocking == blocking) return;
         _isBlocking = blocking;
+        LocalState.SetBlocking(blocking); // keeps BowController's mutual-exclusivity check in sync (§15)
         SendBlockRpc(blocking);
     }
 

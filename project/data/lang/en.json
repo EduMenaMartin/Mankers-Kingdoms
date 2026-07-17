@@ -41,6 +41,8 @@
   "monster.goblin.name": "Goblin",
   "monster.bandit.name": "Bandit",
   "monster.bandit_archer.name": "Bandit Archer",
+  "monster.orc.name": "Orc",
+  "monster.orc.desc": "A hulking warrior who guards the raider camp. Heavily armoured and hits hard — do not fight alone.",
 
   "item.weapon.club.name": "Club",
   "item.weapon.dagger.name": "Dagger",

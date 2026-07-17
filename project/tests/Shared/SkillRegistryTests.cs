@@ -102,10 +102,27 @@ public class SkillRegistryTests
     [Fact]
     public void OtherSkills_HaveNoToolTiers()
     {
+        // woodcutting: axe tiers; foraging: sickle at 15; cooking: stew_pot at 10.
+        // All other skills have no tool tier grants.
+        string[] toolTierSkills = ["skill.woodcutting", "skill.foraging", "skill.cooking"];
         foreach (var skill in SkillRegistry.All)
         {
-            if (skill.Id == "skill.woodcutting") continue;
+            if (toolTierSkills.Contains(skill.Id)) continue;
             Assert.Empty(skill.ToolTiers);
         }
+    }
+
+    [Fact]
+    public void Foraging_HasSickleToolTierAtLevel15()
+    {
+        var skill = SkillRegistry.Find("skill.foraging")!;
+        Assert.Contains(skill.ToolTiers, t => t.MinLevel == 15 && t.GrantedItemId == "item.tool.sickle");
+    }
+
+    [Fact]
+    public void Cooking_HasStewPotToolTierAtLevel10()
+    {
+        var skill = SkillRegistry.Find("skill.cooking")!;
+        Assert.Contains(skill.ToolTiers, t => t.MinLevel == 10 && t.GrantedItemId == "item.tool.stew_pot");
     }
 }

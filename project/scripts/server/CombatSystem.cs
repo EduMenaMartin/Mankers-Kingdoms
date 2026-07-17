@@ -9,10 +9,11 @@ namespace MankersKingdoms.Server;
 ///
 /// RequestMeleeAttack: validates weapon ownership, swing cooldown, target liveness,
 /// and attacker-to-target distance. If all gates pass:
-///   1. Block gate (combat.md §2.5): if the target is actively blocking with a shield,
-///      the attack never reaches the dice roll — server drops it entirely.
+///   1. Mutual exclusivity gate (combat.md §15): attacker cannot swing while blocking.
 ///   2. Attack roll: CombatResolver.ResolveAttack (1d20 + attackBonus vs targetNumber).
 ///   3. Damage application on hit.
+///   Active blocking no longer hard-negates incoming attacks (§2.5 superseded).
+///   Instead, blocking grants the defender a +4 TN bonus (GetPlayerTargetNumber).
 ///
 /// RequestSetBlocking: records the blocking state of a peer. Shield ownership confirmed
 ///   server-side so the client cannot spoof block state without holding a shield.
@@ -128,7 +129,12 @@ public partial class CombatSystem : Node
         // Apply armor debuff (e.g. SunderingHit crit effect).
         armorValue += (int)(BuffSystem.Instance?.GetAdditiveModifier(peerId, BuffStat.ArmorValue) ?? 0f);
 
-        return CombatResolver.PlayerTargetNumber(s.Dex, armorValue, shieldBonus, armorCategory);
+        // §15: active block grants +4 TN bonus while blocking with a shield.
+        // shieldBonus > 0 confirms the shield is still equipped at hit time (re-verification).
+        int activeBlockBonus = (IsBlocking(peerId) && shieldBonus > 0) ? 4 : 0;
+
+        return CombatResolver.PlayerTargetNumber(s.Dex, armorValue, shieldBonus, armorCategory)
+               + activeBlockBonus;
     }
 
     /// <summary>Returns the stored StatBlock for a player peer, or safe defaults.</summary>
@@ -147,6 +153,8 @@ public partial class CombatSystem : Node
         long sender = Multiplayer.GetRemoteSenderId();
         if (sender == 0) sender = 1L;
         SetPlayerStats(sender, new StatBlock(str, dex, con, wis));
+        // Roll HP from Constitution (only executes if not yet rolled for this peer).
+        HealthSystem.Instance?.ApplyConstitution(sender, con);
         GD.Print($"[Combat] peer {sender} stats set: Str={str} Dex={dex} Con={con} Wis={wis}");
     }
 
@@ -155,8 +163,10 @@ public partial class CombatSystem : Node
     /// <summary>
     /// Client requests a melee swing at a target entity.
     /// Server validates: weapon owned, cooldown clear, target alive, distance ≤ range.
-    /// Block gate (combat.md §2.5): if target is blocking with a shield, attack is nullified.
+    /// Mutual exclusivity gate (combat.md §15): attacker cannot swing while blocking.
     /// Attack roll: CombatResolver.ResolveAttack — 1d20 + attackBonus vs target's TargetNumber.
+    /// Active blocking by the defender raises TN by +4 (see GetPlayerTargetNumber) rather than
+    /// hard-negating the attack (§2.5 superseded by §15).
     /// </summary>
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
          TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
@@ -223,28 +233,22 @@ public partial class CombatSystem : Node
             return;
         }
 
-        // Commit cooldown before any early-returns below — the swing has happened.
-        _swingReady[sender] = _elapsed + weapon.SwingCooldown;
-
-        // ── Block gate (combat.md §2.5): blocking with a shield nullifies the attack ──
-        var targetInv      = InventorySystem.Instance?.GetInventory(targetEntityId);
-        bool targetHasShield = targetInv?.EquippedOffHand == "item.armor.shield"
-                            || (targetInv?.EquippedOffHand == null
-                                && InventorySystem.Instance.HasItems(targetEntityId, "item.armor.shield", 1));
-        if (_blocking.TryGetValue(targetEntityId, out bool isBlocking) && isBlocking && targetHasShield)
+        // ── Mutual exclusivity gate (combat.md §15): cannot attack while blocking ──
+        if (IsBlocking(sender))
         {
-            GD.Print($"[Combat] entity {targetEntityId} blocked attack from peer {sender}");
-            GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
-                ?.Rpc("ShowCombatResult", targetPos.Value, false, -1, false);
+            GD.Print($"[Combat] peer {sender} is blocking — cannot attack (§15 mutual exclusivity)");
             return;
         }
 
-        // ── Attack roll (combat.md §2.2 + §12.2) ────────────────────────────
+        // Commit cooldown before any early-returns below — the swing has happened.
+        _swingReady[sender] = _elapsed + weapon.SwingCooldown;
+
+        // ── Attack roll (combat.md §2.2) ─────────────────────────────────────
+        // §15: defender's active block raises their TN by +4 (see GetPlayerTargetNumber).
+        // No hard negation gate — the dice roll always happens.
         var stats        = GetPlayerStats(sender);
         int meleeLevel   = SkillSystem.Instance?.GetSkillLevel(sender, "skill.melee") ?? 0;
         int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId, stats.Str, stats.Dex, meleeLevel);
-        // §12.2: fighting defensively lowers hit chance for that swing only.
-        if (IsBlocking(sender)) attackBonus -= 3;
         // Apply attack bonus debuff (e.g. OffBalance fumble effect).
         attackBonus += (int)(BuffSystem.Instance?.GetAdditiveModifier(sender, BuffStat.AttackBonus) ?? 0f);
         int targetNumber = GetEntityTargetNumber(targetEntityId);

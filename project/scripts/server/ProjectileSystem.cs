@@ -36,6 +36,12 @@ public partial class ProjectileSystem : Node
 	// Monster IDs start at 10001 — any OriginPeerId below this is a player.
 	private const long MONSTER_ID_THRESHOLD = 10001L;
 
+	// §15: rollTotal must meet or exceed this value on a nat20 to score a crit against an
+	// actively blocking shielded target. Threshold = 20 + 4 (mirrors the +4 melee TN bonus).
+	// Bandit Archer (AB 3): max rollTotal on nat20 = 23 < 24 → 0% crit while target blocks.
+	// Requires AB ≥ 4 to break through. See IDEAS_BACKLOG.md re: future ranged enemies.
+	private const int BLOCKING_CRIT_THRESHOLD = 24;
+
 	// Sequential ID; never reused within a session.
 	private long _nextId = 1L;
 
@@ -129,16 +135,9 @@ public partial class ProjectileSystem : Node
 					continue;
 				}
 
-				// combat.md §12.4: active block intercepts projectiles just like melee swings.
-				if (CombatSystem.Instance?.IsBlocking(targetId.Value) == true)
-				{
-					var blockPos = new Vector3(proj.PosX, proj.PosY, proj.PosZ);
-					GetNodeOrNull<Node>(COMBAT_FEEDBACK_PATH)
-						?.Rpc("ShowCombatResult", blockPos, false, -1, false);
-					GD.Print($"[Projectile] proj {id} blocked by entity {targetId.Value}");
-					_toRemove.Add(id);
-					continue;
-				}
+				// §15: active blocking no longer hard-negates projectile hits.
+				// Defender's blocking state raises their TN via CombatSystem.GetPlayerTargetNumber (+4).
+				// The dice roll (§13.3) now determines outcome — same path as melee.
 
 				var weapon = WeaponRegistry.Find(proj.WeaponId);
 				if (weapon != null)
@@ -169,10 +168,20 @@ public partial class ProjectileSystem : Node
 					}
 
 					// Roll determines normal-hit vs. crit only (§13.3).
-					// total is computed for future wide-margin crit threshold (§13.5 Q1); nat20 only for v1.
+					// §15: active block raises the crit threshold — physical hit still lands automatically.
+					// Shield re-verified at impact time (same pattern as melee TN gate in CombatSystem).
+					// Legacy-save fallback: EquippedOffHand == null → check inventory ownership.
 					int  roll      = _projectileRng.Next(1, 21);
-					int  rollTotal = roll + attackBonus; // kept for future wide-margin crit threshold (§13.5 Q1)
-					bool isCrit    = (roll == 20);
+					int  rollTotal = roll + attackBonus;
+					var  tgtInv    = InventorySystem.Instance?.GetInventory(targetId.Value);
+					bool tgtHasShield = tgtInv?.EquippedOffHand == "item.armor.shield"
+					                 || (tgtInv?.EquippedOffHand == null
+					                     && InventorySystem.Instance.HasItems(targetId.Value, "item.armor.shield", 1));
+					bool tgtBlocking = CombatSystem.Instance?.IsBlocking(targetId.Value) == true && tgtHasShield;
+					// Unblocked: crit = nat20 (5%). Blocking: crit = nat20 AND rollTotal ≥ 24 (§15.3).
+					bool isCrit = tgtBlocking
+					    ? (roll == 20 && rollTotal >= BLOCKING_CRIT_THRESHOLD)
+					    : (roll == 20);
 					int  dmg       = CombatResolver.RollDice(weapon.DamageDice, _projectileRng) + damageMod;
 					if (isCrit && !string.IsNullOrEmpty(weapon.DamageDice))
 						dmg += CombatResolver.RollDice(weapon.DamageDice, _projectileRng); // §5.4: double dice on crit
@@ -260,6 +269,13 @@ public partial class ProjectileSystem : Node
 		if (BuffSystem.Instance?.IsBuffActive(sender, BuffStat.Disarm) == true)
 		{
 			GD.Print($"[Projectile] peer {sender} is disarmed — cannot fire");
+			return;
+		}
+
+		// §15: mutual exclusivity — a blocking player cannot fire.
+		if (CombatSystem.Instance?.IsBlocking(sender) == true)
+		{
+			GD.Print($"[Projectile] peer {sender} is blocking — cannot fire (§15 mutual exclusivity)");
 			return;
 		}
 

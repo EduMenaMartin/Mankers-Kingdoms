@@ -7,17 +7,90 @@
 ## Current status
 
 **Milestone:** M9 — Vertical slice playtest
-**Last session:** 2026-07-15 — Pre-playtest content fixes: WorldSeed, sickle/stew_pot tool tiers, Wooden Wall+Gate, forager movement redesign + herb system.
+**Last session:** 2026-07-18 — Block system redesign (§15): mutual exclusivity + melee TN bonus + ranged crit threshold.
 **Blockers:** None.
 **Decisions needed from Edu:** None outstanding.
 
-**Next action (editor tasks for Edu — required before playtest):**
-1. Add `HerbSystem` node (script: `res://scripts/server/HerbSystem.cs`) to `GameWorld.tscn` after `BushSystem`. Plain `Node`, no special properties.
-2. Create `scenes/WoodenWall.tscn` — Node3D + StaticBody3D + BoxMesh (2×3×0.4) + BoxShape3D on collision layer 8.
-3. Create `scenes/WoodenGate.tscn` — same dimensions as WoodenWall (interactable door is post-slice).
-4. Schedule the M9 playtest session with a friend.
+**Next action:**
+1. **Build in Godot** — confirm game compiles without errors (block redesign touches CombatSystem, ProjectileSystem, MeleeController, BowController, LocalState).
+2. **Smoke-test block redesign:**
+   - RMB held + LMB click → attack does NOT fire (client guard); server also rejects if spoofed
+   - Stand still blocking vs Orc: subjectively harder to get hit compared to unblocked (TN 12 → 16)
+   - Bandit Archer fires many arrows while blocking: no crits land (0% crit chance vs 5% unblocked)
+3. **Schedule the M9 playtest session** with a friend (host + join over LAN/ENet).
 
-**After editor tasks:** build and smoke-test — confirm herb patches appear as purple spheres on the map, forager NPC walks to herbs/berries rather than standing still, and new worlds are visually different from each other.
+---
+
+## What was done this session (2026-07-18)
+
+### Block system redesign — §15 — COMPLETE ✅
+
+Supersedes `combat.md` §2.5 (hard-negation gate) and §12 (simultaneous block+attack −3 AB penalty).
+
+**Mutual exclusivity (block XOR attack):**
+- `client/MeleeController.cs` — LMB branch: `if (_isBlocking) return` before `TryMeleeAttack()`
+- `client/BowController.cs` — `TryFireBow()`: `if (LocalState.IsBlocking) return false` after placement guard
+- `shared/LocalState.cs` — added `IsBlocking` property + `SetBlocking(bool)` so BowController can read MeleeController's state without a direct reference
+- `MeleeController.SetBlocking()` calls `LocalState.SetBlocking(blocking)` to keep both in sync
+- `server/CombatSystem.cs` — replaced §2.5 hard-negation gate (on the defender) with mutual-exclusivity gate (on the attacker): `if (IsBlocking(sender)) return`. **This is the authoritative enforcement** per ARCHITECTURE.md §4.4 — client guards are UX-only.
+- `server/ProjectileSystem.cs` — `RequestFireProjectile`: added `if (CombatSystem.Instance?.IsBlocking(sender) == true) return` after disarm gate. Same server-authoritative pattern.
+
+**Active block TN bonus +4 (melee):**
+- `server/CombatSystem.cs` — `GetPlayerTargetNumber`: `int activeBlockBonus = (IsBlocking(peerId) && shieldBonus > 0) ? 4 : 0` added before return. Shield re-verified at hit time (`shieldBonus > 0` from ArmorRegistry — consistent with melee gate pattern).
+- Orc (AB 5) vs Fighter hit-chance: **70% → 50%** while actively blocking (TN 12 → 16).
+- Removed `if (IsBlocking(sender)) attackBonus -= 3` (§12 penalty — superseded).
+
+**Ranged crit threshold (ranged):**
+- `server/ProjectileSystem.cs` — `BLOCKING_CRIT_THRESHOLD = 24` constant. When target is actively blocking with shield: `isCrit = (roll == 20 && rollTotal >= 24)` instead of just `(roll == 20)`. Shield re-verified at impact (with legacy-save fallback matching all other shield checks).
+- Bandit Archer (AB 3) crit chance vs blocking Fighter: **5% → 0%** (nat20 gives rollTotal 23 < 24). Threshold 24 = 20 + 4 mirrors the melee TN bonus numerically.
+- Physical hit rate: unchanged (§13.1 — auto-hit on physical contact not affected by blocking).
+- Intentional asymmetry: melee → reduced hit frequency; ranged → reduced crit severity.
+- `IDEAS_BACKLOG.md` — `[post-slice]` entry: threshold 24 is coincidental to Bandit Archer AB 3; any future ranged enemy with AB ≥ 4 would get zero crit-blocking benefit, reopening the problem at a higher tier.
+
+**Docs:**
+- `docs/gdd/combat.md` — §2.5 and §12 marked "Superseded — see §15"; §15 added with full rule text, worked examples (TN table + crit table), and explicit asymmetry documentation in §15.3.
+
+**Test count: 350, 0 failures** (no new tests needed — all changed logic is server plumbing with Godot dependencies; CombatResolver pure logic unchanged).
+
+---
+
+## What was done this session (2026-07-17)
+
+### HP overhaul + Orc + nest tiering — COMPLETE ✅
+
+**Fog of war improvements (carry-over from previous session):**
+- `shared/FogOfWarData.cs` — added `IsDiscovered(worldX, worldZ)` helper.
+- `client/MinimapHUD.cs` — full fog overlay (`_fogTex`, `BakeFogTexture`, `FogChanged` subscription); fog texture drawn between terrain and entities; nest dots hidden until discovered.
+- `client/WorldMapScreen.cs` — fog data passed to `_MapDrawControl`; nest dots hidden until discovered.
+- `BUGS.md` — [P1] fog bug entry marked FIXED.
+
+**Nest tiering (VERTICAL_SLICE.md §3.6 + §3.8):**
+- `shared/NestTier.cs` — new enum: `Minor = 0`, `Major = 1`.
+- `shared/NestData.cs` — added `NestTier Tier = NestTier.Minor` field.
+- `shared/NestGenerator.cs` — **Option B**: now produces 3 nests (was 5). Wolf (Minor), Goblin (Minor), Raider camp (Major, includes Orc). Respawn: 45s / 60s / 120s.
+- `client/MinimapHUD.cs` + `client/WorldMapScreen.cs` — Major nest dots drawn larger (7 px / 10 px vs 4 px / 6 px for Minor).
+
+**Orc (VERTICAL_SLICE.md §3.6):**
+- `shared/MonsterData.cs` — added `HitDiceCount`, `HitDieSize`, `ConstitutionScore` fields.
+- `shared/MonsterRegistry.cs` — `ComputeHp(hd, dieSize, con)` static helper; humanoids now use HD formula (Goblin 31.5, Bandit 60.5, BanditArcher 40.5); Orc added: 18 HD d8 Con 16 → 99 HP, AB=5, TN=14, 1d10 slashing, MoveSpeed=3, AggroRange=18, AttackRange=2.2, AttackCooldown=2.
+- `data/lang/en.json` — `monster.orc.name/desc` added.
+
+**Player HP: rolled at creation, grows with Athletics:**
+- `shared/ClassKitData.cs` — added `HitDiceCount` + `HitDieSize` fields.
+- `shared/ClassKitRegistry.cs` — Fighter: 4d8; Ranger: 3d8.
+- `shared/SaveData.cs` — `PlayerSave.BaseHp` (default 100f, additive, no version bump).
+- `server/HealthSystem.cs` — removed `PLAYER_MAX_HP` constant; added `_playerBaseHp` + `_playerAthleticsBonus` dicts; `RollPlayerHp(peerId, hd, dieSize, con)` seeded-RNG roll; `ApplyConstitution(peerId, con)` rolls HP once and calls `RecomputeMaxHp`; `OnAthleticsLevelUp(peerId, newLevel)` updates bonus; `RecomputeMaxHp` recomputes max and clamps current; `RestoreHpFromSave(peerId, hp, baseHp)` accepts new baseHp arg; `KillPlayer` uses real MaxHp not constant; `GetBaseHp(peerId)` for SaveSystem.
+- `server/CombatSystem.cs` — `RequestSetStats` calls `HealthSystem.Instance?.ApplyConstitution(sender, con)`.
+- `server/SkillSystem.cs` — `NotifyAction` level-up block: `if (skillId == "skill.athletics") HealthSystem.Instance?.OnAthleticsLevelUp(peerId, newLevel)`.
+- `server/SaveSystem.cs` — `ps.BaseHp = HealthSystem.Instance.GetBaseHp(peerId)` in Save(); `RestoreHpFromSave(peerId, ps.Hp, ps.BaseHp)` in TryLoad.
+
+**Test rebuild:**
+- `tests/MankersKingdoms.Tests.csproj` — excluded `SaveUtil.cs` (Godot dependency violates ADR-0010); adds `<Compile Remove ...>` entry per the file's own comment rule.
+- `tests/Shared/SkillRegistryTests.cs` — `OtherSkills_HaveNoToolTiers` updated to allow Foraging/Cooking tiers (added in M8 but never reflected in tests because project didn't build). Added `Foraging_HasSickleToolTierAtLevel15` + `Cooking_HasStewPotToolTierAtLevel10`.
+- `tests/Shared/MonsterRegistryTests.cs` — `All_ContainsFourMonsters` → `All_ContainsFiveMonsters`; 8 new tests: Orc found, Orc HP=99, Goblin HP=31.5, Bandit HP=60.5, Orc stats (AB/TN/DamageDice), humanoids have HD data, wolf has no HD data.
+- `tests/Shared/NestGeneratorTests.cs` — new file; 9 tests: 3 nests, 1 Major, 2 Minor, Major has Orc, Minor no Orc, determinism, different seeds differ, bounds, positive respawn, unique IDs.
+- `tests/Shared/HpFormulaTests.cs` — new file; 14 tests: StatModifier table, monster HD formula (Goblin/Bandit/Orc), Athletics `floor(level/2)` table, career-ceiling sanity checks (Fighter Con 10/14, Ranger Con 10).
+- **350 tests, 0 failures** (up from 272 with --no-build, now fully compiled + rebuilt).
 
 ---
 
@@ -721,6 +794,14 @@ The root `data/lang/en.json` was a stale duplicate and has been deleted. Do not 
 ---
 
 ## Session log
+
+### 2026-07-18 — Block system redesign (§15): mutual exclusivity + TN bonus + ranged crit threshold
+- **Mutual exclusivity:** RMB block now disables LMB attack input. Enforced client-side (MeleeController + BowController early-return) AND server-side (RequestMeleeAttack + RequestFireProjectile gate on `IsBlocking(sender)`). `LocalState.IsBlocking` added as shared bridge between controllers.
+- **Melee TN bonus +4:** `CombatSystem.GetPlayerTargetNumber` adds +4 while `IsBlocking(peerId)` and shield confirmed equipped. Orc (AB 5) hit chance: 70% → 50%. Removed §12's −3 AB penalty (superseded).
+- **Ranged crit threshold:** `BLOCKING_CRIT_THRESHOLD = 24` in ProjectileSystem. Bandit Archer (AB 3) crit chance vs blocking Fighter: 5% → 0%. Physical hit rate unchanged (§13.1). Intentional asymmetry: melee → hit frequency reduction; ranged → crit severity reduction.
+- **combat.md §15** added (full rule text, worked examples, asymmetry docs). §2.5 and §12 marked superseded.
+- **IDEAS_BACKLOG:** [post-slice] entry: BLOCKING_CRIT_THRESHOLD = 24 is coincidental to Bandit Archer AB 3; revisit before adding any ranged enemy with AB ≥ 4.
+- 350 tests, 0 failures.
 
 ### 2026-07-15 — M9 pre-playtest content fixes (session 3)
 - **WorldSeed randomisation**: `CharacterCreateScreen.OnConfirm()` now calls `GameSession.WorldSeed = (uint)GD.Randi()`. Every new game produces a different procedural world. BUGS.md [P2] closed.

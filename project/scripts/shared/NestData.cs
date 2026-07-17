@@ -9,6 +9,8 @@ namespace MankersKingdoms.Shared;
 ///
 /// FactionId is assigned by NestSystem at world generation time and registered with
 /// FactionService. Format: "faction.nest.{Id}". See docs/gdd/factions.md §2.1.
+///
+/// Tier drives dot size on the world map / minimap (worldgen.md §5).
 /// </summary>
 public sealed record NestData(
     int      Id,
@@ -16,5 +18,6 @@ public sealed record NestData(
     float    WorldX,
     float    WorldZ,
     float    RespawnDelaySec,
-    string   FactionId = ""
+    string   FactionId = "",
+    NestTier Tier      = NestTier.Minor
 );

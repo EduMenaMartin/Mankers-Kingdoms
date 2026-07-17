@@ -45,10 +45,12 @@ public partial class WorldMapScreen : CanvasLayer
         _halfW = (cfg.MapWidth  - 1) * cfg.TileSize * 0.5f;
         _halfH = (cfg.MapHeight - 1) * cfg.TileSize * 0.5f;
 
-        var nestDots = new List<(Vector2 pos, Color color, string label)>();
+        // World coords and tier kept alongside map coords so fog can gate visibility
+        // and Major nests can be drawn larger.
+        var nestDots = new List<(Vector2 pos, Color color, string label, float worldX, float worldZ, NestTier tier)>();
         foreach (var nest in NestGenerator.Generate(GameSession.WorldSeed))
             nestDots.Add((ToMap(nest.WorldX, nest.WorldZ), NestColor(nest.MonsterTypeIds[0]),
-                          NestLabel(nest.MonsterTypeIds[0])));
+                          NestLabel(nest.MonsterTypeIds[0]), nest.WorldX, nest.WorldZ, nest.Tier));
 
         // ── Full-screen dark backdrop ──────────────────────────────────────────
         var backdrop = new ColorRect { Color = new Color(0f, 0f, 0f, 0.72f) };
@@ -57,7 +59,7 @@ public partial class WorldMapScreen : CanvasLayer
 
         // ── Centred map panel ─────────────────────────────────────────────────
         float ringPx = TERRITORY_W / (_halfW * 2f) * MAP_PANEL;
-        _mapDraw = new _MapDrawControl(nestDots, MAP_PANEL, ringPx)
+        _mapDraw = new _MapDrawControl(nestDots, MAP_PANEL, ringPx)  // NestTier in tuple drives dot size
         {
             AnchorLeft     = 0.5f, AnchorRight  = 0.5f,
             AnchorTop      = 0.5f, AnchorBottom = 0.5f,
@@ -116,6 +118,7 @@ public partial class WorldMapScreen : CanvasLayer
         _mapDraw.PlayerPos         = _playerMapPos;
         _mapDraw.MarkerMapPos      = _markerMapPos;
         _mapDraw.FogTex            = _fogTex;
+        _mapDraw.FogData           = LocalState.FogSnapshot;
         var dd = LocalState.DeathDropWorldPos;
         _mapDraw.DeathMarkerMapPos = dd.HasValue ? ToMap(dd.Value.X, dd.Value.Z) : (Vector2?)null;
         _mapDraw.QueueRedraw();
@@ -268,18 +271,19 @@ public partial class WorldMapScreen : CanvasLayer
     {
         public ImageTexture? TerrainTex;
         public ImageTexture? FogTex;
+        public FogOfWarData? FogData;
         public Vector2       PlayerPos;
         public Vector2?      MarkerMapPos;
         public Vector2?      DeathMarkerMapPos;
         public string        YouLabel       = "YOU";
         public string        DeathDropLabel = "DROP";
 
-        private readonly List<(Vector2 pos, Color color, string label)> _nestDots;
+        private readonly List<(Vector2 pos, Color color, string label, float worldX, float worldZ, NestTier tier)> _nestDots;
         private readonly float _mapSize;
         private readonly float _ringPx;
 
         public _MapDrawControl(
-            List<(Vector2 pos, Color color, string label)> nestDots,
+            List<(Vector2 pos, Color color, string label, float worldX, float worldZ, NestTier tier)> nestDots,
             float mapSize,
             float ringPx)
         {
@@ -309,11 +313,16 @@ public partial class WorldMapScreen : CanvasLayer
                 DrawCircle(MarkerMapPos.Value, 5f, new Color(0.35f, 0.75f, 1f));
             }
 
-            // Nest dots.
-            foreach (var (pos, color, _) in _nestDots)
+            // Nest dots — only draw if the nest's cell has been discovered.
+            // Major nests draw larger than Minor ones (tier drives radius).
+            foreach (var (pos, color, _, worldX, worldZ, tier) in _nestDots)
             {
-                DrawCircle(pos, 8f, new Color(0f, 0f, 0f, 0.50f));
-                DrawCircle(pos, 6f, color);
+                // Hide nests under unexplored fog. If no fog data yet, show all.
+                if (FogData != null && !FogData.IsDiscovered(worldX, worldZ)) continue;
+
+                float r = tier == NestTier.Major ? 10f : 6f;
+                DrawCircle(pos, r + 2f, new Color(0f, 0f, 0f, 0.50f)); // shadow
+                DrawCircle(pos, r, color);
             }
 
             // Death drop marker — red X with label.

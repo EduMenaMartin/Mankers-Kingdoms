@@ -14,6 +14,12 @@
   -->
   <ItemGroup>
     <Compile Include="../scripts/shared/**/*.cs" />
+    <!--
+      SaveUtil.cs uses Godot's DirAccess/FileAccess — per ADR-0010 any shared/ file
+      that gains a Godot dependency must be excluded here. The code is only tested
+      at integration time inside the engine.
+    -->
+    <Compile Remove="../scripts/shared/SaveUtil.cs" />
   </ItemGroup>
 
   <ItemGroup>

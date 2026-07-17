@@ -24,15 +24,22 @@ public partial class HealthSystem : Node
 {
     public static HealthSystem Instance { get; private set; } = null!;
 
-    // M5: replace with stat-derived value per character.
-    private const float PLAYER_MAX_HP = 100f;
-
     private const string PLAYERS_PATH = "/root/GameWorld/Players";
 
     // HP for all entities. SortedDictionary: ADR-0011 deterministic iteration.
     private readonly SortedDictionary<long, (float current, float max)> _health  = new();
     // Subset of IDs that are players — drives which death path to take.
     private readonly SortedSet<long>                                     _players = new();
+
+    // Rolled base HP per player (set once at character creation, restored from save).
+    // Null = not yet rolled (e.g. peer connected but stats not received yet).
+    private readonly SortedDictionary<long, float?> _playerBaseHp       = new();
+    // Cumulative Athletics HP bonus: floor(level / 2) — grows as skill levels up.
+    private readonly SortedDictionary<long, int>    _playerAthleticsBonus = new();
+
+    // Seeded RNG for HP rolls: WorldSeed XOR peerId (reproducible but per-player unique).
+    // Only created when the first HP roll is needed.
+    private System.Random? _hpRng;
 
     // Item drops: server-side item maps keyed by drop ID.
     private long _nextDropId = 1L;
@@ -49,10 +56,14 @@ public partial class HealthSystem : Node
 
     private void OnPlayerConnected(long peerId)
     {
-        _health[peerId] = (PLAYER_MAX_HP, PLAYER_MAX_HP);
+        _playerBaseHp[peerId]        = null; // will be set when stats arrive
+        _playerAthleticsBonus[peerId] = 0;
+
+        // Temporary HP until ApplyConstitution resolves the rolled value.
+        _health[peerId] = (100f, 100f);
         _players.Add(peerId);
         SendHealthTo(peerId);
-        GD.Print($"[Health] peer {peerId} registered ({PLAYER_MAX_HP}/{PLAYER_MAX_HP} hp)");
+        GD.Print($"[Health] peer {peerId} registered (pending stat roll)");
 
         // Distribute starting kit from the class the player selected.
         // For the host/solo player this is always correct. Remote clients will call
@@ -73,6 +84,8 @@ public partial class HealthSystem : Node
     {
         _health.Remove(peerId);
         _players.Remove(peerId);
+        _playerBaseHp.Remove(peerId);
+        _playerAthleticsBonus.Remove(peerId);
     }
 
     // ── Class selection RPC ───────────────────────────────────────────────────
@@ -119,6 +132,94 @@ public partial class HealthSystem : Node
 
         // Stats (StatBlock) are managed separately by CombatSystem.RequestSetStats.
         GD.Print($"[Health] peer {sender} confirmed class {classId} ({kit.StartingItems.Length} stacks)");
+    }
+
+    // ── Player HP: rolled base + Athletics growth ─────────────────────────────
+
+    /// <summary>
+    /// Called by CombatSystem.RequestSetStats when a peer's Constitution score arrives.
+    /// If the peer's base HP has not been rolled yet, performs the initial roll and
+    /// broadcasts the new max HP.
+    /// </summary>
+    public void ApplyConstitution(long peerId, int con)
+    {
+        if (!_health.ContainsKey(peerId)) return;
+        if (_playerBaseHp.TryGetValue(peerId, out float? existing) && existing.HasValue)
+            return; // already rolled — stats re-send on load should not re-roll
+
+        // Derive which class kit this peer is using to know the HD count.
+        var kit = ClassKitRegistry.Find(GameSession.ChosenClassId)
+                  ?? ClassKitRegistry.Find("class.fighter");
+        int hd      = kit?.HitDiceCount ?? 4;
+        int dieSize = kit?.HitDieSize   ?? 8;
+
+        float baseHp = RollPlayerHp(peerId, hd, dieSize, con);
+        _playerBaseHp[peerId] = baseHp;
+
+        RecomputeMaxHp(peerId);
+        GD.Print($"[Health] peer {peerId} HP rolled: {hd}d{dieSize}+ConMod({con}) → base {baseHp:F1}");
+    }
+
+    /// <summary>
+    /// Called by SkillSystem.NotifyAction when skill.athletics crosses a new level.
+    /// Awards floor(newLevel/2) - floor(oldLevel/2) bonus HP.
+    /// </summary>
+    public void OnAthleticsLevelUp(long peerId, int newLevel)
+    {
+        if (!_health.ContainsKey(peerId)) return;
+
+        _playerAthleticsBonus.TryGetValue(peerId, out int oldBonus);
+        int newBonus = newLevel / 2;          // floor(level/2)
+        if (newBonus <= oldBonus) return;
+
+        _playerAthleticsBonus[peerId] = newBonus;
+        RecomputeMaxHp(peerId);
+        GD.Print($"[Health] peer {peerId} Athletics level {newLevel} → HP bonus +{newBonus - oldBonus} (total +{newBonus})");
+    }
+
+    /// <summary>
+    /// Returns the peer's rolled base HP for SaveSystem to persist.
+    /// Defaults to 100f if not yet rolled (should not happen in normal flow).
+    /// </summary>
+    public float GetBaseHp(long peerId) =>
+        _playerBaseHp.TryGetValue(peerId, out float? v) && v.HasValue ? v.Value : 100f;
+
+    /// <summary>
+    /// Rolls peerId's starting HP: sum of HitDiceCount rolls of 1dDieSize,
+    /// each clamped to minimum 1, with StatModifier(con) added per die.
+    /// Uses a seeded RNG derived from WorldSeed XOR peerId for reproducibility.
+    /// </summary>
+    private float RollPlayerHp(long peerId, int hd, int dieSize, int con)
+    {
+        // One seeded RNG per HealthSystem lifetime, seeded from WorldSeed.
+        // Each peer salts with its own ID before rolling to avoid identical results.
+        _hpRng ??= new System.Random((int)(GameSession.WorldSeed ^ 0xHP1234u));
+
+        int conMod = CombatResolver.StatModifier(con);
+        float total = 0f;
+        for (int i = 0; i < hd; i++)
+        {
+            int roll = _hpRng.Next(1, dieSize + 1); // 1..dieSize inclusive
+            total += System.Math.Max(1, roll + conMod);
+        }
+        return total;
+    }
+
+    /// <summary>
+    /// Recomputes a peer's MaxHp from baseHp + Athletics bonus, then updates _health
+    /// (clamping current HP to the new max) and syncs to the client.
+    /// </summary>
+    private void RecomputeMaxHp(long peerId)
+    {
+        if (!_health.TryGetValue(peerId, out var h)) return;
+
+        float baseHp     = _playerBaseHp.TryGetValue(peerId, out float? b) && b.HasValue ? b.Value : 100f;
+        int   athBonus   = _playerAthleticsBonus.TryGetValue(peerId, out int ab) ? ab : 0;
+        float newMax     = baseHp + athBonus;
+        float newCurrent = System.Math.Min(h.current, newMax);
+
+        _health[peerId] = (newCurrent, newMax);
+        BroadcastHealth(peerId, newCurrent, newMax);
     }
 
     // ── Bandage use ───────────────────────────────────────────────────────────
@@ -184,13 +285,24 @@ public partial class HealthSystem : Node
     /// <summary>
     /// Overwrites a peer's HP from save data and syncs to the client.
     /// Called by SaveSystem.TryLoad().
+    /// baseHp defaults to hp if the save predates the BaseHp field.
     /// </summary>
-    public void RestoreHpFromSave(long peerId, float hp)
+    public void RestoreHpFromSave(long peerId, float hp, float baseHp = 0f)
     {
         if (!_health.ContainsKey(peerId)) return;
-        _health[peerId] = (Mathf.Max(1f, hp), PLAYER_MAX_HP); // clamp to at least 1 so player isn't dead on load
+
+        // If baseHp was not in the save (old save), use hp as a reasonable baseline.
+        if (baseHp <= 0f) baseHp = hp;
+        _playerBaseHp[peerId] = baseHp;
+
+        // Restore Athletics bonus from SkillSystem if it has loaded skills already.
+        int athLevel = SkillSystem.Instance?.GetSkillLevel(peerId, "skill.athletics") ?? 0;
+        _playerAthleticsBonus[peerId] = athLevel / 2;
+
+        float maxHp  = baseHp + _playerAthleticsBonus[peerId];
+        _health[peerId] = (Mathf.Max(1f, hp), maxHp); // clamp current to at least 1
         SendHealthTo(peerId);
-        GD.Print($"[Health] peer {peerId} HP restored to {hp:F1}");
+        GD.Print($"[Health] peer {peerId} HP restored: {hp:F1}/{maxHp:F1} (base {baseHp:F1}, ath bonus {_playerAthleticsBonus[peerId]})");
     }
 
     /// <summary>Sends the current HP to a peer. Used for reconnect replay.</summary>
@@ -265,7 +377,11 @@ public partial class HealthSystem : Node
         }
 
         // Restore HP and needs before sending respawn so the client never sees 0 at the new position.
-        _health[peerId] = (PLAYER_MAX_HP, PLAYER_MAX_HP);
+        // Use the peer's actual rolled maxHp, not a constant.
+        float baseHp  = _playerBaseHp.TryGetValue(peerId, out float? b) && b.HasValue ? b.Value : 100f;
+        int   athBonus = _playerAthleticsBonus.TryGetValue(peerId, out int ab) ? ab : 0;
+        float maxHp   = baseHp + athBonus;
+        _health[peerId] = (maxHp, maxHp);
         NeedsSystem.Instance?.ResetNeeds(peerId);
 
         var respawnPos = SettlementSystem.Instance.GetRespawnPosition(peerId);

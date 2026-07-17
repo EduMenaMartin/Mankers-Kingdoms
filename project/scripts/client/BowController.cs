@@ -121,6 +121,9 @@ public partial class BowController : Node
         // Never intercept LMB while the building placement ghost is up.
         if (PlacementController.Current?.IsPlacing == true) return false;
 
+        // §15: mutual exclusivity — cannot fire while holding block.
+        if (LocalState.IsBlocking) return false;
+
         var weaponId = GetEquippedRangedWeapon();
         if (weaponId == null) return false;
 

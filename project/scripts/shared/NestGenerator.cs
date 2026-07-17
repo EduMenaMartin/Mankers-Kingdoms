@@ -18,27 +18,28 @@ public static class NestGenerator
     public  const float MAP_HALF        = 96f; // ±96 world-units — safe terrain area
 
     /// <summary>
-    /// Returns 5 nests deterministically placed for the given world seed:
-    ///   2× wolf pack   (2 wolves,             respawn 45 s)
-    ///   2× goblin group (3 goblins,            respawn 60 s)
-    ///   1× bandit camp  (2 bandits + 1 archer, respawn 90 s)
+    /// Returns 3 nests deterministically placed for the given world seed (VERTICAL_SLICE.md §3.8):
+    ///   1× wolf pack  (2 wolves,                            respawn 45 s, Minor)
+    ///   1× goblin den (3 goblins,                           respawn 60 s, Minor)
+    ///   1× raider camp (2 bandits + 1 archer + 1 orc elite, respawn 120 s, Major)
+    ///
+    /// Orc is included in the Major raider camp per §3.6 ("rare, guards higher-value nests").
+    /// Minor nests show a small dot on maps; Major shows a large dot.
     /// </summary>
     public static IReadOnlyList<NestData> Generate(uint worldSeed)
     {
         var rng   = new System.Random((int)(worldSeed ^ 0xDEAD1234u));
         var nests = new List<NestData>();
 
-        (string[] types, float respawnSec)[] templates =
+        (string[] types, float respawnSec, NestTier tier)[] templates =
         [
-            (["monster.wolf",   "monster.wolf"],                                     45f),
-            (["monster.wolf",   "monster.wolf"],                                     45f),
-            (["monster.goblin", "monster.goblin", "monster.goblin"],                60f),
-            (["monster.goblin", "monster.goblin", "monster.goblin"],                60f),
-            (["monster.bandit", "monster.bandit", "monster.bandit_archer"],         90f),
+            (["monster.wolf",   "monster.wolf"],                                                          45f,  NestTier.Minor),
+            (["monster.goblin", "monster.goblin", "monster.goblin"],                                     60f,  NestTier.Minor),
+            (["monster.bandit", "monster.bandit", "monster.bandit_archer", "monster.orc"],              120f,  NestTier.Major),
         ];
 
         int id = 0;
-        foreach (var (types, respawnSec) in templates)
+        foreach (var (types, respawnSec, tier) in templates)
         {
             bool placed = false;
             for (int tries = 0; tries < 200 && !placed; tries++)
@@ -60,7 +61,7 @@ public static class NestGenerator
                 }
                 if (tooClose) continue;
 
-                nests.Add(new NestData(id++, types, x, z, respawnSec));
+                nests.Add(new NestData(id++, types, x, z, respawnSec, Tier: tier));
                 placed = true;
             }
         }

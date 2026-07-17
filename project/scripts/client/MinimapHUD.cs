@@ -9,13 +9,13 @@ namespace MankersKingdoms.Client;
 ///
 /// Renders a greyscale terrain texture baked lazily from TerrainRenderer.CachedHeightmap,
 /// overlaid with:
-///   • White dot    — local player
-///   • Orange dots  — wolf nests
-///   • Green dots   — goblin nests
-///   • Red dots     — bandit camp nests
+///   • Fog overlay   — solid black (UNSEEN), dark grey 60% (SEEN), transparent (VISIBLE)
+///   • White dot     — local player
+///   • Coloured dots — nest positions by type (only once discovered)
 ///   • Blue dot + ring — own Kingdom Marker + territory radius
 ///
 /// Nest positions are generated client-side from NestGenerator (same seed, no RPC needed).
+/// Undiscovered nests are hidden until the player's fog-of-war reveal reaches their cell.
 ///
 /// Editor task: add CanvasLayer node named MinimapHUD with this script to GameWorld.tscn.
 /// </summary>
@@ -26,8 +26,9 @@ public partial class MinimapHUD : CanvasLayer
     private const string PLAYERS_PATH      = "/root/GameWorld/Players";
     private const string SETTLEMENT_PATH   = "/root/GameWorld/SettlementSystem";
 
-    private _DrawControl _draw = null!;
-    private bool         _textureBaked;
+    private _DrawControl  _draw = null!;
+    private bool          _textureBaked;
+    private ImageTexture? _fogTex;
 
     // Computed once in _Ready.
     private float _halfW, _halfH;
@@ -47,11 +48,15 @@ public partial class MinimapHUD : CanvasLayer
         _halfH = (cfg.MapHeight - 1) * cfg.TileSize * 0.5f;
 
         // Pre-compute nest dot list — positions are deterministic.
-        var nestDots = new List<(Vector2 pos, Color color)>();
+        // World coords and tier kept alongside map coords so fog can gate visibility
+        // and Major nests can be drawn larger.
+        var nestDots = new List<(Vector2 pos, Color color, float worldX, float worldZ, NestTier tier)>();
         foreach (var nest in NestGenerator.Generate(GameSession.WorldSeed))
-            nestDots.Add((ToMap(nest.WorldX, nest.WorldZ), NestColor(nest.MonsterTypeIds[0])));
+            nestDots.Add((ToMap(nest.WorldX, nest.WorldZ),
+                          NestColor(nest.MonsterTypeIds[0]),
+                          nest.WorldX, nest.WorldZ, nest.Tier));
 
-        _draw = new _DrawControl(nestDots, MAP_SIZE, TERRITORY_RADIUS_W / (_halfW * 2f) * MAP_SIZE)
+        _draw = new _DrawControl(nestDots, MAP_SIZE, TERRITORY_RADIUS_W / (_halfW * 2f) * MAP_SIZE)  // NestTier in tuple drives dot size
         {
             AnchorLeft   = 1f, AnchorRight  = 1f,
             AnchorTop    = 0f, AnchorBottom = 0f,
@@ -64,6 +69,16 @@ public partial class MinimapHUD : CanvasLayer
 
         var ss = GetNodeOrNull(SETTLEMENT_PATH);
         ss?.Connect("MarkerPlanted", new Callable(this, MethodName.OnMarkerPlanted));
+
+        // Subscribe to fog updates so the overlay texture is rebuilt on each change.
+        LocalState.FogChanged += OnFogChanged;
+        // Bake immediately if fog data arrived before the minimap was ready.
+        if (LocalState.FogSnapshot != null) BakeFogTexture(LocalState.FogSnapshot);
+    }
+
+    public override void _ExitTree()
+    {
+        LocalState.FogChanged -= OnFogChanged;
     }
 
     public override void _Process(double _delta)
@@ -74,7 +89,7 @@ public partial class MinimapHUD : CanvasLayer
             var h = TerrainRenderer.CachedHeightmap;
             if (h.Length > 0)
             {
-                _draw.TerrainTex = BakeTexture(h);
+                _draw.TerrainTex = BakeTerrainTexture(h);
                 _textureBaked    = true;
             }
         }
@@ -86,6 +101,8 @@ public partial class MinimapHUD : CanvasLayer
 
         _draw.PlayerPos         = _playerMapPos;
         _draw.MarkerMapPos      = _markerMapPos;
+        _draw.FogTex            = _fogTex;
+        _draw.FogData           = LocalState.FogSnapshot;
         var dd = LocalState.DeathDropWorldPos;
         _draw.DeathMarkerMapPos = dd.HasValue ? ToMap(dd.Value.X, dd.Value.Z) : (Vector2?)null;
         _draw.QueueRedraw();
@@ -97,6 +114,31 @@ public partial class MinimapHUD : CanvasLayer
     {
         if (peerId == Multiplayer.GetUniqueId())
             _markerMapPos = ToMap(pos.X, pos.Z);
+    }
+
+    // ── Fog ───────────────────────────────────────────────────────────────────
+
+    private void OnFogChanged()
+    {
+        if (LocalState.FogSnapshot != null)
+            BakeFogTexture(LocalState.FogSnapshot);
+    }
+
+    private void BakeFogTexture(FogOfWarData fog)
+    {
+        var img = Image.CreateEmpty(fog.Width, fog.Height, false, Image.Format.Rgba8);
+        for (int x = 0; x < fog.Width; x++)
+        for (int z = 0; z < fog.Height; z++)
+        {
+            var col = fog.GetCell(x, z) switch
+            {
+                FogOfWarData.VISIBLE => new Color(0f, 0f, 0f, 0f),     // transparent — terrain shows
+                FogOfWarData.SEEN    => new Color(0f, 0f, 0f, 0.60f),  // semi-dark — previously visited
+                _                    => new Color(0f, 0f, 0f, 1f),     // solid black — never seen
+            };
+            img.SetPixel(x, z, col);
+        }
+        _fogTex = ImageTexture.CreateFromImage(img);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -113,7 +155,7 @@ public partial class MinimapHUD : CanvasLayer
         _                => new Color(0.90f, 0.20f, 0.20f), // red (bandits + fallback)
     };
 
-    private ImageTexture BakeTexture(float[,] h)
+    private ImageTexture BakeTerrainTexture(float[,] h)
     {
         var cfg = TerrainConfig.Default;
         var img = Image.CreateEmpty(cfg.MapWidth, cfg.MapHeight, false, Image.Format.Rgb8);
@@ -140,21 +182,23 @@ public partial class MinimapHUD : CanvasLayer
         return ImageTexture.CreateFromImage(img);
     }
 
-    // ── Inner draw control (non-partial — no exports/signals, no source-gen needed) ──
+    // ── Inner draw control ────────────────────────────────────────────────────
 
     private sealed partial class _DrawControl : Control
     {
-        public ImageTexture? TerrainTex;
-        public Vector2       PlayerPos;
-        public Vector2?      MarkerMapPos;
-        public Vector2?      DeathMarkerMapPos;
+        public ImageTexture?  TerrainTex;
+        public ImageTexture?  FogTex;
+        public FogOfWarData?  FogData;
+        public Vector2        PlayerPos;
+        public Vector2?       MarkerMapPos;
+        public Vector2?       DeathMarkerMapPos;
 
-        private readonly List<(Vector2 pos, Color color)> _nestDots;
+        private readonly List<(Vector2 pos, Color color, float worldX, float worldZ, NestTier tier)> _nestDots;
         private readonly float _mapSize;
         private readonly float _territoryRingPx;
 
         public _DrawControl(
-            List<(Vector2 pos, Color color)> nestDots,
+            List<(Vector2 pos, Color color, float worldX, float worldZ, NestTier tier)> nestDots,
             float mapSize,
             float territoryRingPx)
         {
@@ -174,6 +218,10 @@ public partial class MinimapHUD : CanvasLayer
             if (TerrainTex != null)
                 DrawTextureRect(TerrainTex, rect, false);
 
+            // Fog overlay — drawn over terrain so unexplored areas are blacked out.
+            if (FogTex != null)
+                DrawTextureRect(FogTex, rect, false);
+
             // Territory ring + marker dot.
             if (MarkerMapPos.HasValue)
             {
@@ -182,11 +230,16 @@ public partial class MinimapHUD : CanvasLayer
                 DrawCircle(MarkerMapPos.Value, 3f, new Color(0.35f, 0.75f, 1f));
             }
 
-            // Nest dots.
-            foreach (var (pos, color) in _nestDots)
+            // Nest dots — only draw if the nest's cell has been discovered.
+            // Major nests draw larger (7 px) than Minor ones (4 px).
+            foreach (var (pos, color, worldX, worldZ, tier) in _nestDots)
             {
-                DrawCircle(pos, 5f, new Color(0f, 0f, 0f, 0.45f)); // drop shadow
-                DrawCircle(pos, 4f, color);
+                // Hide nests under unexplored fog. If no fog data yet, show all.
+                if (FogData != null && !FogData.IsDiscovered(worldX, worldZ)) continue;
+
+                float r = tier == NestTier.Major ? 7f : 4f;
+                DrawCircle(pos, r + 1.5f, new Color(0f, 0f, 0f, 0.45f)); // drop shadow
+                DrawCircle(pos, r, color);
             }
 
             // Death drop marker — red X.
@@ -198,7 +251,7 @@ public partial class MinimapHUD : CanvasLayer
                 DrawLine(p + new Vector2(5f, -5f),  p + new Vector2(-5f, 5f), red, 2f);
             }
 
-            // Player dot.
+            // Player dot — always visible.
             DrawCircle(PlayerPos, 5f, new Color(0f, 0f, 0f, 0.55f));
             DrawCircle(PlayerPos, 4f, Colors.White);
 

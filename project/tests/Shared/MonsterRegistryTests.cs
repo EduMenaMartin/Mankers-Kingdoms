@@ -6,9 +6,75 @@ namespace MankersKingdoms.Tests.Shared;
 public class MonsterRegistryTests
 {
     [Fact]
-    public void All_ContainsFourMonsters()
+    public void All_ContainsFiveMonsters()
     {
-        Assert.Equal(4, MonsterRegistry.All.Count);
+        // Wolf, Goblin, Bandit, BanditArcher, Orc
+        Assert.Equal(5, MonsterRegistry.All.Count);
+    }
+
+    [Fact]
+    public void Orc_FoundById()
+    {
+        var m = MonsterRegistry.Find("monster.orc");
+        Assert.NotNull(m);
+        Assert.Equal("monster.orc", m.Id);
+    }
+
+    [Fact]
+    public void Orc_HasExpectedHpFromHdFormula()
+    {
+        // 18 HD d8, Con 16 → ConMod = floor((16-10)/4) = 1
+        // MaxHp = 18 × ((8+1)/2) + 1×18 = 18×4.5 + 18 = 81 + 18 = 99
+        var m = MonsterRegistry.Find("monster.orc")!;
+        Assert.Equal(99f, m.MaxHp, precision: 0);
+    }
+
+    [Fact]
+    public void Goblin_HpMatchesHdFormula()
+    {
+        // 7 HD d8, Con 10 → ConMod = 0 → MaxHp = 7 × 4.5 = 31.5
+        var m = MonsterRegistry.Find("monster.goblin")!;
+        Assert.Equal(31.5f, m.MaxHp, precision: 1);
+    }
+
+    [Fact]
+    public void Bandit_HpMatchesHdFormula()
+    {
+        // 11 HD d8, Con 14 → ConMod = floor((14-10)/4) = 1 → MaxHp = 11×4.5 + 11×1 = 49.5+11 = 60.5
+        var m = MonsterRegistry.Find("monster.bandit")!;
+        Assert.Equal(60.5f, m.MaxHp, precision: 1);
+    }
+
+    [Fact]
+    public void Orc_IsMeleeElite()
+    {
+        var m = MonsterRegistry.Find("monster.orc")!;
+        Assert.False(m.IsRanged);
+        Assert.Equal(5, m.AttackBonus);
+        Assert.Equal(14, m.TargetNumber);
+        Assert.Equal("1d10", m.DamageDice);
+    }
+
+    [Fact]
+    public void Humanoids_HaveHitDiceData()
+    {
+        // All humanoids should have HitDiceCount > 0 now.
+        string[] humanoidIds = ["monster.goblin", "monster.bandit", "monster.bandit_archer", "monster.orc"];
+        foreach (var id in humanoidIds)
+        {
+            var m = MonsterRegistry.Find(id)!;
+            Assert.True(m.HitDiceCount > 0, $"{id} should have HitDiceCount > 0");
+            Assert.True(m.ConstitutionScore.HasValue, $"{id} should have a ConstitutionScore");
+        }
+    }
+
+    [Fact]
+    public void Wolf_HasNoHitDiceData()
+    {
+        // Beasts use flat MaxHp, not the HD formula.
+        var m = MonsterRegistry.Find("monster.wolf")!;
+        Assert.Equal(0, m.HitDiceCount);
+        Assert.Null(m.ConstitutionScore);
     }
 
     [Fact]

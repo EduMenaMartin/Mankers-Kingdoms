@@ -64,14 +64,16 @@ Rationale: our skill-cap formula (ADR-0019, `floor(99 × stat / 18)`) already do
 
 ### 2.5 Composition with existing swing/block system
 
-The existing directional facing/range/block check (`VERTICAL_SLICE.md` §3.4) remains a **prerequisite gate** before this roll ever happens:
+> **Superseded — see §15 (block redesign, 2026-07-17).** Active blocking no longer acts as a hard binary gate. See §15 for the current rule: mutual exclusivity (block XOR attack) plus a +4 TN bonus while blocking.
 
-1. Client sends swing/fire input.
-2. Server checks geometry: is the target in range, in the swing arc / arrow path, and not actively blocking? If this fails, the attempt never reaches the dice roll — same as today.
-3. If the geometry gate passes, the server runs the attack roll (§2.2) to determine hit/miss.
-4. If hit, the server runs the damage roll (§3).
+~~The existing directional facing/range/block check (`VERTICAL_SLICE.md` §3.4) remains a **prerequisite gate** before this roll ever happens:~~
 
-**Active blocking** is treated as a hard binary gate at step 2 (block = attack never reaches the dice roll) — not folded into the Target Number math. This keeps blocking feeling responsive and skill-based, while the dice layer governs the *unblocked* outcome.
+~~1. Client sends swing/fire input.~~
+~~2. Server checks geometry: is the target in range, in the swing arc / arrow path, and not actively blocking? If this fails, the attempt never reaches the dice roll — same as today.~~
+~~3. If the geometry gate passes, the server runs the attack roll (§2.2) to determine hit/miss.~~
+~~4. If hit, the server runs the damage roll (§3).~~
+
+~~**Active blocking** is treated as a hard binary gate at step 2 (block = attack never reaches the dice roll) — not folded into the Target Number math. This keeps blocking feeling responsive and skill-based, while the dice layer governs the *unblocked* outcome.~~
 
 ---
 
@@ -321,7 +323,9 @@ Extends `docs/gdd/inventory.md`'s item schema and this document's §7:
 
 ## 12. Simultaneous block-and-attack (addition)
 
-**Status:** locked. Fixes an unaddressed gap found during testing — no locked rule previously existed governing whether blocking and attacking could occur simultaneously, so the current implementation allows both with no trade-off, which is inconsistent with the rest of this document's design.
+> **Superseded — see §15 (block redesign, 2026-07-17).** The simultaneous-block-and-attack rule (Option B, −3 AB penalty) is replaced by full mutual exclusivity. Blocking and attacking are now strictly mutually exclusive — the −3 AB penalty is removed. See §15 for the current rule.
+
+**Status:** ~~locked~~ superseded. Fixes an unaddressed gap found during testing — no locked rule previously existed governing whether blocking and attacking could occur simultaneously, so the current implementation allows both with no trade-off, which is inconsistent with the rest of this document's design.
 
 ### 12.1 The decision
 
@@ -392,3 +396,68 @@ Target Number formula (§2.2), armor/shield effects (§2.2, §11), and the damag
 1. Exact "wide margin" threshold for the strong-roll auto-crit case (§13.3) — placeholder, balancing pass, not architectural.
 2. Whether a fumble-equivalent should exist for Ranged at all (e.g. a natural-1 roll on a landed shot causes a minor complication like a slow nock/reload delay on the next shot) — deferred, not blocking v1.
 3. Whether NPC/monster ranged attackers (e.g. a future Bandit Archer per `VERTICAL_SLICE.md` §3.6) use this same asymmetric model, or the standard full-roll model from §2.2 — recommend the same treatment for consistency, but not yet confirmed.
+
+---
+
+## 15. Block redesign — mutual exclusivity and active TN bonus (supersedes §2.5 and §12)
+
+**Status:** locked, 2026-07-17. Supersedes §2.5 (hard binary block gate) and §12 (simultaneous block-and-attack with −3 AB penalty).
+
+### 15.1 The problem with the superseded rules
+
+§2.5 made blocking **free invulnerability**: zero cost (no stamina, no time limit, no movement penalty), pure binary negation. §12 attempted to add a trade-off (−3 AB penalty while attacking-while-blocking) but was contradicted by §2.5's logic (if block = hard negation, when do you ever fight while blocking?). The two sections were inconsistent with each other.
+
+### 15.2 The new rule
+
+**Blocking and attacking are mutually exclusive.** A player holding block (RMB) cannot swing (LMB) or fire. Enforced at two layers:
+
+1. **Client-side (UX):** `MeleeController._UnhandledInput` ignores LMB while `_isBlocking` is true; `BowController.TryFireBow()` returns early if `LocalState.IsBlocking` is true. These are UX guards only — they do not define correctness.
+
+2. **Server-side (authoritative):** `CombatSystem.RequestMeleeAttack` returns early if `IsBlocking(sender)` is true; `ProjectileSystem.RequestFireProjectile` returns early if `CombatSystem.Instance.IsBlocking(sender)` is true. Per `ARCHITECTURE.md §4.4`, client-only validation is never sufficient — these server gates are the enforceable rule.
+
+**Active blocking grants a +4 TN bonus while holding block with a shield equipped.**
+
+- Applied in `CombatSystem.GetPlayerTargetNumber`: `if (IsBlocking(peerId) && shieldBonus > 0) tn += 4`
+- Stacks with the passive `ShieldBonus` (+2) — total shield contribution while actively blocking: +6 to TN
+- Re-verifies shield equipped at hit time (`shieldBonus > 0` from ArmorRegistry) to prevent stale-block state from granting the bonus after a shield is dropped
+
+### 15.3 Effects by attack type — intentional asymmetry
+
+Active blocking has a **real but distinct effect** against each attack type:
+
+**vs. Melee:** The +4 TN bonus reduces the attacker's hit frequency. Orc (AB 5) example: 70% → 50% hit chance. The dice roll still happens — blocking is no longer a hard negation gate (§2.5 superseded) — but landing a blow becomes measurably harder.
+
+**vs. Ranged:** Physical contact is automatic (§13.1) — blocking does **not** reduce how often arrows hit. Instead, actively blocking raises the ranged **crit threshold**: scoring a critical hit requires `roll == 20 AND rollTotal ≥ 24`, versus the unblocked condition of `roll == 20` only.
+
+Threshold value 24 = 20 + 4, mirroring the +4 melee TN bonus — the same shield contribution, expressed on a different axis (crit severity vs. hit frequency).
+
+Bandit Archer (AB 3) vs. blocking Fighter:
+- Physical hit rate: **unchanged** (auto-hit on contact)
+- Crit chance before blocking: **5%** (nat20 → rollTotal 23)
+- Crit chance while actively blocking: **0%** (rollTotal 23 < threshold 24)
+
+The Bandit Archer's shots still connect at the same rate; the raised shield makes finding a vital gap impossible. An attacker with AB ≥ 4 (rollTotal on nat20 = 24) would still score crits.
+
+Passive `ShieldBonus` (+2) always applies while a shield is equipped — the +4 active block bonus (melee) and BLOCKING_CRIT_THRESHOLD (ranged) stack on top of this baseline and only activate while RMB is held.
+
+### 15.4 Worked example (Fighter vs Orc, AB 5)
+
+| Situation | Fighter TN | Orc needs to roll | Orc hit chance |
+|---|---|---|---|
+| Unblocked, shield equipped (passive +2) | 12 | 7+ | 70% |
+| Actively blocking (+4 active bonus, +2 passive) | 16 | 11+ | 50% |
+| Unblocked, shield + leather armor (+1 AV) | 13 | 8+ | 65% |
+| Actively blocking, shield + leather | 17 | 12+ | 45% |
+
+Delta: −20 percentage points from active block. Meaningful trade-off — gives up your attack turn for a real but non-trivial defensive improvement.
+
+### 15.5 Removed from codebase
+
+- `CombatSystem.RequestMeleeAttack` lines that hard-negated attacks against blocking defenders (§2.5 gate)
+- `CombatSystem.RequestMeleeAttack` line: `if (IsBlocking(sender)) attackBonus -= 3` (§12 penalty)
+- `ProjectileSystem._PhysicsProcess` shield re-check block gate (projectile hard-negation, also §2.5)
+
+### 15.6 Open questions
+
+1. Whether monster NPC AI should ever enter a blocking state (if so, they'd benefit from the same +4 TN bonus) — not yet specified; low priority since AI complexity is post-slice.
+2. Whether the +4 value needs balancing once armor variety increases — a pure Heavy-armor tank (high ArmorValue, Dex mod 0) may find the blocking trade-off less attractive if their passive TN is already high.

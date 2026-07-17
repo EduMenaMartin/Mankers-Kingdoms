@@ -137,6 +137,17 @@ public static class LocalState
     public static void NotifyArrowRemoved(long id)
         => ArrowRemoved?.Invoke(id);
 
+    // ── Block state ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// True while the local player is actively holding block (RMB held + shield equipped).
+    /// Written by MeleeController; read by BowController to enforce mutual exclusivity (§15).
+    /// </summary>
+    public static bool IsBlocking { get; private set; } = false;
+
+    /// <summary>Called by MeleeController.SetBlocking after updating its own _isBlocking field.</summary>
+    public static void SetBlocking(bool isBlocking) => IsBlocking = isBlocking;
+
     // ── Combat / build mode ───────────────────────────────────────────────────
 
     /// <summary>

@@ -2,6 +2,25 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [P1] Fog of war not visible on minimap or world map (2026-07-17)
+
+**Milestone found:** M8, discovered M9
+**Reproduce:** Start a new game, walk around for 30+ seconds, open world map (M) — terrain is fully visible with no fog overlay; minimap also shows full terrain without fog.
+**Expected:** Unexplored areas blacked out; explored-but-not-currently-visible areas shown in dark grey; visible area (within ~40m) fully revealed.
+**Two root causes:**
+
+1. **FogSystem node missing from GameWorld.tscn (editor task never confirmed done).**
+   The M8 session logged an editor task: "Add `FogSystem` node (script: `res://scripts/server/FogSystem.cs`) to `GameWorld.tscn` after VillageSystem and before SaveSystem." This was never marked complete. Without the node, `FogSystem._Process` never runs → no fog data is ever generated or broadcast → `LocalState.FogSnapshot` stays null → `WorldMapScreen._fogTex` stays null → no overlay drawn.
+   **Fix (editor):** Add `FogSystem` node to `GameWorld.tscn` (same as BushSystem / HerbSystem — plain `Node`, script `res://scripts/server/FogSystem.cs`).
+
+2. **MinimapHUD has no fog support at all.**
+   `WorldMapScreen` has full fog overlay code (`_fogTex` field, `BakeFogTexture`, `FogChanged` subscription, draws fog layer between terrain and entities in `_Draw`). `MinimapHUD` has none of this — no subscription, no texture field, no draw call. Even after fixing #1, the minimap will never show fog.
+   **Fix (code):** Mirror the WorldMapScreen fog pattern into MinimapHUD: add `ImageTexture? FogTex` to `_DrawControl`, subscribe `LocalState.FogChanged` in `_Ready`, unsubscribe in `_ExitTree`, call `BakeFogTexture` on change, pass `_fogTex` to `_draw.FogTex` each `_Process` frame, draw it in `_DrawControl._Draw` between terrain and entities.
+
+Status: FIXED (2026-07-17) — FogSystem node confirmed present (Edu). MinimapHUD fog overlay + fog-gated nest visibility added. WorldMapScreen nest visibility fog-gated. `FogOfWarData.IsDiscovered()` added as shared helper.
+
+---
+
 ## [P2] Every new game generates the same world — WorldSeed never randomised (2026-07-15)
 
 **Milestone found:** M2 (terrain), discovered M9

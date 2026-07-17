@@ -26,5 +26,13 @@ public sealed record ClassKitData(
     string           ClassId,
     string           DisplayNameKey,
     ClassSkillBump[] SkillBumps,
-    ClassKitItem[]   StartingItems
+    ClassKitItem[]   StartingItems,
+
+    /// <summary>
+    /// Number of Hit Dice rolled at character creation to determine base MaxHp.
+    /// HealthSystem rolls HitDiceCount × 1dHitDieSize, each die min 1,
+    /// then adds StatModifier(Con) per die. See HealthSystem.RollPlayerHp.
+    /// </summary>
+    int HitDiceCount = 4,
+    int HitDieSize   = 8
 );

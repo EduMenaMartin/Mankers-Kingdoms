@@ -588,10 +588,28 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [x] **Herb patches (HerbGenerator + HerbSystem)** — 30 deterministic herb patch nodes (purple spheres) with 60s harvest cooldown; server NPC API exposed.
 - [x] **Forager NPC movement loop** — replaced static 30s timer with woodcutter-style movement: NPC walks to nearest herb patch or berry bush, harvests, carries (cap 6), walks to stockpile, deposits herbs + berries separately. BushSystem gained NPC harvest API.
 
+### Block system redesign (2026-07-18) ✅ code complete
+- [x] **Mutual exclusivity (block XOR attack)** — `MeleeController` LMB guard; `BowController.TryFireBow()` guard; `LocalState.IsBlocking` bridge property; server gates in `RequestMeleeAttack` (replaces §2.5 hard-negation) and `RequestFireProjectile` (new gate after disarm check)
+- [x] **Active block TN bonus +4** — `CombatSystem.GetPlayerTargetNumber`: adds +4 when `IsBlocking(peerId) && shieldBonus > 0`; shield re-verified at hit time. Orc vs Fighter: 70% → 50% hit chance while blocking.
+- [x] **Remove §12 penalty** — `if (IsBlocking(sender)) attackBonus -= 3` removed from `RequestMeleeAttack`
+- [x] **Ranged crit threshold** — `BLOCKING_CRIT_THRESHOLD = 24` in ProjectileSystem; `isCrit = tgtBlocking ? (roll==20 && rollTotal>=24) : (roll==20)`; Bandit Archer crit vs blocking: 5% → 0%
+- [x] **combat.md §15** — full rule text; §2.5 and §12 marked superseded; intentional melee/ranged asymmetry documented in §15.3
+- [x] **IDEAS_BACKLOG** — [post-slice] entry: BLOCKING_CRIT_THRESHOLD coincidental to Bandit Archer AB 3; revisit for any AB ≥ 4 ranged enemy
+
+### Pre-playtest HP + encounter fixes (2026-07-17) ✅ code complete
+- [x] **Fog of war on minimap** — `MinimapHUD` full fog overlay; `FogOfWarData.IsDiscovered` gates nest visibility on both maps. BUGS.md [P1] closed.
+- [x] **Orc elite monster** — `MonsterRegistry` new entry (18 HD d8, Con 16, 99 HP, AB 5, TN 14, 1d10 slashing); `en.json` name/desc.
+- [x] **Nest tiering** — `NestTier` enum (Minor/Major); `NestData.Tier` field; `NestGenerator` Option B: 3 nests (Wolf Minor, Goblin Minor, Raider Major with Orc). Major dot larger on mini+world maps.
+- [x] **Humanoid HP from HD formula** — Goblin 31.5, Bandit 60.5, BanditArcher 40.5 (all via `ComputeHp` in MonsterRegistry).
+- [x] **Rolled player HP** — `ClassKitData.HitDiceCount/HitDieSize`; `HealthSystem.RollPlayerHp`; `ApplyConstitution` called from `CombatSystem.RequestSetStats`; result stored in `_playerBaseHp`.
+- [x] **Athletics HP growth** — `floor(level/2)` bonus HP; `HealthSystem.OnAthleticsLevelUp` called from `SkillSystem.NotifyAction`; `RecomputeMaxHp` recomputes and broadcasts.
+- [x] **HP persistence** — `SaveData.PlayerSave.BaseHp`; saved in `SaveSystem.Save()`; restored in `RestoreHpFromSave(peerId, hp, baseHp)`.
+- [x] **Test rebuild** — fixed `SaveUtil.cs` test exclusion (ADR-0010), updated stale `SkillRegistryTests`, 9 new MonsterRegistryTests, 9 new NestGeneratorTests, 14 new HpFormulaTests. **350 tests, 0 failures**.
+
 ### Editor tasks (Edu — required before playtest)
-- [ ] Add `HerbSystem` node (script: `res://scripts/server/HerbSystem.cs`) to `GameWorld.tscn` after `BushSystem`. Plain `Node`.
-- [ ] Create `scenes/WoodenWall.tscn` — Node3D + StaticBody3D + BoxMesh 2×3×0.4 + BoxShape3D, collision layer 8.
-- [ ] Create `scenes/WoodenGate.tscn` — same spec as WoodenWall (no interaction yet).
+- [x] Add `HerbSystem` node (script: `res://scripts/server/HerbSystem.cs`) to `GameWorld.tscn` after `BushSystem`. Plain `Node`.
+- [x] Create `scenes/WoodenWall.tscn` — Node3D + StaticBody3D + BoxMesh 2×3×0.4 + BoxShape3D, collision layer 8.
+- [x] Create `scenes/WoodenGate.tscn` — same spec as WoodenWall (no interaction yet).
 
 ### Playtest session
 - [ ] Schedule and run 30–60 min session with a friend (host + join over LAN/ENet)

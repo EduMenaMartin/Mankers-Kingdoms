@@ -32,7 +32,9 @@ public static class ClassKitRegistry
             [
                 new ClassKitItem("item.weapon.longsword", 1),
                 new ClassKitItem("item.armor.shield",     1),
-            ]
+            ],
+            HitDiceCount: 4,  // 4d8 + ConMod×4 at creation; avg Con 10 → ~18 HP
+            HitDieSize:   8
         ),
         new ClassKitData(
             ClassId:        "class.ranger",
@@ -46,7 +48,9 @@ public static class ClassKitRegistry
             [
                 new ClassKitItem("item.weapon.shortbow", 1),
                 new ClassKitItem("item.arrow",           20),
-            ]
+            ],
+            HitDiceCount: 3,  // 3d8 + ConMod×3 at creation; avg Con 10 → ~13.5 HP
+            HitDieSize:   8
         ),
     };
 

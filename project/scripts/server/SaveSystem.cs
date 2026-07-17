@@ -139,8 +139,9 @@ public partial class SaveSystem : Node
                     ps.SkillBumps = SkillSystem.Instance.GetBumpsForSave(peerId);
                 }
 
-                // HP.
-                ps.Hp = HealthSystem.Instance.GetHealth(peerId)?.CurrentHp ?? 100f;
+                // HP (current + rolled base so MaxHp is correctly restored on load).
+                ps.Hp     = HealthSystem.Instance.GetHealth(peerId)?.CurrentHp ?? 100f;
+                ps.BaseHp = HealthSystem.Instance.GetBaseHp(peerId);
 
                 // Needs.
                 if (NeedsSystem.Instance != null)
@@ -273,7 +274,7 @@ public partial class SaveSystem : Node
                 peerId, ps.Items, ps.HotbarSlots,
                 ps.EquippedMainHand, ps.EquippedOffHand, ps.EquippedBodyArmor);
             SkillSystem.Instance?.RestoreSkillsFromSave(peerId, ps.SkillXp, ps.SkillBumps);
-            HealthSystem.Instance?.RestoreHpFromSave(peerId, ps.Hp);
+            HealthSystem.Instance?.RestoreHpFromSave(peerId, ps.Hp, ps.BaseHp);
             NeedsSystem.Instance?.RestoreNeedsFromSave(peerId, ps.Hunger, ps.Rest);
 
             // Move player to saved position (skip if position is origin, which means it wasn't saved).

@@ -87,6 +87,8 @@ public partial class SkillSystem : Node
             GD.Print($"[Skill] peer {peerId} {skillId} → level {newLevel} (xp {rawXp})");
             SendLevelTo(peerId, skillId, newLevel);
             CheckToolTierGrants(peerId, skill, oldLevel, newLevel);
+            if (skillId == "skill.athletics")
+                HealthSystem.Instance?.OnAthleticsLevelUp(peerId, newLevel);
         }
     }
 

@@ -28,7 +28,15 @@ public sealed record MonsterData(
     float    AggroRange,
     float    AttackRange,
     float    AttackCooldown,
-    bool     IsRanged       = false,
-    string?  RangedWeaponId = null,
-    string[] LootTable      = null!       // initialised to empty array by MonsterRegistry
+    bool     IsRanged          = false,
+    string?  RangedWeaponId    = null,
+    string[] LootTable         = null!,   // initialised to empty array by MonsterRegistry
+
+    /// <summary>
+    /// Hit dice used to compute MaxHp for humanoids (MonsterRegistry.ComputeHp).
+    /// Beasts use flat MaxHp and leave these at 0.
+    /// </summary>
+    int      HitDiceCount      = 0,
+    int      HitDieSize        = 8,
+    int?     ConstitutionScore = null
 );

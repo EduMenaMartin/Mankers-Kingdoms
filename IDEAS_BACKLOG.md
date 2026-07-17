@@ -260,10 +260,29 @@ timer expires. Regrowth timer should be saved as elapsed seconds-remaining so a
 save→quit→reload cycle preserves how far along each tree's regrowth is.
 Depends on: tree state save/load (done M8).
 
+### 2026-07-17 — [post-slice] Drag-to-place wall segments
+
+When placing WoodenWall or WoodenGate, hold the place button and drag to auto-fill a line of wall segments rather than placing one at a time. Implementation sketch: `PlacementController` detects drag start position on LMB-down; on LMB-up, snaps a straight line of segments (capped at some max, e.g. 10) between start and end positions, each spaced by the building's footprint width; fires one `RequestPlaceBuilding` RPC per segment; deducts total wood cost in one validation step server-side. Requires `SettlementSystem` to support batched placement (or a loop of individual RPCs). The ghost-preview during drag should show the projected segment line. Only relevant for wall-type buildings (footprint ratio >> 1 in one axis).
+
 ### 2026-07-13 — [post-slice] Woodcutter NPC reforestation job
 A second job type for the Woodcutter's Post: "Reforester" role plants saplings near
 felled stumps to replenish the tree supply. Requires: sapling item, planting animation
 placeholder, TreeSystem.PlantTree(worldX, worldZ) server method that inserts a new
 seeded tree ID and starts its regrowth timer. Pairs with tree regrowth above.
 Gated on: tree regrowth system.
+
+### 2026-07-18 — [post-slice] Ranged crit threshold is coincidental to Bandit Archer's AB
+
+The `BLOCKING_CRIT_THRESHOLD = 24` in `ProjectileSystem` was chosen to mirror the +4
+melee active-block TN bonus (20 + 4 = 24). This has a specific consequence: any ranged
+attacker with AB ≥ 4 (rollTotal on nat20 = 24) gets **zero** benefit from their target
+blocking — crit chance stays at 5% regardless. Currently the only ranged NPC is Bandit
+Archer (AB 3), which falls below the threshold and gets crit-potential fully blocked.
+
+If a second ranged enemy type is ever added with AB ≥ 4, blocking will do nothing against
+their crits, reopening the "blocking has no ranged effect" problem at a higher tier.
+
+Revisit before adding any new ranged enemy: either raise the threshold relative to that
+enemy's AB, or redesign the ranged blocking mechanic to scale with attacker AB (e.g.
+`BLOCKING_CRIT_THRESHOLD = 20 + max(attackBonus, 0) + 4` computed per-shot).
 
