@@ -15,7 +15,7 @@ namespace MankersKingdoms.Server;
 /// sphere-tests vs players and monsters (layers 32+64). On hit → HealthSystem.ApplyDamage
 /// + ClientRemoveArrow RPC. Projectiles also expire after MAX_LIFETIME_SEC.
 ///
-/// Extends Node3D (not Node) so GetWorld3D() is available for physics queries.
+/// Extends Node (not Node3D). GetWorld3D() is obtained via GetViewport().GetWorld3D().
 /// Node must appear in GameWorld.tscn AFTER HealthSystem and InventorySystem.
 /// </summary>
 public partial class ProjectileSystem : Node

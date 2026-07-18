@@ -13,13 +13,5 @@ public sealed record BuildingData(
     IReadOnlyDictionary<string,int> Cost,
     float                           Width,
     float                           Height,
-    float                           Depth,
-    /// <summary>
-    /// Optional presence gate. If non-null, this building can only be placed when the
-    /// specified class (e.g. "class.ranger") is present in the settlement — either as
-    /// the founder's own class or as an assigned NPC of the matching archetype.
-    /// Null means no gate (any founder can build it).
-    /// Checked server-side in SettlementSystem.RequestPlaceBuilding; reflected in BuildMenu UI.
-    /// </summary>
-    string?                         RequiresPresence = null
+    float                           Depth
 );

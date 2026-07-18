@@ -39,7 +39,7 @@ public static class VillageGenerator
         uint worldSeed,
         IReadOnlyList<string> namePool)
     {
-        var rng = new Random((int)(worldSeed ^ 0xB11A6E00u));
+        var rng = new System.Random((int)(worldSeed ^ 0xB11A6E00u));
 
         // ── Village placement: random angle, fixed distance band from origin ────
         double angle = rng.NextDouble() * Math.PI * 2.0;

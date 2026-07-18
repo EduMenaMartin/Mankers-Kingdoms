@@ -207,8 +207,21 @@ public partial class BowController : Node
 
     // ── Utilities ─────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Returns the equipped ranged weapon ID.
+    /// Reads LocalState.EquippedMainHand first (M8 equipment slot system).
+    /// Falls back to inventory scan for saves predating the equipment system.
+    /// </summary>
     private static string? GetEquippedRangedWeapon()
     {
+        var equipped = LocalState.EquippedMainHand;
+        if (equipped != null)
+        {
+            var w = WeaponRegistry.Find(equipped);
+            if (w != null && w.IsRanged) return equipped;
+        }
+
+        // Legacy fallback: pre-equipment-slot saves have no EquippedMainHand set.
         foreach (var w in WeaponRegistry.All)
         {
             if (w.IsRanged && LocalState.Inventory.Has(w.Id))
@@ -219,6 +232,13 @@ public partial class BowController : Node
 
     private static bool HasMeleeWeapon()
     {
+        var equipped = LocalState.EquippedMainHand;
+        if (equipped != null)
+        {
+            var w = WeaponRegistry.Find(equipped);
+            if (w != null && !w.IsRanged) return true;
+        }
+
         foreach (var w in WeaponRegistry.All)
             if (!w.IsRanged && LocalState.Inventory.Has(w.Id)) return true;
         return false;

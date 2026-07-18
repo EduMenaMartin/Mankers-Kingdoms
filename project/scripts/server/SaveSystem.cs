@@ -49,6 +49,12 @@ public partial class SaveSystem : Node
         Instance = this;
         SaveWasLoaded = false; // reset for each new GameWorld session
 
+        // Wire the SaveUtil provider delegates so client code (LoadGamePanel) can enumerate
+        // and preview saves through shared/ without a client/ → server/ import.
+        // Runs unconditionally — both host-server and dedicated server need these.
+        SaveUtil.ListSavesProvider   = DoListSaves;
+        SaveUtil.PeekSessionProvider = DoPeekSession;
+
         if (!Multiplayer.IsServer()) return;
 
         // Defer load to next frame so all sibling systems' OnPlayerConnected
@@ -253,8 +259,12 @@ public partial class SaveSystem : Node
             GameSession.HumanChosenStat = data.Session.HumanChosenStat;
         }
 
-        // Restore fog-of-war grid (worldgen.md §11.4).
+        // Restore fog-of-war grid (worldgen.md §11.4) and push it to all clients.
+        // BroadcastFog() must be called explicitly here because _Process only broadcasts
+        // when UpdateVisibility() returns changed=true — already-explored cells never
+        // re-trigger as changed, so restored fog would otherwise be invisible to clients.
         FogSystem.Instance?.RestoreFogFromBase64(data.FogBase64);
+        FogSystem.Instance?.BroadcastFog();
 
         // Restore felled trees (hide nodes that were cut last session).
         TreeSystem.Instance?.RestoreFelledTreesFromSave(data.FelledTreeIds);
@@ -287,6 +297,46 @@ public partial class SaveSystem : Node
 
         _loaded = true;
         GD.Print("[Save] Load complete");
+    }
+
+    // ── SaveUtil provider implementations ────────────────────────────────────
+    // These are wired into SaveUtil.ListSavesProvider / PeekSessionProvider in _Ready()
+    // so that client code (LoadGamePanel) can call through shared/SaveUtil without a
+    // client/ → server/ import. The Godot DirAccess/FileAccess dependency stays here.
+
+    private static System.Collections.Generic.List<string> DoListSaves()
+    {
+        var result = new System.Collections.Generic.List<string>();
+        var dir = DirAccess.Open(SaveUtil.SaveDir);
+        if (dir == null) return result;
+
+        dir.ListDirBegin();
+        string name = dir.GetNext();
+        while (name != "")
+        {
+            if (!dir.CurrentIsDir() && name.EndsWith(".json"))
+                result.Add(name[..^5]); // strip .json
+            name = dir.GetNext();
+        }
+        dir.ListDirEnd();
+
+        // Descending by name: timestamp slots sort newest-first.
+        result.Sort(static (a, b) => string.CompareOrdinal(b, a));
+        return result;
+    }
+
+    private static SessionSave? DoPeekSession(string saveName)
+    {
+        var path = $"{SaveUtil.SaveDir}/{saveName}.json";
+        if (!FileAccess.FileExists(path)) return null;
+        try
+        {
+            using var f = FileAccess.Open(path, FileAccess.ModeFlags.Read);
+            if (f == null) return null;
+            var data = JsonSerializer.Deserialize<SaveData>(f.GetAsText());
+            return data?.Session;
+        }
+        catch { return null; }
     }
 
     // ── Save directory helpers ────────────────────────────────────────────────

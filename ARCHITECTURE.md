@@ -4,7 +4,7 @@
 
 **Related:** `PRD.md` §8, all ADRs in `docs/decisions/`
 
-**Last updated:** 2026-07-02
+**Last updated:** 2026-07-18
 
 ---
 
@@ -203,48 +203,60 @@ Slow systems tick from a "wallclock counter" that increments on the main tick lo
 
 ## 6. Entity model
 
-### 6.1 ECS-lean, not full ECS
+### 6.1 Two distinct ID spaces
 
-We use a component-heavy composition pattern with C# classes. Not a full framework like Arch or Entitas — those are optimizations for millions of entities, and we won't have millions.
+The runtime entity model separates two concerns that must not be conflated:
 
-An entity is:
-- A unique `EntityId` (stable string, e.g. `"player.6b7f...", "npc.village_0.3", "monster.goblin.42"`)
-- A bag of components (`PositionComponent`, `HealthComponent`, `NeedsComponent`, `SkillsComponent`, etc.)
-- Registered with the server's entity manager
+**Content IDs** (stable strings): identify *types* of game content. Every item, monster species, building, skill, class, and NPC archetype has a stable string ID like `"monster.goblin.scout"`, `"item.sword.longsword"`, `"building.woodcutters_post"`. These are loaded into registry singletons (`MonsterRegistry`, `ItemRegistry`, `BuildingRegistry`, etc.) from data files in `/data/base/`. Mods extend these registries by merging in new entries with new IDs, or overriding base entries by reusing existing IDs. Content IDs appear in save files to describe *what kind* of thing exists. They are the foundation of the modding promise (ADR-0009).
 
-Components are data-heavy, behavior-light. Systems operate on components:
+**Runtime entity IDs** (numeric `long`): identify *live instances* of entities within a session. They are ephemeral — not persisted in saves except where needed to correlate positions at the moment of save (e.g. player peer IDs in `PlayerSave`). A different session of the same world produces different runtime IDs; only content IDs remain stable across sessions and saves.
 
-```csharp
-// Data
-class NeedsComponent {
-    public float Hunger;    // 0-100
-    public float Rest;      // 0-100
-    public float HungerRate; // per-tick decay
-}
+### 6.2 Runtime entity ID assignment
 
-// Behavior
-class NeedsSystem : IServerSystem {
-    public void Tick(World world) {
-        foreach (var e in world.EntitiesWith<NeedsComponent>()) {
-            var n = e.Get<NeedsComponent>();
-            n.Hunger = Math.Max(0, n.Hunger - n.HungerRate);
-            // ...
-        }
-    }
-}
+| Entity type | ID range | Source | Persisted? |
+|---|---|---|---|
+| Player (host) | `1` | Godot `MultiplayerPeer` | No — reconnect produces same peer ID |
+| Player (client) | `2`–`N` | Godot `MultiplayerPeer` | No — same note |
+| Monster instance | `10001`+ | `MonsterSystem._nextId++` | No — re-spawned each session |
+| NPC (villager) | `string` | `VillageSystem` sequential naming | Via `NpcAssignSave` for assignments |
+
+The gap between peer IDs and monster IDs (10001+) prevents any collision when both are stored in the same `SortedDictionary<long, ...>` (as in `HealthSystem` and `BuffSystem`).
+
+### 6.3 Per-system flat state model
+
+There is no central entity manager, component bag, or `IServerSystem` interface. Each server system owns its own `SortedDictionary<long, ...>` tracking whatever state it needs for that concern:
+
+```
+HealthSystem:    SortedDictionary<long, (float current, float max)>  _health
+CombatSystem:    SortedDictionary<long, double>                       _swingReady
+                 SortedDictionary<long, bool>                         _blocking
+                 SortedDictionary<long, StatBlock>                    _playerStats
+BuffSystem:      SortedDictionary<long, List<ActiveBuff>>             _buffs
+SkillSystem:     SortedDictionary<long, SkillState>                   _skills
+InventorySystem: SortedDictionary<long, PlayerInventory>              _inventories
+MonsterSystem:   SortedDictionary<long, MonsterInstance>              _monsters
 ```
 
-### 6.2 Player vs NPC unification
+`SortedDictionary` is required throughout for deterministic iteration order (see §7).
 
-Players and NPCs share components. The only difference is:
-- Player entity has a `ClientOwnedComponent` (which client controls it)
-- NPC entity has an `AiControlledComponent` (which archetype, current station)
+The `MonsterInstance` struct stores both the runtime `long Id` and the `string TypeId` (content ID). Every gameplay lookup for monster stats goes `MonsterRegistry.Find(m.TypeId)` — the content registry, keyed by stable string. The runtime `long` is only ever used as a session handle for targeting, damage application, and RPC dispatch.
 
-This means the skill/stat/needs/combat systems don't care whether they're operating on a player or an NPC. Single code path for progression, damage, hunger, etc.
+### 6.4 Player vs NPC divergence
 
-### 6.3 Serialization
+Players and NPCs are not unified under a shared component model. They are different entity types tracked by different systems:
 
-Every component has a `Serialize()` and `Deserialize()` method returning JSON. The world's save state is a list of `{EntityId, components: [...]}` records. Migrations happen at load time based on the schema version in the save.
+- **Players** — all server systems track them by Godot peer ID (`long`). `PlayerController` (client-side) drives movement; server validates via `ReceiveInput` RPC. Stats, inventory, skills, HP, needs all tracked in their respective systems.
+- **NPCs** — tracked exclusively by `VillageSystem`, which owns their position, job state, sleep state, and movement. They do not participate in `HealthSystem` or `SkillSystem`. Combat between NPCs and monsters is not implemented.
+
+The single-code-path for progression/damage described in the original design is a deferred aspiration, not current reality.
+
+### 6.5 Save model
+
+Monsters are not persisted. They are re-spawned from nest data (which references content IDs) on each session load. `SaveData` contains no monster list.
+
+Players are persisted by peer ID. `PlayerSave` stores inventory, skills, HP, needs, position, and equipment slots by peer ID — not by character name or account ID. In a LAN session the peer ID is stable across reconnects within the same host process.
+
+The `SaveData.Version` field guards schema migrations. Every change to any field in `SaveData` or its nested types — additive or breaking — increments `Version` and gets a migration entry (see §8.2 and `CLAUDE.md` rule 8).
 
 ---
 
@@ -253,10 +265,10 @@ Every component has a `Serialize()` and `Deserialize()` method returning JSON. T
 Determinism is a **discipline for the server simulation**, not a networking model.
 
 We enforce:
-- **Seeded RNG.** Every random call goes through `world.Random.Next()`, seeded per-world at generation time. Never `System.Random` or `Random.Shared`.
-- **Ordered iteration.** Never iterate over `Dictionary<T>` or `HashSet<T>` in gameplay logic; use `SortedDictionary<T>` or explicit ordering by `EntityId`.
-- **No wall-clock in sim.** Sim reads tick counter, not `DateTime.Now`.
-- **Explicit float precision policy.** Sim uses `double` internally, rounded to fixed precision on serialization. No accumulator drift.
+- **Seeded RNG.** Each server system that needs randomness holds its own `System.Random` instance, seeded from `GameSession.WorldSeed ^ <system-constant>` in `_Ready()`. Examples: `CombatSystem` uses `^ 0xC0BA7001u`, `HealthSystem` uses `^ 0xD1CE1234u`. Never `Random.Shared` or an unseeded `new System.Random()`. The per-system approach — rather than a single `world.Random` — keeps each system's random sequence independent and reproducible regardless of which other systems happen to draw from RNG in a given tick.
+- **Ordered iteration.** Never iterate over `Dictionary<T>` or `HashSet<T>` in gameplay logic; use `SortedDictionary<T>` or explicit ordering.
+- **No wall-clock in sim.** Sim reads `_elapsed` (accumulated `delta`) or tick counter, not `DateTime.Now`.
+- **Explicit float precision policy.** Time accumulators use `double` (not `float`) to prevent drift over long sessions. Sim-facing quantities that don't accumulate may use `float`.
 
 This gives us:
 - Server-side replay for debugging (record inputs + seed → replay same world)

@@ -175,8 +175,6 @@ public static class LocalState
         CombatModeChanged?.Invoke(InCombatMode);
     }
 
-    /// <summary>Legacy toggle — kept so existing callers compile; prefer SetCombatMode.</summary>
-    public static void ToggleCombatMode() => SetCombatMode(!InCombatMode);
 
     // ── Weapon mode (within combat mode) ─────────────────────────────────────
 
@@ -443,6 +441,30 @@ public static class LocalState
         if (_skillLevels.TryGetValue(skillId, out int existing) && existing == level) return;
         _skillLevels[skillId] = level;
         SkillLevelChanged?.Invoke(skillId, level);
+    }
+
+    // ── Move speed buff ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Client-side move speed multiplier applied by StaggeringBlow (crit) and Stumble (fumble).
+    /// Returns 1.0 when no buff is active or when it has expired.
+    /// Written by BuffSystem via RPC; read by PlayerController each movement tick.
+    /// </summary>
+    public static float MoveSpeedMultiplier =>
+        System.Environment.TickCount64 < _moveSpeedExpiry ? _moveSpeedMultiplierValue : 1f;
+
+    private static float _moveSpeedMultiplierValue = 1f;
+    private static long  _moveSpeedExpiry          = 0L; // TickCount64 ms at which the buff expires
+
+    /// <summary>
+    /// Called by BuffSystem.ClientApplyMoveSpeedBuff RPC when the server applies a MoveSpeed
+    /// buff to this peer. multiplier is the combined factor (e.g. 0.5 for ×0.5 slow).
+    /// durationMs is the buff duration in milliseconds.
+    /// </summary>
+    public static void SetMoveSpeedBuff(float multiplier, int durationMs)
+    {
+        _moveSpeedMultiplierValue = multiplier;
+        _moveSpeedExpiry          = System.Environment.TickCount64 + durationMs;
     }
 
     // ── Fog of war ────────────────────────────────────────────────────────────

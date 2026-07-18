@@ -621,6 +621,9 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [ ] **Legible** — both players understand what to do next without developer help
 - [ ] **Stable** — no crashes or state corruption during the session
 
+### Pre-playtest: shelter capacity recruitment gate
+- [ ] **Shelter capacity gate** — `VillageSystem.RequestRecruit` must reject recruitment if no Shelter with spare capacity exists. Each Shelter holds max 2 villagers. Count current settled NPCs assigned to shelters against all Shelter buildings in `SettlementSystem`. Gate message: `reject.no_shelter_capacity` loc key. Add loc key to `en.json`. Add regression test.
+
 ---
 
 ## Blocked

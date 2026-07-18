@@ -93,8 +93,11 @@ public partial class MeleeController : Node
 
     private void SetBlocking(bool blocking)
     {
-        // Client guard: must hold a shield to block.
-        if (blocking && !LocalState.Inventory.Has("item.armor.shield"))
+        // Client guard: must have shield equipped in Off-Hand (or in inventory for legacy saves).
+        bool hasShield = LocalState.EquippedOffHand == "item.armor.shield"
+                      || (LocalState.EquippedOffHand == null
+                          && LocalState.Inventory.Has("item.armor.shield"));
+        if (blocking && !hasShield)
         {
             if (_isBlocking) SendBlockRpc(false); // release if we lost the shield
             _isBlocking = false;
@@ -120,9 +123,21 @@ public partial class MeleeController : Node
 
     // ── Target detection ──────────────────────────────────────────────────────
 
-    /// <summary>Returns the first melee weapon ID found in the local player's inventory.</summary>
+    /// <summary>
+    /// Returns the equipped melee weapon ID.
+    /// Reads LocalState.EquippedMainHand first (M8 equipment slot system).
+    /// Falls back to inventory scan for saves predating the equipment system.
+    /// </summary>
     private static string? GetEquippedMeleeWeapon()
     {
+        var equipped = LocalState.EquippedMainHand;
+        if (equipped != null)
+        {
+            var w = WeaponRegistry.Find(equipped);
+            if (w != null && !w.IsRanged) return equipped;
+        }
+
+        // Legacy fallback: pre-equipment-slot saves have no EquippedMainHand set.
         foreach (var w in WeaponRegistry.All)
         {
             if (!w.IsRanged && LocalState.Inventory.Has(w.Id))

@@ -43,13 +43,13 @@ public partial class VillageSystem : Node
     private readonly SortedDictionary<string, string> _workAssignments = new(); // villagerId → stationNodeName
     private readonly SortedDictionary<string, long>   _workFounder     = new(); // villagerId → founderPeerId
     private readonly SortedDictionary<string, string> _jobTargetTree   = new(); // villagerId → target treeId (or "")
-    private readonly SortedDictionary<string, float>  _lastChopTime    = new(); // villagerId → elapsed time at last chop
+    private readonly SortedDictionary<string, double> _lastChopTime    = new(); // villagerId → elapsed time at last chop
 
     // ── Server-only: Needs state ──────────────────────────────────────────────
     private readonly SortedDictionary<string, float>   _npcHunger          = new(); // 0–100
     private readonly SortedDictionary<string, float>   _npcRest            = new(); // 0–100
     private readonly SortedDictionary<string, Vector3> _walkingToShelter   = new(); // villagerId → shelter pos
-    private readonly SortedDictionary<string, float>   _sleeping           = new(); // villagerId → wake time (_elapsed)
+    private readonly SortedDictionary<string, double>  _sleeping           = new(); // villagerId → wake time (_elapsed)
     // Remembers what station the NPC was assigned to so it can return after sleeping.
     private readonly SortedDictionary<string, string>  _suspendedStation   = new(); // villagerId → stationNodeName
     private readonly SortedDictionary<string, long>    _suspendedFounder   = new(); // villagerId → founderPeerId
@@ -73,7 +73,7 @@ public partial class VillageSystem : Node
     private const float MAX_FORAGE_SEARCH_RANGE = 200f;
 
     // ── Warning throttle ──────────────────────────────────────────────────────
-    private readonly SortedDictionary<string, float> _lastWarnTime = new(); // villagerId → _elapsed at last warn
+    private readonly SortedDictionary<string, double> _lastWarnTime = new(); // villagerId → _elapsed at last warn
     private const float WARN_THROTTLE_SEC = 10f;
 
     private float _needsTimer;
@@ -87,7 +87,7 @@ public partial class VillageSystem : Node
 
     private PackedScene _villagerScene = null!;
     private int   _tick;
-    private float _elapsed; // seconds since _Ready, used for cooldown comparison
+    private double _elapsed; // seconds since _Ready, used for cooldown comparison
 
     private const float  FOLLOW_SPEED     = 3f;
     private const float  FOLLOW_STOP_XZ   = 4f;
@@ -156,7 +156,7 @@ public partial class VillageSystem : Node
         if (!Multiplayer.IsServer()) return;
 
         _tick++;
-        _elapsed += (float)delta;
+        _elapsed += delta;
 
         _needsTimer += (float)delta;
         if (_needsTimer >= NEEDS_UPDATE_INTERVAL)
@@ -186,19 +186,30 @@ public partial class VillageSystem : Node
     // ── Save / Load (M8) ─────────────────────────────────────────────────────
 
     /// <summary>
-    /// Returns current NPC work assignments for serialization.
+    /// Returns all settlement NPC records for serialization, including idle and sleeping NPCs.
+    /// Previously only iterated _workAssignments, which caused sleeping NPCs (_suspendedStation)
+    /// and idle settlement members to be lost on save → load.
     /// Called by SaveSystem.Save().
     /// </summary>
     public List<NpcAssignSave> GetAssignmentsForSave()
     {
         var result = new List<NpcAssignSave>();
-        foreach (var (npcId, stationNodeName) in _workAssignments)
+        foreach (var npcId in _settlementNpcs)
         {
-            _workFounder.TryGetValue(npcId, out long founderPeerId);
+            _npcFounder.TryGetValue(npcId, out long founderPeerId);
+
+            // Active assignment wins; fall back to suspended station for sleeping NPCs.
+            // Empty string = idle settlement member (recruited but not yet assigned).
+            string station = "";
+            if (_workAssignments.TryGetValue(npcId, out var activeStation))
+                station = activeStation;
+            else if (_suspendedStation.TryGetValue(npcId, out var suspendedStation))
+                station = suspendedStation;
+
             result.Add(new NpcAssignSave
             {
                 NpcId           = npcId,
-                StationNodeName = stationNodeName,
+                StationNodeName = station,
                 FounderPeerId   = founderPeerId
             });
         }
@@ -206,8 +217,9 @@ public partial class VillageSystem : Node
     }
 
     /// <summary>
-    /// Restores NPC work assignments from save data.
-    /// NPCs must already exist in _npcNodes (seeded from the same world seed in _Ready).
+    /// Restores settlement NPC roster from save data, including idle and sleeping NPCs.
+    /// Empty StationNodeName = idle settlement member (recruited but not assigned a station).
+    /// NPCs must already exist in _villagers (seeded from the same world seed in _Ready).
     /// Called by SaveSystem.TryLoad().
     /// </summary>
     public void RestoreAssignmentsFromSave(List<NpcAssignSave> assignments)
@@ -223,11 +235,19 @@ public partial class VillageSystem : Node
             }
 
             _settlementNpcs.Add(a.NpcId);
-            _npcFounder[a.NpcId]      = a.FounderPeerId;
-            _workAssignments[a.NpcId] = a.StationNodeName;
-            _workFounder[a.NpcId]     = a.FounderPeerId;
+            _npcFounder[a.NpcId] = a.FounderPeerId;
 
-            GD.Print($"[VillageSystem] restored assignment: {a.NpcId} → {a.StationNodeName}");
+            if (!string.IsNullOrEmpty(a.StationNodeName))
+            {
+                _workAssignments[a.NpcId] = a.StationNodeName;
+                _workFounder[a.NpcId]     = a.FounderPeerId;
+                _jobTargetTree[a.NpcId]   = ""; // let the NPC find a new target on next tick
+                GD.Print($"[VillageSystem] restored assignment: {a.NpcId} → {a.StationNodeName}");
+            }
+            else
+            {
+                GD.Print($"[VillageSystem] restored idle settler: {a.NpcId}");
+            }
         }
 
         if (assignments.Count > 0)
@@ -502,7 +522,7 @@ public partial class VillageSystem : Node
             }
             else
             {
-                float lastChop = _lastChopTime.TryGetValue(villagerId, out var lc) ? lc : -CHOP_COOLDOWN;
+                double lastChop = _lastChopTime.TryGetValue(villagerId, out var lc) ? lc : -CHOP_COOLDOWN;
                 if (_elapsed - lastChop < CHOP_COOLDOWN) continue;
 
                 int yielded = ts.ServerChopTree(targetId);
@@ -529,7 +549,7 @@ public partial class VillageSystem : Node
                         {
                             // Warn the founder once per WARN_THROTTLE_SEC — NPC keeps carrying
                             // until a Stockpile Drop is placed.
-                            _lastWarnTime.TryGetValue(villagerId, out float lastWarn);
+                            _lastWarnTime.TryGetValue(villagerId, out double lastWarn);
                             if (_elapsed - lastWarn >= WARN_THROTTLE_SEC)
                             {
                                 _lastWarnTime[villagerId] = _elapsed;
@@ -571,7 +591,7 @@ public partial class VillageSystem : Node
             else
             {
                 // No stockpile built yet — warn founder.
-                _lastWarnTime.TryGetValue(villagerId, out float lastWarn);
+                _lastWarnTime.TryGetValue(villagerId, out double lastWarn);
                 if (_elapsed - lastWarn >= WARN_THROTTLE_SEC)
                 {
                     _lastWarnTime[villagerId] = _elapsed;

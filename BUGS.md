@@ -2,6 +2,22 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [P1] Death drop missing — no inventory drop on death, no map marker (2026-07-18)
+
+**Milestone found:** M9 (playtest)
+**Reproduce:** Die in combat → respawn → check ground at death position → no dropped items. Open minimap and world map → no red X marker at death location.
+**Expected:** On death, inventory items drop as a pickup at death position; a red X appears on minimap and world map. Player can retrieve items by walking to the marker.
+**Actual:** Neither the physical drop nor the map marker appears. "Gone again" suggests a regression — was functional at some earlier point.
+**Suspected causes (needs investigation):**
+1. `HealthSystem.ClientShowDeathMarker` RPC may not be firing, or the marker position is wrong (e.g. Vector3.Zero passed as death position).
+2. The physical item drop node may not be spawning (Phase 5 deferred? or `ServerSpawnItemDrop` RPC not called / not wired to a scene).
+3. A recent code change may have broken the death→drop→marker sequence in `HealthSystem`.
+**Next step:** Read `HealthSystem.cs` death handling path and trace whether `ClientShowDeathMarker` is called, what position it receives, and whether item drop nodes are being spawned.
+
+Status: OPEN
+
+---
+
 ## [P1] Fog of war not visible on minimap or world map (2026-07-17)
 
 **Milestone found:** M8, discovered M9

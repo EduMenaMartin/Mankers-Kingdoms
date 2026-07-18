@@ -17,7 +17,7 @@ namespace MankersKingdoms.Server;
 /// HP is broadcast to ALL peers on every change so coop partners can see ally bars.
 /// Each client only applies the update to LocalState when entityId == own peer ID.
 ///
-/// M5: PLAYER_MAX_HP will be derived from Constitution stat at character creation.
+/// Player HP is rolled at character creation using class Hit Dice + Con modifier per die (M9).
 /// Node must appear in GameWorld.tscn AFTER InventorySystem and SettlementSystem.
 /// </summary>
 public partial class HealthSystem : Node
@@ -193,7 +193,7 @@ public partial class HealthSystem : Node
     {
         // One seeded RNG per HealthSystem lifetime, seeded from WorldSeed.
         // Each peer salts with its own ID before rolling to avoid identical results.
-        _hpRng ??= new System.Random((int)(GameSession.WorldSeed ^ 0xHP1234u));
+        _hpRng ??= new System.Random((int)(GameSession.WorldSeed ^ 0xD1CE1234u));
 
         int conMod = CombatResolver.StatModifier(con);
         float total = 0f;

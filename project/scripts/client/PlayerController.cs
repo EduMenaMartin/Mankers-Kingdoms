@@ -182,7 +182,8 @@ public partial class PlayerController : CharacterBody3D
 		ApplyGravity(delta);
 		var rawInput    = GetInputVector();
 		var worldInput  = GetCameraRelativeInput(rawInput);
-		Velocity = new Vector3(worldInput.X * SPEED, Velocity.Y, worldInput.Y * SPEED);
+		float speed     = SPEED * LocalState.MoveSpeedMultiplier;
+		Velocity = new Vector3(worldInput.X * speed, Velocity.Y, worldInput.Y * speed);
 		MoveAndSlide();
 
 		if (_hasServerCorrection)

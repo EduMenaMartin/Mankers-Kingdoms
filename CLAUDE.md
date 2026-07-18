@@ -58,9 +58,9 @@ Non-negotiable. Enforced by folder structure, code review, and CI where possible
 3. **Content is data.** All items, monsters, buildings, recipes, skills, classes, and NPC archetypes are loaded from `.json` or `.tres` files in `/data/base/`. No content is hardcoded in C#.
 4. **Stable string IDs everywhere.** Every content entity has an ID like `"monster.goblin.scout"`. Saves reference IDs. No integer indices for content references.
 5. **No string literals in gameplay code.** All player-facing text goes through `Loc.T("key.path")`. Enforced by CI grep check.
-6. **Seeded RNG only.** Use `world.Random` for anything random. Never `System.Random` or `Random.Shared` in server code.
+6. **Seeded RNG only.** Each server system that needs randomness holds its own `System.Random` seeded from `GameSession.WorldSeed ^ <system-constant>` in `_Ready()`. Never `Random.Shared` or an unseeded `new System.Random()`. Never share one global RNG across systems — per-system instances keep sequences independent and reproducible. See `ARCHITECTURE.md §7`.
 7. **Ordered iteration.** Never iterate a `Dictionary<T>` or `HashSet<T>` in server logic. Use `SortedDictionary<T>` or explicit ordering.
-8. **Save-format has a version field.** Every save schema change increments the version and adds a migration function.
+8. **Save-format has a version field.** Increment `SaveData.Version` on every schema-affecting change — including additive-only additions (new nullable fields, new nested objects with defaults). Always add a migration entry for each version increment, even if the body is a no-op stub, so the migration chain stays complete and future migrations have the correct base version to chain from. "Additive field, no version bump required" is not acceptable reasoning; bump and stub. See `ARCHITECTURE.md §8.2` for the migration pattern.
 9. **The base game loads through the mod loader.** Base game is at `/data/base/`, loads first. No special-casing.
 
 ---
