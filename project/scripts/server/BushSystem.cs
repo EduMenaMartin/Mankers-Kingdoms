@@ -34,14 +34,32 @@ public partial class BushSystem : Node
 
     private const string BUSH_SYSTEM_PATH = "/root/GameWorld/BushSystem";
 
+    /// <summary>
+    /// Node must appear in GameWorld.tscn AFTER TerrainSystem (carved heightmap + river mask)
+    /// and TreeSystem (tree positions for clustering). Already after InventorySystem and NeedsSystem.
+    /// </summary>
     public override void _Ready()
     {
         Instance = this;
 
-        var cfg      = TerrainConfig.Default;
-        var gen      = new TerrainGenerator(GameSession.WorldSeed, cfg);
-        var heightmap = gen.GenerateHeightmap();
-        var bushes   = new BushGenerator(GameSession.WorldSeed, cfg).Generate(heightmap);
+        var cfg = TerrainConfig.Default;
+
+        // Use TerrainSystem.Heightmap (post-river-carving) — do NOT regenerate the heightmap here.
+        var heightmap = TerrainSystem.Heightmap;
+        if (heightmap.Length == 0)
+        {
+            GD.PrintErr("[BushSystem] TerrainSystem.Heightmap not ready — add TerrainSystem before BushSystem.");
+            return;
+        }
+
+        // Regenerate the tree list for clustering (same seed + same carved heightmap → same result
+        // as TreeSystem's list; cheaper than coupling BushSystem to TreeSystem directly).
+        var treeCfg = TreeConfig.Default;
+        var trees   = new TreeGenerator(GameSession.WorldSeed, cfg, treeCfg)
+            .Generate(heightmap, TerrainSystem.River?.ChannelMask);
+
+        var bushes = new BushGenerator(GameSession.WorldSeed, cfg)
+            .Generate(heightmap, trees, TerrainSystem.River?.ChannelMask);
 
         foreach (var b in bushes)
             SpawnBushNode(b);

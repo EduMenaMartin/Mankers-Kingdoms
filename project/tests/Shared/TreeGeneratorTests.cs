@@ -73,4 +73,45 @@ public class TreeGeneratorTests
             Assert.True(t.WorldY >= TreeCfg.MinHeight,
                 $"Tree {t.Id} spawned below MinHeight ({t.WorldY} < {TreeCfg.MinHeight})");
     }
+
+    [Fact]
+    public void Trees_NoiseDensity_AverageCountNearTarget()
+    {
+        // Noise-based density should produce average density close to the configured flat value.
+        // Expected ≈ Density × MapWidth × MapHeight = 0.12 × 32 × 32 ≈ 123.
+        // Noise mean ≈ 0.5, so localDensity = noise × Density × 2 averages to Density.
+        // Allow ±60% to account for RNG variance on a small 32×32 test map.
+        var h = MakeHeightmap();
+        var trees = new TreeGenerator(42u, TerrainCfg, TreeCfg).Generate(h);
+        int expected = (int)(TreeCfg.Density * TerrainCfg.MapWidth * TerrainCfg.MapHeight);
+        Assert.InRange(trees.Count, expected * 2 / 5, expected * 8 / 5);
+    }
+
+    [Fact]
+    public void Trees_RiverMask_ExcludesChannelCells()
+    {
+        var h     = MakeHeightmap();
+        var river = new RiverGenerator(42u, TerrainCfg).Generate(h);
+
+        // Generate trees with the river mask applied.
+        var trees = new TreeGenerator(42u, TerrainCfg, TreeCfg)
+            .Generate(h, river.ChannelMask);
+
+        foreach (var t in trees)
+            Assert.False(river.IsInChannel(t.GridX, t.GridZ),
+                $"Tree {t.Id} at ({t.GridX},{t.GridZ}) violates river channel exclusion");
+    }
+
+    [Fact]
+    public void Trees_NoRiverMask_StillDeterministic()
+    {
+        // Passing null riverMask (the default) must not change the deterministic guarantee.
+        var h  = MakeHeightmap();
+        var t1 = new TreeGenerator(42u, TerrainCfg, TreeCfg).Generate(h, null);
+        var t2 = new TreeGenerator(42u, TerrainCfg, TreeCfg).Generate(h, null);
+
+        Assert.Equal(t1.Count, t2.Count);
+        for (int i = 0; i < t1.Count; i++)
+            Assert.Equal(t1[i].Id, t2[i].Id);
+    }
 }

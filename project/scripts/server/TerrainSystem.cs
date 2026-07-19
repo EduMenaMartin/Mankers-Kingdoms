@@ -16,13 +16,39 @@ public partial class TerrainSystem : Node
 {
 	private static TerrainConfig _cfg = TerrainConfig.Default;
 
-	// Exposed so TerrainRenderer and TreeSystem can read the generated data.
-	public static float[,] Heightmap { get; private set; } = new float[0, 0];
+	// Exposed so TerrainRenderer, TreeSystem, BushSystem, and WaterSystem can read the data.
+	// Heightmap is the POST-CARVE version (river channel already carved in).
+	public static float[,]   Heightmap { get; private set; } = new float[0, 0];
+
+	/// <summary>
+	/// River path and channel mask generated alongside terrain. Null if river generation
+	/// produced a degenerate path (fewer than 2 segments). All downstream systems that
+	/// need the channel mask should null-check before use.
+	/// </summary>
+	public static RiverData? River { get; private set; }
+
+	/// <summary>
+	/// Returns true if the given grid cell is inside the carved river channel.
+	/// Used by TreeSystem and BushSystem to exclude placement in the channel.
+	/// </summary>
+	public static bool IsInRiverChannel(int gridX, int gridZ) =>
+		River?.IsInChannel(gridX, gridZ) ?? false;
 
 	public override void _Ready()
 	{
 		_cfg = TerrainConfig.Default;
-		Heightmap = new TerrainGenerator(GameSession.WorldSeed, _cfg).GenerateHeightmap();
+
+		// Step 1: raw heightmap.
+		var rawHeightmap = new TerrainGenerator(GameSession.WorldSeed, _cfg).GenerateHeightmap();
+
+		// Step 2: river path generation — carves rawHeightmap in-place and returns path data.
+		var riverGen = new RiverGenerator(GameSession.WorldSeed, _cfg);
+		var riverData = riverGen.Generate(rawHeightmap);
+		River = riverData.Segments.Count >= 2 ? riverData : null;
+
+		// Step 3: store the carved heightmap as the authoritative version.
+		// All downstream nodes (TreeSystem, BushSystem, WaterSystem) read from here.
+		Heightmap = rawHeightmap;
 
 		// In Godot 4 C# bindings, HeightMapShape3D.MapData is float[], not PackedFloat32Array.
 		var mapData = new float[_cfg.MapWidth * _cfg.MapHeight];

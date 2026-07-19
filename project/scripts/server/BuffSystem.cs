@@ -213,6 +213,24 @@ public partial class BuffSystem : Node
     // ── MoveSpeed client notification ─────────────────────────────────────────
 
     /// <summary>
+    /// Adds a MoveSpeed debuff and notifies the affected peer's client in one call.
+    /// Used by NeedsSystem for sustained exhaustion (multiplier=0.5) and stumble
+    /// pulses (multiplier=0, brief freeze). Converts multiplier to buff amount internally:
+    /// amount = multiplier − 1 (e.g. 0.5 → −0.5, 0.0 → −1.0).
+    ///
+    /// Note: multiple concurrent MoveSpeed buffs stack additively on the server side
+    /// (BuffCalculator sum). The client receives independent notifications and applies
+    /// the last-received multiplier for its timer window. Since movement is client-predicted
+    /// and the server does not gate movement via MoveSpeed queries, server-side stacking
+    /// does not affect gameplay — only the client notification drives actual movement speed.
+    /// </summary>
+    public void ApplyMoveSpeedWithClientSync(long entityId, float multiplier, double durationSec)
+    {
+        AddBuff(entityId, BuffStat.MoveSpeed, multiplier - 1.0f, BuffAmountType.Multiplicative, durationSec);
+        NotifyMoveSpeedClient(entityId, multiplier, (int)(durationSec * 1000));
+    }
+
+    /// <summary>
     /// Notifies the affected player peer's client of a MoveSpeed debuff.
     /// Skipped for monster entities (entityId > 10000) — they have no client to notify.
     /// multiplier: the combined speed factor (e.g. 0.5 = half speed).

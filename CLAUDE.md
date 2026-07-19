@@ -45,7 +45,8 @@ These override any default Claude Code behavior.
 5. **New ideas go to backlog.** Any new idea that arises during work goes into `IDEAS_BACKLOG.md` with a triage tag (see the file). Do not silently scope-creep the current milestone.
 6. **Locked decisions require ADRs.** If we discover a locked decision needs to change, don't just change it. Draft the ADR update first, present it, wait for approval.
 7. **Handover discipline.** At the end of any substantial session, update `HANDOVER.md` with: what was done, what's next, what's blocked, what needs a human decision.
-8. **Do not commit for me.** Prepare commits and describe them; I run `git commit` myself.
+8. **Do not commit directly for me.** Prepare commits and describe them; Ask for confirmation before run `git commit`.
+9. **Check for untracked files before every commit.** Run `git status --short | grep "^??"` and review the output before staging. New `.cs` files show as `??` and are easy to miss — modified existing files show as `M`. Every new file created in a session must be explicitly `git add`-ed. CI runs on a clean checkout and will not have any file that was never committed.
 
 ---
 

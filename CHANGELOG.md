@@ -6,7 +6,59 @@ Follows [Keep a Changelog](https://keepachangelog.com/) conventions loosely.
 
 ---
 
+## [M10] — in progress — World gen quality + river
+
+### River generation + terrain carving + forest clustering (2026-07-20)
+
+**New systems:**
+- **RiverGenerator** (`shared/RiverGenerator.cs`) — seeded procedural river path via D8 downhill-biased walk (descent + WANDER_FACTOR=0.3 noise per neighbour); source is highest border cell of 8 random tries; terminates at border after MIN_RIVER_STEPS=20 to guarantee non-degenerate paths; monotonic height-smoothing pass ensures river never flows uphill; 1D smoothstep width noise (BASE_HALF_WIDTH=1 tile, variation ±1 tile) keyed to sub-salt `0xB1A7E601u` (independent of path RNG).
+- **RiverData / RiverSegment** (`shared/`) — `RiverData` holds `IReadOnlyList<RiverSegment>` + `bool[,] ChannelMask`; `IsInChannel(gx, gz)` bounds-safe lookup. `RiverSegment` record: grid coords, world position, WaterY, tangent (TangentX/Z), HalfWidthM.
+- **WaterSystem** (`server/WaterSystem.cs`) — runs on both peers (same deterministic data, no RPC). Builds `ArrayMesh` ribbon: UV.x = cross-river [0,1], UV.y = arc-length fraction [0,1] for downstream scroll, `Mesh.ArrayType.Tangent` = per-vertex flow direction (required for `NORMAL_MAP` in spatial shader). Loads `res://shaders/water_river.gdshader` at runtime; falls back to flat-blue `StandardMaterial3D` if shader file missing. `Area3D` "WaterTrigger" (CollisionLayer=64) with per-segment `BoxShape3D` pivots — `body_entered` stub logs entry server-side.
+- **water_river.gdshader** (`project/shaders/`) — `shader_type spatial`; scrolls UV.y at `TIME * flow_speed`; `NORMAL_MAP` + `NORMAL_MAP_DEPTH`; Roughness=0.05, Specular=0.8. `hint_normal` + `repeat_enable` on `normal_texture`; uniform defaults tunable in Inspector.
+- **docs/gdd/water.md** — full design doc: river path algorithm, carving math (cosine taper, `CHANNEL_DEPTH=3`, `WATER_SURFACE_OFFSET=1.5`), WaterSystem ribbon/collision spec, and complete shader source.
+
+**Modified systems:**
+- **TerrainSystem** — new `_Ready()` pipeline: `GenerateHeightmap()` → `RiverGenerator.Generate()` carves heightmap in-place → `River` static property set → `HeightMapShape3D` built from carved heightmap. All downstream generators (trees, bushes) automatically receive the carved version via `TerrainSystem.Heightmap`. Added `IsInRiverChannel(gx, gz)` helper.
+- **TreeGenerator** — `Generate(heightmap, riverMask?)` — skips placement at channel cells when mask provided.
+- **TreeSystem** — passes `TerrainSystem.River?.ChannelMask` to `TreeGenerator.Generate()`.
+- **BushGenerator** — full clustering rewrite: `Generate(heightmap, trees?, riverMask?)`. NEAR_TREE_CHANCE=0.70 within CLUSTER_RADIUS=3 tiles; ISOLATED_CHANCE=0.30 elsewhere. River mask exclusion. maxTries increased to BUSH_COUNT×40.
+- **BushSystem** — uses `TerrainSystem.Heightmap` (already carved); passes carved heightmap + tree list (re-generated same seed) + channel mask to `BushGenerator.Generate()`.
+
+**Architecture:**
+- `ARCHITECTURE.md §4.4` — note added: MoveSpeed debuffs (exhaustion, combat stagger) are client-predicted via `LocalState.SetMoveSpeedBuff`; server tracks in `BuffSystem` but does not validate movement speed. Accepted trade-off given no PvP.
+
+**NeedsSystem overhaul (post-playtest M9 P1 fixes):**
+- **Hunger HP drain** — when Hunger=0, HP drains at 2/60 HP/s via `HealthSystem.ApplyDamage`; private `KillPlayer` removed; death goes through `HealthSystem.KillPlayer` (drop + marker + respawn).
+- **Exhaustion escalation** — three phases: Rest=0 → MoveSpeed×0.5; +60s → AttackBonus−2 + stumble pulse; +300s → HP drain at same rate as Hunger. `ClearExhaustionState` fires as soon as Rest > 0.
+- All three BUGS.md P1 NeedsSystem entries closed.
+
+**Tests:** 370 tests, 0 failures. New test files: `RiverGeneratorTests.cs` (11 tests), `BushGeneratorTests.cs` (6 tests). Modified: `TreeGeneratorTests.cs` (+2 river mask tests).
+
+**Editor tasks pending (Edu):**
+- Add `WaterSystem` node (script `res://scripts/server/WaterSystem.cs`) to `GameWorld.tscn` after `TerrainSystem`. Plain `Node`.
+- Assign `normal_texture` uniform on the `ShaderMaterial` in the Inspector — recommend `NoiseTexture2D` (FastNoiseLite, FBm, 256px, seamless=true, as_normal_map=true).
+
+---
+
 ## [M9] — in progress — Vertical slice playtest
+
+### Bug fixes + architecture cleanup (2026-07-18)
+
+**Bug fixes (P1):**
+- **Death drop regression fixed** — `0xHP1234u` compile error in `HealthSystem.cs` (H/P not valid hex) caused Godot to run a stale binary predating the entire death-drop system. Fix: `0xD1CE1234u`. No logic change needed — the drop code was already correct.
+- **Fog of war not restored on load** — `FogSystem.BroadcastFog()` made public; `SaveSystem.TryLoad()` now calls it after `RestoreFogFromBase64`. Previously clients kept all-UNSEEN state on every load because `_Process` only broadcasts on newly-explored cells.
+- **NPC workers/settlers lost on load** — `VillageSystem.GetAssignmentsForSave()` now iterates `_settlementNpcs` (full roster) instead of `_workAssignments` only. Sleeping NPCs (`_suspendedStation`) and idle settlers now survive save→load.
+
+**Combat integration:**
+- Weapon controllers (`MeleeController`, `BowController`) now read equipped slot first (`LocalState.EquippedMainHand/OffHand`) with inventory-scan fallback for legacy saves.
+- MoveSpeed debuff (`BuffSystem`) now syncs to the affected client peer via RPC; `LocalState.MoveSpeedMultiplier` with `TickCount64` expiry applied in `PlayerController`.
+
+**Architecture:**
+- `shared/SaveUtil.cs` — Godot dependency removed; replaced with provider delegate pattern (`Func<>` delegates wired by `SaveSystem._Ready()`). Test project now compiles it directly.
+- `ARCHITECTURE.md §6` — rewritten: ECS aspiration replaced with actual flat-dict model (two ID spaces, per-system `SortedDictionary<long,...>`, player/NPC divergence, save model).
+- `ARCHITECTURE.md §7` — stale `world.Random` reference replaced with accurate per-system seeded `System.Random` description.
+- `CLAUDE.md` — rule 6 updated to match §7; rule 8 strengthened (bump + stub migration required for every schema change including additive-only).
+- `ClassSelectScreen.cs` + `.tscn` — deleted (superseded by `CharacterCreateScreen` in M8).
 
 ### Pre-playtest content fixes (2026-07-15)
 

@@ -15,6 +15,30 @@ Every entry gets one:
 
 ## Entries
 
+### 2026-07-19 — [trivial-content] Low-rest skill growth penalty (Rest < 20, per VERTICAL_SLICE.md §3.9)
+
+VERTICAL_SLICE.md §3.9 specifies: "low rest → reduced skill growth rate." This was deliberately excluded from the M11 rest-exhaustion fix (which addressed Rest=0 consequences) because it is a separate, quieter effect: skill XP gain is halved when Rest is below 20, regardless of how long the player has been tired.
+
+**Implementation shape:** `SkillSystem.NotifyAction` checks `NeedsSystem.Instance?.GetNeeds(peerId).rest < 20f` before awarding XP; if true, XP awarded is halved (integer floor). No new fields needed. `NeedsSystem.GetNeeds` is already public.
+
+**Why deferred:** Touches SkillSystem in isolation with no architectural risk. Can be added as a standalone fix whenever convenient — no milestone dependency.
+
+### 2026-07-19 — [slice-affecting] Configurable death-penalty toggles (skill loss / XP debt per VERTICAL_SLICE.md §3.4)
+
+VERTICAL_SLICE.md §3.4 specifies three toggleable death penalties: (1) drop carried inventory at death site (recoverable), (2) lose 1 level in highest skill, (3) XP debt. "Toggleable at world creation."
+
+**Current state:** Only (1) inventory drop is implemented (HealthSystem.KillPlayer → SpawnItemDrop). Options (2) skill loss and (3) XP debt were never built. The "toggle at world creation" UI does not exist.
+
+**This is not a nice-to-have — it is an already-locked v1 feature with a genuine gap.** The spec text is unambiguous. Discovered during the M11 needs-system audit when the death routing was being unified through HealthSystem.KillPlayer.
+
+**Implementation shape:**
+- `shared/GameSession.cs` — three bool fields: `DropInventoryOnDeath` (default true), `SkillLossOnDeath` (default true), `XpDebtOnDeath` (default false)
+- `client/CharacterCreateScreen.cs` — world creation step exposes the three toggles
+- `server/HealthSystem.KillPlayer` — reads `GameSession.SkillLossOnDeath` → calls `SkillSystem.LoseLevel(peerId, highestSkill)` if true; reads `XpDebtOnDeath` → calls `SkillSystem.ApplyXpDebt(peerId)` if true; `DropInventoryOnDeath` gates the existing SpawnItemDrop call
+- `SkillSystem` — `LoseLevel(peerId, skillId)`: subtracts one level's worth of XP; `ApplyXpDebt(peerId)`: adds a persistent XP debt that must be cleared before further XP accrues in that skill
+
+**Priority:** Flag for attention before M9 playtest if possible — this affects the feel of death, which is one of the three playtest success criteria ("fun"). Not blocking M11 work, but worth scheduling before any external playtesting where death consequence expectations will be tested.
+
 ### 2026-07-10 — [slice-affecting] Settlement prerequisite gate system — full plan
 
 All gates use the same pattern: server rejects with `SendWarningToPeer → LocalState.ShowWarning`

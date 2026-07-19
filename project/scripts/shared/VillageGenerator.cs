@@ -32,6 +32,20 @@ public static class VillageGenerator
     private const float SCATTER_RADIUS   = 6f;
 
     /// <summary>
+    /// Returns the village centre world position for the given seed without generating villagers.
+    /// Consumes exactly the same first two RNG draws as Generate(), so the result is always
+    /// consistent with the full Generate() output.
+    /// Used by NestGenerator to enforce minimum nest–village distance.
+    /// </summary>
+    public static (float X, float Z) GetVillageCenter(uint worldSeed)
+    {
+        var rng   = new System.Random((int)(worldSeed ^ 0xB11A6E00u));
+        double angle = rng.NextDouble() * Math.PI * 2.0;
+        float  dist  = VILLAGE_MIN_DIST + (float)(rng.NextDouble() * (VILLAGE_MAX_DIST - VILLAGE_MIN_DIST));
+        return ((float)(Math.Cos(angle) * dist), (float)(Math.Sin(angle) * dist));
+    }
+
+    /// <summary>
     /// Generates one VillageData and the full VillagerData list for the given world seed.
     /// Requires at least VILLAGER_MAX (10) entries in namePool to guarantee unique names.
     /// </summary>

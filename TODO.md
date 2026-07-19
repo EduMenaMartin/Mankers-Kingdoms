@@ -621,12 +621,86 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [ ] **Legible** — both players understand what to do next without developer help
 - [ ] **Stable** — no crashes or state corruption during the session
 
+### Post-playtest-prep fixes (2026-07-18, session 2) ✅ complete
+- [x] **Death drop compile fix** — `0xHP1234u` → `0xD1CE1234u` in `HealthSystem.cs`. H/P not valid hex; unblocked the death-drop system.
+- [x] **Fog not restored on load** — `FogSystem.BroadcastFog()` made public; `SaveSystem.TryLoad()` calls it after `RestoreFogFromBase64`. Clients now receive explored fog state on load.
+- [x] **NPC workers/settlers gone after load** — `GetAssignmentsForSave()` iterates `_settlementNpcs` (was `_workAssignments` only); sleeping + idle settlers now persisted.
+- [x] **Weapon slot reads (Tier 1)** — MeleeController + BowController read `LocalState.EquippedMainHand/OffHand` first; inventory scan fallback for legacy saves.
+- [x] **MoveSpeed buff client sync (Tier 1)** — `BuffSystem.NotifyMoveSpeedClient` RPC; `LocalState.SetMoveSpeedBuff`; `PlayerController` applies multiplier.
+- [x] **Code cleanup (Tier 2)** — dead `RequiresPresence` field; VillageSystem float→double; bare `Random` ambiguity; ProjectileSystem docstring.
+- [x] **SaveUtil Godot dependency removed (Tier 3)** — provider delegate pattern; implementation moved to SaveSystem; test .csproj exclusion removed.
+- [x] **Docs updated (Tier 3)** — ARCHITECTURE.md §6 (entity model) + §7 (determinism/RNG) rewritten; CLAUDE.md rule 6 + rule 8 tightened.
+- [x] **ClassSelectScreen removed** — dead code, superseded by CharacterCreateScreen.
+
+### Pre-playtest verification (required before playtest session)
+- [ ] **Godot build** — open Godot, Build → Build Solution, confirm 0 errors. Critical: HealthSystem 0xD1CE1234u change and FogSystem/BuffSystem additions must compile.
+- [ ] **Smoke-test bug fixes** — die → respawn → pick up death drop ✓; load game → fog explored state preserved ✓; load game → NPC workers still in roster and working ✓.
+
 ### Pre-playtest: shelter capacity recruitment gate
-- [ ] **Shelter capacity gate** — `VillageSystem.RequestRecruit` must reject recruitment if no Shelter with spare capacity exists. Each Shelter holds max 2 villagers. Count current settled NPCs assigned to shelters against all Shelter buildings in `SettlementSystem`. Gate message: `reject.no_shelter_capacity` loc key. Add loc key to `en.json`. Add regression test.
+- [ ] **Shelter capacity gate** — `VillageSystem.RequestRecruit` must reject recruitment if no Shelter with spare capacity exists. Each Shelter holds max 2 villagers. Count current settled NPCs against Shelter buildings in settlement. Gate message: `reject.no_shelter_capacity` loc key. Add loc key to `en.json`. Add regression test.
+
+---
+
+---
+
+## M10 — World gen quality + river
+
+**Goal:** River flows through the world; forest clusters feel natural; terrain looks carved rather than flat.
+
+### River generation + terrain carving ✅ COMPLETE (2026-07-20)
+- [x] **RiverSegment.cs + RiverData.cs** (shared) — record types; `ChannelMask bool[,]`; `IsInChannel()` helper
+- [x] **RiverGenerator.cs** (shared) — D8 downhill-biased walk; source = highest border cell of 8 tries; MIN_RIVER_STEPS=20 guarantees non-trivial paths; monotonic height smoothing; cosine taper carving (CHANNEL_DEPTH=3, WATER_SURFACE_OFFSET=1.5); 1D width noise sub-salt
+- [x] **TerrainSystem.cs** — pipeline: `GenerateHeightmap()` → `RiverGenerator.Generate()` in-place carve → `River` static property → `HeightMapShape3D` built from carved heightmap; `IsInRiverChannel()` helper
+- [x] **TreeGenerator.cs** — optional `riverMask` param; skips channel cells
+- [x] **TreeSystem.cs** — passes `TerrainSystem.River?.ChannelMask` to generator
+- [x] **WaterSystem.cs** (server, both peers) — `ArrayMesh` ribbon (UV.y = arc-length for downstream scroll, tangent data for NORMAL_MAP); loads `res://shaders/water_river.gdshader` at runtime; flat-blue fallback; `Area3D` WaterTrigger per-segment
+- [x] **water_river.gdshader** — scrolling normal map, semi-transparent blue, specular highlights
+- [x] **docs/gdd/water.md** — algorithm, carving math, ribbon spec, shader spec
+
+### Forest clustering ✅ COMPLETE (2026-07-20)
+- [x] **BushGenerator.cs** — clustering: NEAR_TREE_CHANCE=0.70 within CLUSTER_RADIUS=3 tiles of any tree; ISOLATED_CHANCE=0.30 elsewhere; `riverMask` exclusion; `trees` + `riverMask` optional params
+- [x] **BushSystem.cs** — uses carved `TerrainSystem.Heightmap`; re-generates tree list for clustering seed; passes both masks
+
+### Tests ✅ COMPLETE (2026-07-20)
+- [x] **RiverGeneratorTests.cs** — 11 tests: determinism, different seeds, bounds, min length (seeds 1–10), tangent normalisation, carving depth, channel mask, IsInChannel, monotonic WaterY, TreeGenerator exclusion integration
+- [x] **TreeGeneratorTests.cs** — +2 tests: river mask exclusion, no-mask still deterministic
+- [x] **BushGeneratorTests.cs** — 6 tests: determinism with/without trees, height floor, river mask exclusion, clustering concentration, target count preserved
+- **370 tests, 0 failures**
+
+### Editor tasks pending (Edu)
+- [ ] Add `WaterSystem` node (script `res://scripts/server/WaterSystem.cs`) to `GameWorld.tscn` after `TerrainSystem`. Plain `Node`.
+- [ ] Assign `normal_texture` uniform on the ShaderMaterial in Inspector — recommended: `NoiseTexture2D` (FastNoiseLite, FBm, 256px, seamless=true, as_normal_map=true).
 
 ---
 
 ## Blocked
 
 Nothing.
+
+---
+
+## Post-playtest backlog (post-M9, milestone TBD)
+
+These features are scoped after the M9 playtest signal is evaluated.
+
+### Survival pressure — HP decay and thirst
+
+#### HP decay when starving/exhausted ✅ COMPLETE (2026-07-20)
+- [x] `server/NeedsSystem.cs` — Hunger=0 drains HP at 2f/60f per second via `HealthSystem.ApplyDamage`; Rest=0 triggers three-phase exhaustion: immediate MoveSpeed×0.5, +60s AttackBonus−2 + stumble pulse, +300s HP drain. Private `KillPlayer` removed — death goes through `HealthSystem.KillPlayer`. `ClearExhaustionState` resets all phases when Rest rises above 0.
+- [ ] `data/lang/en.json` — HUD warning strings (`hud.starving`, `hud.exhausted`) — deferred post-playtest
+- [ ] Regression test: HP drains at correct rate when need = 0; HP stops draining when need refills — deferred (NeedsSystem has Godot dependency, not unit-testable)
+
+#### Thirst system
+- [ ] `shared/ThirstData.cs` — record: MaxThirst (100), DrainPerMin (10), DrinkRestoreAmount (40); integrate into NeedsData or add Thirst field to PlayerSave
+- [ ] `server/NeedsSystem.cs` — add Thirst float per peer; drain 10/min; Thirst = 0 → HP drains same rate as hunger/rest; `RequestDrink(peerId, amount)` restores thirst
+- [ ] `shared/LocalState.cs` — add `Thirst` float + `SetThirst`; `ThirstChanged` event
+- [ ] `client/NeedsHUD.cs` — add blue-teal thirst bar alongside hunger + rest
+- [ ] `shared/BuildingRegistry.cs` — add `Well` (`building.well`, 20 stone, spawns water source node); add `WaterBarrel` (`building.water_barrel`, 8 wood, stores 200 water units)
+- [ ] `server/SettlementSystem.cs` — track water storage in stockpile (`resource.water`); `RequestFillBarrel` pulls from Well; `RequestDrinkFromBarrel` at barrel/well removes resource.water + calls NeedsSystem.RestoreThirst
+- [ ] Village water deposit: water automatically deposited to stockpile from wells on a 60-second tick (no NPC required)
+- [ ] `client/PlayerController.cs` — E key near Well/WaterBarrel → drink if thirst < 100
+- [ ] `data/base/resources/water.json` — item stub (`resource.water`)
+- [ ] `data/lang/en.json` — thirst HUD, well/barrel names, water item, drink feedback strings
+- [ ] Save round-trip: Thirst persisted in PlayerSave; bump SaveData.Version + migration stub
+- [ ] Tests: thirst drain rate, drink restore, HP decay when all three needs = 0
 

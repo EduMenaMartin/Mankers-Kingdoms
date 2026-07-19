@@ -2,19 +2,74 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [P1] Hunger at 0 triggers instant kill, not gradual HP drain (2026-07-19)
+
+**Milestone found:** M3 (spec written), discovered M9 post-playtest audit
+**Reproduce:** Let Hunger bar drain to 0.
+**Expected:** HP begins draining gradually while Hunger stays at 0 (VERTICAL_SLICE.md §3.9: "reaches 0 → gradual health loss").
+**Actual:** `NeedsSystem._Process` immediately calls its own private `KillPlayer` the frame Hunger hits 0 — no HP drain phase, no warning window.
+**Root cause:** `NeedsSystem.KillPlayer` was written before `HealthSystem.KillPlayer` existed (M3 vs M4). The two death paths were never consolidated; the NeedsSystem path bypassed the HP system entirely.
+
+Status: FIXED (2026-07-20) — NeedsSystem overhauled: `HUNGER_HP_DRAIN = 2f/60f` drains HP via `HealthSystem.Instance?.ApplyDamage`; private `KillPlayer` removed; death falls through to `HealthSystem.KillPlayer`.
+
+---
+
+## [P1] Rest at 0 has no consequence — spec says reduced skill growth rate (2026-07-19)
+
+**Milestone found:** M3 (spec written), discovered M9 post-playtest audit
+**Reproduce:** Let Rest bar drain to 0 and stay there indefinitely.
+**Expected:** Some consequence — VERTICAL_SLICE.md §3.9 says "low rest → reduced skill growth rate." Post-ADR-0026 design extends this to a graduated escalation (movement penalty → combat debuffs → eventual HP drain) to differentiate feel from Hunger.
+**Actual:** `NeedsSystem._Process` tracks rest drain but checks only Hunger for the kill trigger. Rest reaching 0 has zero effect.
+
+Status: FIXED (2026-07-20) — Three-phase exhaustion escalation: Rest=0 → MoveSpeed×0.5 (immediate); 60s later → AttackBonus−2 + stumble pulse every 30s; 300s later → HP drain at 2f/60f/s. `ClearExhaustionState` fires as soon as Rest rises above 0.
+
+---
+
+## [P1] Needs-based death bypasses HealthSystem.KillPlayer — configurable penalty not applied (2026-07-19)
+
+**Milestone found:** M3 (NeedsSystem), discovered M9 post-playtest audit
+**Reproduce:** Die to starvation (Hunger=0 currently).
+**Expected:** Death applies the already-locked configurable penalty system (VERTICAL_SLICE.md §3.4): drop inventory as a physical pickup at death position with a map marker; HealthSystem.KillPlayer handles it.
+**Actual:** `NeedsSystem.KillPlayer` calls `InventorySystem.TakeAll` directly (no physical drop node, no death marker on minimap/world map), resets needs to 100, and fires `ForceRespawn` — completely bypassing `HealthSystem.KillPlayer`. The death-drop system built in M9 is silently unused for starvation deaths.
+**Root cause:** Same as the Hunger-at-0 bug — the two death paths were never unified. NeedsSystem's path predates the HealthSystem death flow.
+
+Status: FIXED (2026-07-20) — `NeedsSystem.KillPlayer` removed; HP drain now goes through `HealthSystem.ApplyDamage`; when HP reaches 0 the existing `HealthSystem.KillPlayer` path (death drop + map marker + respawn) handles everything.
+
+---
+
 ## [P1] Death drop missing — no inventory drop on death, no map marker (2026-07-18)
 
 **Milestone found:** M9 (playtest)
 **Reproduce:** Die in combat → respawn → check ground at death position → no dropped items. Open minimap and world map → no red X marker at death location.
 **Expected:** On death, inventory items drop as a pickup at death position; a red X appears on minimap and world map. Player can retrieve items by walking to the marker.
-**Actual:** Neither the physical drop nor the map marker appears. "Gone again" suggests a regression — was functional at some earlier point.
-**Suspected causes (needs investigation):**
-1. `HealthSystem.ClientShowDeathMarker` RPC may not be firing, or the marker position is wrong (e.g. Vector3.Zero passed as death position).
-2. The physical item drop node may not be spawning (Phase 5 deferred? or `ServerSpawnItemDrop` RPC not called / not wired to a scene).
-3. A recent code change may have broken the death→drop→marker sequence in `HealthSystem`.
-**Next step:** Read `HealthSystem.cs` death handling path and trace whether `ClientShowDeathMarker` is called, what position it receives, and whether item drop nodes are being spawned.
+**Root cause:** `HealthSystem.cs` line 196 contained `0xHP1234u` — H and P are not valid hexadecimal digits in C# hex literals. This caused a build error invisible to `dotnet test` (test project only compiles `shared/`). Godot fell back to an older compiled binary that predated the entire death-drop system (`SpawnItemDrop`, `ClientSpawnItemDrop`, `ClientShowDeathMarker` — none of it was executing).
+**Fix:** `0xHP1234u` → `0xD1CE1234u` in `HealthSystem.cs`. The death-drop logic itself (`KillPlayer → TakeAll → SpawnItemDrop → Rpc(ClientSpawnItemDrop) + ClientShowDeathMarker`) was already correct; it just wasn't compiling.
 
-Status: OPEN
+Status: FIXED (2026-07-18) — commit a6280de
+
+---
+
+## [P1] Fog of war resets to all-unexplored on save → load (2026-07-18)
+
+**Milestone found:** M9 (playtest)
+**Reproduce:** Explore a significant area → save → quit → load → open world map (M) → entire map is black again; minimap shows no explored areas.
+**Expected:** Explored fog state persists across save/load. Already-explored areas remain grey/visible.
+**Root cause:** `SaveSystem.TryLoad()` called `FogSystem.Instance?.RestoreFogFromBase64(data.FogBase64)` which correctly restored the server-side `_fog` grid. However, `FogSystem._Process` only broadcasts when `UpdateVisibility()` returns `changed=true` — already-explored cells never re-trigger as changed, so clients received no fog update after restore and kept the initial all-UNSEEN state permanently.
+**Fix:** `FogSystem.BroadcastFog()` made `public`; `SaveSystem.TryLoad()` calls `FogSystem.Instance?.BroadcastFog()` immediately after the restore line. The existing `CallLocal=true` on `ClientApplyFog` RPC ensures the host's `LocalState.FogSnapshot` is also updated.
+
+Status: FIXED (2026-07-18) — commit a6280de
+
+---
+
+## [P1] NPC workers and settlers gone after save → load (2026-07-18)
+
+**Milestone found:** M9 (playtest)
+**Reproduce:** Recruit 1+ NPCs, assign them to stations, save → quit → load → BuildingAssignmentPanel shows empty roster; NPCs are wandering as unrecruited villagers again.
+**Expected:** Recruited and working NPCs persist across save/load and resume their assignments.
+**Root cause:** `VillageSystem.GetAssignmentsForSave()` iterated `_workAssignments` only (actively working NPCs). Two categories were silently omitted: (1) sleeping NPCs whose assignment was moved to `_suspendedStation` by `SuspendForRest`, and (2) idle settlers in `_settlementNpcs` who were recruited but not yet assigned to a station.
+**Fix:** Changed `GetAssignmentsForSave()` to iterate `_settlementNpcs` (the authoritative full roster). Station is taken from `_workAssignments` first; falls back to `_suspendedStation` for sleeping NPCs; empty string for idle settlers. `RestoreAssignmentsFromSave()` updated to add idle settlers to `_settlementNpcs` without assigning a station (so they appear in the roster but are correctly idle).
+
+Status: FIXED (2026-07-18) — commit a6280de
 
 ---
 

@@ -41,3 +41,4 @@ Purpose: give real players something to react to during the M9 playtest, specifi
 
 1. ~~Confirm shared (not per-player) reveal~~ — **confirmed by Edu, locked.** Shared/party-wide reveal is final for this probe.
 2. Full-map screen visual treatment (simple 2D top-down render vs. something stylized) — low priority, doesn't affect the mechanic being tested.
+3. **GPU-level terrain optimization (Option B only, explicitly not scheduled):** If Option B (continuous seamless world) is ever chosen over Option A (many small bounded maps), revisit GPU-level terrain techniques from session research: UV-free vertex shaders using `gl_VertexID` for position generation, compressed normals, triangle strips instead of individual triangles, and LOD with terrain-sinking to hide seams between detail levels. Not relevant if Option A is chosen — per-instance map size would stay comparable to what already exists. Tied to the Option A/B decision, not to general project timeline.

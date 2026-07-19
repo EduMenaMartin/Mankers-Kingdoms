@@ -97,4 +97,20 @@ public class NestGeneratorTests
         var ids   = nests.Select(n => n.Id).ToList();
         Assert.Equal(ids.Distinct().Count(), ids.Count);
     }
+
+    [Fact]
+    public void AllNests_AtLeast45UnitsFromVillage()
+    {
+        var nests     = NestGenerator.Generate(TEST_SEED);
+        var (vx, vz)  = VillageGenerator.GetVillageCenter(TEST_SEED);
+        const float MIN_DIST = 45f;
+        foreach (var n in nests)
+        {
+            float dx   = n.WorldX - vx;
+            float dz   = n.WorldZ - vz;
+            float dist = MathF.Sqrt(dx * dx + dz * dz);
+            Assert.True(dist >= MIN_DIST,
+                $"Nest {n.Id} is only {dist:F1}m from village centre (min {MIN_DIST}m)");
+        }
+    }
 }

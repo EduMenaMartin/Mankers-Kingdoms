@@ -6,8 +6,11 @@ namespace MankersKingdoms.Shared;
 /// </summary>
 public sealed class TreeConfig
 {
-    /// <summary>Probability [0,1] that any given tile gets a tree.</summary>
-    public float Density       { get; init; } = 0.12f;
+    /// <summary>Probability [0,1] that any given tile gets a tree (used as peak density in noise sampling).</summary>
+    public float Density           { get; init; } = 0.12f;
+
+    /// <summary>Spatial frequency for density noise (lower = larger forest patches). At 0.03f each patch is ~33 tiles wide.</summary>
+    public float DensityNoiseFreq  { get; init; } = 0.03f;
 
     /// <summary>Minimum terrain height a tree can spawn on (avoids water-level depressions).</summary>
     public float MinHeight     { get; init; } = -1f;

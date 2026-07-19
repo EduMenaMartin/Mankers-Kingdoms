@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://bfksrvpsx85lu" path="res://scripts/server/NetworkManager.cs" id="1_net"]
 [ext_resource type="Script" uid="uid://7bdoa42i3ewt" path="res://scripts/server/PlayerSystem.cs" id="2_ps"]
 [ext_resource type="Script" uid="uid://d4maopmxia0oa" path="res://scripts/server/TerrainSystem.cs" id="3_g8ckf"]
+[ext_resource type="Script" uid="uid://ca8ngeav2t8nd" path="res://scripts/server/WaterSystem.cs" id="4_4ucfj"]
 [ext_resource type="Script" uid="uid://x1fmqxy06kyh" path="res://scripts/client/TerrainRenderer.cs" id="4_yms0u"]
 [ext_resource type="Script" uid="uid://tcshn1ans32b" path="res://scripts/server/DayNightSystem.cs" id="5_rrjg7"]
 [ext_resource type="Script" uid="uid://dv037qk5fx8fe" path="res://scripts/client/DayNightClient.cs" id="6_pexic"]
@@ -66,6 +67,9 @@ script = ExtResource("2_ps")
 
 [node name="TerrainSystem" type="Node" parent="." unique_id=1429543628]
 script = ExtResource("3_g8ckf")
+
+[node name="WaterSystem" type="Node" parent="." unique_id=769520232]
+script = ExtResource("4_4ucfj")
 
 [node name="TerrainRenderer" type="Node" parent="." unique_id=982281933]
 script = ExtResource("4_yms0u")

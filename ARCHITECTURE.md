@@ -143,6 +143,8 @@ Fallback: raw ENet via Godot's built-in `MultiplayerAPI` for LAN testing without
 
 **Combat:** Server-authoritative hit detection. Client shows immediate swing animation on input, but damage is only applied when the server confirms the hit. No client-side hit prediction — this is the correct trade-off for a co-op (non-competitive) game where visual honesty beats snappy fake hits.
 
+**MoveSpeed debuffs (exhaustion, combat stagger):** Applied via client-side timer notifications (`LocalState.SetMoveSpeedBuff`). The server tracks debuffs in `BuffSystem` but does not validate movement speed server-side — client prediction is trusted for movement. Accepted trade-off given no PvP; movement cheating has no victim.
+
 ### 4.5 Bandwidth budget
 
 Target: **< 30 KB/s per client** at typical play (2–6 players, 30 entities visible).

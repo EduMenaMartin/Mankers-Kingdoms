@@ -6,18 +6,125 @@
 
 ## Current status
 
-**Milestone:** M9 — Vertical slice playtest
-**Last session:** 2026-07-18 — Block system redesign (§15): mutual exclusivity + melee TN bonus + ranged crit threshold.
+**Milestone:** M10 — World gen quality + river
+**Last session:** 2026-07-20 — River generation pipeline, terrain carving, WaterSystem ribbon mesh + Area3D, water_river.gdshader, forest clustering in BushGenerator, NeedsSystem HP decay overhaul. 370 tests, 0 failures.
 **Blockers:** None.
 **Decisions needed from Edu:** None outstanding.
 
 **Next action:**
-1. **Build in Godot** — confirm game compiles without errors (block redesign touches CombatSystem, ProjectileSystem, MeleeController, BowController, LocalState).
-2. **Smoke-test block redesign:**
-   - RMB held + LMB click → attack does NOT fire (client guard); server also rejects if spoofed
-   - Stand still blocking vs Orc: subjectively harder to get hit compared to unblocked (TN 12 → 16)
-   - Bandit Archer fires many arrows while blocking: no crits land (0% crit chance vs 5% unblocked)
-3. **Schedule the M9 playtest session** with a friend (host + join over LAN/ENet).
+1. **Build in Godot** — confirm game compiles clean with all M10 new files (RiverSegment, RiverData, RiverGenerator, WaterSystem) and modified files (TerrainSystem, TreeSystem, BushSystem, TreeGenerator, BushGenerator).
+2. **Editor task (M10):**
+   - Add `WaterSystem` node (script `res://scripts/server/WaterSystem.cs`) to `GameWorld.tscn` after `TerrainSystem`. Plain `Node`.
+   - In the Remote tree at runtime, select `RiverMesh` → Inspector → ShaderMaterial → assign a `NoiseTexture2D` (FastNoiseLite, FBm, 256px, seamless=true, as_normal_map=true) to the `normal_texture` uniform. Tune `flow_speed`, `normal_strength`, `tiling`.
+3. **Smoke-test river** — start new game → walk to river → confirm semi-transparent blue ribbon in carved channel; open minimap → confirm river path visible; walk into river → Output logs "[WaterSystem] Player_1 entered river".
+4. **M9 pre-playtest still pending:**
+   - Shelter capacity gate: `VillageSystem.RequestRecruit` rejects if no Shelter with spare capacity (max 2/shelter).
+   - Godot build + smoke-test three M9 bug fixes (death drop, fog restore, NPC save) before playtest.
+
+---
+
+## What was done this session (2026-07-20)
+
+### NeedsSystem HP decay overhaul — COMPLETE ✅
+
+Three BUGS.md P1 entries (Hunger instant kill, Rest no consequence, needs death bypasses HealthSystem) all fixed in one NeedsSystem overhaul:
+- **Hunger=0 → HP drain:** `HUNGER_HP_DRAIN = 2f/60f`; `_Process` calls `HealthSystem.Instance?.ApplyDamage(peerId, drain * delta)` instead of the old private `KillPlayer`. Death falls through naturally to `HealthSystem.KillPlayer` (drop + marker + respawn).
+- **Rest=0 → three-phase exhaustion:** phase 0 = MoveSpeed×0.5 via `BuffSystem`; phase 1 = +60s → AttackBonus−2 + stumble pulse every 30s; phase 2 = +300s → HP drain at same rate as Hunger. `ClearExhaustionState` resets all phases and removes MoveSpeed buff the moment Rest rises above 0.
+- BUGS.md entries marked FIXED (2026-07-20).
+
+### ARCHITECTURE.md §4.4 note — COMPLETE ✅
+
+Added one-line note to §4.4 after the Combat paragraph: MoveSpeed debuffs (exhaustion, combat stagger) are client-predicted via `LocalState.SetMoveSpeedBuff`; server tracks in `BuffSystem` but does not validate movement speed. Accepted trade-off given no PvP.
+
+### M10 — River generation + terrain carving — COMPLETE ✅
+
+**New shared files:**
+- `shared/RiverSegment.cs` — record: GridX/Z, WorldX/Y/Z, TangentX/Z, HalfWidthM
+- `shared/RiverData.cs` — `IReadOnlyList<RiverSegment> Segments`, `bool[,] ChannelMask`, `IsInChannel(gx, gz)`
+- `shared/RiverGenerator.cs` — seeds: `WorldSeed ^ 0xB1A7E600u` (path), `0xB1A7E601u` (width hash). Key constants: N_SOURCE_TRIES=8, MAX_PATH_STEPS=192, MIN_RIVER_STEPS=20, WANDER_FACTOR=0.3, CHANNEL_DEPTH=3, WATER_SURFACE_OFFSET=1.5. Cosine taper carving modifies heightmap in-place.
+
+**New server file:**
+- `server/WaterSystem.cs` — ArrayMesh ribbon (UV.x = cross-river, UV.y = arc-length, Tangent = flow direction). Loads `res://shaders/water_river.gdshader` via `GD.Load<Shader>()`; flat-blue `StandardMaterial3D` fallback. `Area3D` WaterTrigger CollisionLayer=64, per-segment BoxShape3D pivots. `body_entered` stub logs server-side only.
+
+**New shader file:**
+- `project/shaders/water_river.gdshader` — `shader_type spatial`; scrolls `uv.y += TIME * flow_speed`; `NORMAL_MAP` + `NORMAL_MAP_DEPTH`; ROUGHNESS=0.05, SPECULAR=0.8.
+
+**New doc:**
+- `docs/gdd/water.md` — river path algorithm (D8 walk, width noise, monotonic smoothing), carving math, WaterSystem ribbon/collision architecture spec, complete shader spec with wiring instructions.
+
+**Modified files:**
+- `server/TerrainSystem.cs` — new pipeline: `GenerateHeightmap()` → `RiverGenerator.Generate()` in-place → `River` static property → `HeightMapShape3D`. Added `IsInRiverChannel()` helper.
+- `server/TreeSystem.cs` — passes `TerrainSystem.River?.ChannelMask` to `TreeGenerator.Generate()`.
+- `server/BushSystem.cs` — uses `TerrainSystem.Heightmap` (carved); re-generates tree list with same seed; passes both channel masks to `BushGenerator.Generate()`.
+- `shared/TreeGenerator.cs` — `Generate(heightmap, riverMask?)` — skips channel cells when mask provided.
+- `shared/BushGenerator.cs` — clustering rewrite: NEAR_TREE_CHANCE=0.70 within CLUSTER_RADIUS=3 tiles; ISOLATED_CHANCE=0.30 elsewhere; `trees` + `riverMask` optional params; maxTries=BUSH_COUNT×40.
+
+**New test files:**
+- `tests/Shared/RiverGeneratorTests.cs` — 11 tests: determinism, different seeds, bounds, min length (seeds 1–10), tangent normalisation, carving depth, channel mask, IsInChannel, monotonic WaterY, TreeGenerator exclusion integration.
+- `tests/Shared/BushGeneratorTests.cs` — 6 tests: determinism without/with trees, height floor, river mask exclusion, clustering concentration (flat heightmap + synthetic trees), target count preserved.
+
+**Modified test files:**
+- `tests/Shared/TreeGeneratorTests.cs` — +2 tests: river mask exclusion, no-mask still deterministic.
+
+**Bug found and fixed during implementation:**
+- `WalkPath` terminated immediately because the source IS a border cell → path length 1 → degenerate RiverData. Fix: added `MIN_RIVER_STEPS=20` — border-exit allowed only after 20 steps traversed.
+
+**Final test count: 370 tests, 0 failures.**
+
+**Editor tasks required (Edu):**
+- Add `WaterSystem` node to `GameWorld.tscn` after `TerrainSystem`.
+- Assign `normal_texture` uniform in Inspector (NoiseTexture2D recommended).
+
+---
+
+## What was done this session (2026-07-18, session 2)
+
+### Bug fixes — fog restore, NPC save completeness, death drop — COMPLETE ✅
+
+**Death drop (root cause: compile error):**
+- `server/HealthSystem.cs` — `0xHP1234u` → `0xD1CE1234u` (H and P are not valid hex digits). Godot was compiling an old binary predating the entire death-drop system. The death-drop code itself (`KillPlayer → SpawnItemDrop → ClientSpawnItemDrop + ClientShowDeathMarker`) was correct and required no further change.
+
+**Fog of war not restored on load:**
+- `server/FogSystem.cs` — `BroadcastFog()` made `public`. `_Process` only broadcasts when `UpdateVisibility()` returns `changed=true`; already-explored cells never re-trigger, so without an explicit broadcast after restore, clients kept all-UNSEEN fog forever.
+- `server/SaveSystem.cs` — added `FogSystem.Instance?.BroadcastFog()` immediately after `RestoreFogFromBase64()` in `TryLoad()`.
+
+**NPC workers/settlers gone after save→load:**
+- Root cause: `GetAssignmentsForSave()` iterated `_workAssignments` only. Sleeping NPCs (in `_suspendedStation`) and idle settlement members (recruited but unassigned) were silently omitted from the save.
+- Fix: Changed to iterate `_settlementNpcs` (the authoritative roster), picking the station from `_workAssignments` first, falling back to `_suspendedStation` for sleeping NPCs. Empty station = idle settler (saved and restored without assigning a job).
+- `RestoreAssignmentsFromSave()` updated to handle empty `StationNodeName` gracefully (roster membership restored, no station assigned).
+
+### Tier 1 — Equipment slot integration — COMPLETE ✅
+
+- `client/MeleeController.cs` — `GetEquippedMeleeWeapon()` and `SetBlocking()` shield check now read `LocalState.EquippedMainHand/EquippedOffHand` first; inventory scan fallback retained for legacy saves.
+- `client/BowController.cs` — `GetEquippedRangedWeapon()` and `HasMeleeWeapon()` read `LocalState.EquippedMainHand` first; inventory scan fallback.
+- `server/BuffSystem.cs` + `shared/LocalState.cs` + `client/PlayerController.cs` — MoveSpeed debuff now fully client-synced: `NotifyMoveSpeedClient` helper RPC pushes multiplier + duration to the affected peer; `LocalState.SetMoveSpeedBuff(multiplier, durationMs)` uses `TickCount64` expiry (no Godot dependency); `PlayerController.ProcessLocalPlayer` applies `LocalState.MoveSpeedMultiplier` to velocity.
+
+### Tier 2 — Code cleanup — COMPLETE ✅
+
+- `shared/BuildingData.cs` — dead `RequiresPresence` field removed (concept removed M7; field was never read).
+- `server/VillageSystem.cs` — `_elapsed`, `_sleeping`, `_lastChopTime`, `_lastWarnTime` all changed from `float`/`SortedDictionary<string,float>` to `double`/`SortedDictionary<string,double>` (prevents timer drift over long sessions per determinism policy).
+- `shared/VillageGenerator.cs` — bare `Random` → `System.Random` (disambiguation; `Random` alone is ambiguous in the namespace).
+- `server/ProjectileSystem.cs` — doc comment corrected: extends `Node` not `Node3D`.
+
+### Tier 3 — SaveUtil Godot dependency removed — COMPLETE ✅
+
+- `shared/SaveUtil.cs` — rewritten to pure C# with zero Godot imports: `SaveDir` const + two `Func<>` provider delegates (`ListSavesProvider`, `PeekSessionProvider`) + thin forwarding methods.
+- `server/SaveSystem.cs` — `DoListSaves()` + `DoPeekSession()` private statics implement the `DirAccess`/`FileAccess` logic that was in SaveUtil; both wired into the delegates in `_Ready()` before the `IsServer()` guard.
+- `project/tests/MankersKingdoms.Tests.csproj` — removed `<Compile Remove>` exclusion for `SaveUtil.cs` (it is now Godot-free and compiles cleanly in the test project).
+
+### Tier 3 — Docs updated — COMPLETE ✅
+
+- `ARCHITECTURE.md §6` — rewritten: old aspirational ECS design replaced with actual flat-dict model (two ID spaces, per-system `SortedDictionary<long,...>`, player vs NPC divergence, save model). §6.5 calls out the version-bump rule.
+- `ARCHITECTURE.md §7` — stale `world.Random.Next()` reference replaced with accurate description of per-system seeded `System.Random` instances.
+- `CLAUDE.md rule 6` — updated to match §7 (per-system `System.Random` seeded from `GameSession.WorldSeed ^ <constant>`; no `Random.Shared` or unseeded instances; never share one RNG across systems).
+- `CLAUDE.md rule 8` — explicitly requires bump + stub migration for every schema change including additive-only; "additive, no version bump required" is not acceptable.
+
+### ClassSelectScreen removed — COMPLETE ✅
+
+- `project/scenes/ClassSelectScreen.tscn` and `project/scripts/client/ClassSelectScreen.cs` deleted. Superseded by `CharacterCreateScreen` in M8; was dead code.
+
+**Commits: `a6280de` (session work), `1c6b7c0` (ClassSelectScreen delete). Both on `origin/main`.**
+**Test count: 349, 0 failures.**
 
 ---
 
@@ -794,6 +901,29 @@ The root `data/lang/en.json` was a stale duplicate and has been deleted. Do not 
 ---
 
 ## Session log
+
+### 2026-07-20 — M10: river generation + terrain carving + forest clustering + NeedsSystem HP decay
+- **NeedsSystem overhaul:** Hunger=0 → HP drain at 2f/60f/s (was: instant kill). Rest=0 → three-phase exhaustion (MoveSpeed×0.5 → AttackBonus−2 + stumble → HP drain). Private KillPlayer removed; death routes through HealthSystem.KillPlayer.
+- **RiverGenerator:** D8 downhill walk, cosine taper carving, 1D width noise. MIN_RIVER_STEPS=20 prevents degenerate 1-step paths from border-start sources.
+- **TerrainSystem pipeline:** GenerateHeightmap → RiverGenerator.Generate() in-place carve → River property → HeightMapShape3D. Trees + bushes receive carved heightmap automatically.
+- **TreeGenerator + TreeSystem:** `riverMask` exclusion prevents trees in carved channel.
+- **BushGenerator clustering:** NEAR_TREE_CHANCE=0.70 within 3-tile radius of any tree; ISOLATED_CHANCE=0.30 elsewhere. Channel mask exclusion.
+- **WaterSystem:** ArrayMesh ribbon (UV.y = arc-length, tangent = flow). Loads water_river.gdshader at runtime; flat-blue fallback. Area3D WaterTrigger per-segment.
+- **water_river.gdshader:** Scrolling normal map, Roughness=0.05, Specular=0.8.
+- **docs/gdd/water.md:** Full algorithm + carving + ribbon + shader spec.
+- **ARCHITECTURE.md §4.4:** MoveSpeed client-prediction note added.
+- 370 tests, 0 failures. 3 NeedsSystem BUGS.md P1 entries closed.
+
+### 2026-07-18 (session 2) — Post-playtest bug fixes + weapon slots + MoveSpeed sync + docs cleanup
+- **Death drop (compile fix):** `0xHP1234u` → `0xD1CE1234u` in HealthSystem. H/P are not valid hex digits; Godot was running a stale binary predating the death-drop system. No logic change needed — the drop code was already correct.
+- **Fog not restored on load:** `FogSystem.BroadcastFog()` made public; `SaveSystem.TryLoad()` now calls it after `RestoreFogFromBase64`. Previously clients kept all-UNSEEN state forever because `_Process` only broadcasts on newly-explored cells.
+- **NPC workers gone after load:** `GetAssignmentsForSave()` now iterates `_settlementNpcs` (not just `_workAssignments`), capturing sleeping NPCs (`_suspendedStation`) and idle settlers. `RestoreAssignmentsFromSave()` handles empty station for idle members.
+- **Tier 1:** MeleeController + BowController read from `LocalState.EquippedMainHand/OffHand` first (inventory scan fallback for legacy saves). MoveSpeed buff RPC now pushes multiplier to affected client peer; `LocalState.SetMoveSpeedBuff(multiplier, durationMs)` uses TickCount64 expiry; `PlayerController` applies `MoveSpeedMultiplier`.
+- **Tier 2:** Dead `RequiresPresence` field removed from BuildingData; VillageSystem time accumulators float→double; VillageGenerator bare `Random` → `System.Random`.
+- **Tier 3:** SaveUtil.cs Godot dependency removed via provider delegate pattern; implementation moved to SaveSystem as private statics; test .csproj exclusion removed.
+- **Docs:** ARCHITECTURE.md §6 (entity model — actual flat-dict, two ID spaces) and §7 (per-system seeded System.Random) rewritten. CLAUDE.md rule 6 and rule 8 tightened to match.
+- **ClassSelectScreen removed:** dead file superseded by CharacterCreateScreen.
+- 349 tests, 0 failures. Commits: a6280de + 1c6b7c0 on origin/main.
 
 ### 2026-07-18 — Block system redesign (§15): mutual exclusivity + TN bonus + ranged crit threshold
 - **Mutual exclusivity:** RMB block now disables LMB attack input. Enforced client-side (MeleeController + BowController early-return) AND server-side (RequestMeleeAttack + RequestFireProjectile gate on `IsBlocking(sender)`). `LocalState.IsBlocking` added as shared bridge between controllers.

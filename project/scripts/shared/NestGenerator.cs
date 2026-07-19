@@ -13,9 +13,10 @@ namespace MankersKingdoms.Shared;
 /// </summary>
 public static class NestGenerator
 {
-    private const float MIN_FROM_ORIGIN = 15f;
-    private const float MIN_NEST_DIST   = 25f;
-    public  const float MAP_HALF        = 96f; // ±96 world-units — safe terrain area
+    private const float MIN_FROM_ORIGIN   = 15f;
+    private const float MIN_NEST_DIST     = 25f;
+    private const float MIN_FROM_VILLAGE  = 45f; // nests spawn away from the starting village
+    public  const float MAP_HALF          = 96f; // ±96 world-units — safe terrain area
 
     /// <summary>
     /// Returns 3 nests deterministically placed for the given world seed (VERTICAL_SLICE.md §3.8):
@@ -30,6 +31,9 @@ public static class NestGenerator
     {
         var rng   = new System.Random((int)(worldSeed ^ 0xDEAD1234u));
         var nests = new List<NestData>();
+
+        // Village centre — used to keep nests away from the player's starting area.
+        var (vx, vz) = VillageGenerator.GetVillageCenter(worldSeed);
 
         (string[] types, float respawnSec, NestTier tier)[] templates =
         [
@@ -48,6 +52,9 @@ public static class NestGenerator
                 float z = (float)(rng.NextDouble() * MAP_HALF * 2 - MAP_HALF);
 
                 if (x * x + z * z < MIN_FROM_ORIGIN * MIN_FROM_ORIGIN) continue;
+
+                float dvx = x - vx, dvz = z - vz;
+                if (dvx * dvx + dvz * dvz < MIN_FROM_VILLAGE * MIN_FROM_VILLAGE) continue;
 
                 bool tooClose = false;
                 foreach (var n in nests)

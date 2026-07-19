@@ -2,7 +2,7 @@
 
 **Status:** v0.1 — living document. All content lists (skills, stats, buildings, classes, monsters) are v1 prototype scope and expected to evolve. Architectural decisions are locked and require an ADR to change.
 
-**Last updated:** 2026-07-02
+**Last updated:** 2026-07-19
 
 ---
 
@@ -174,6 +174,18 @@ The full definition lives in `VERTICAL_SLICE.md`. Summary here:
 
 ---
 
+## Phase 2 Roadmap (post-ADR-0026)
+
+*ADR-0026 (2026-07-19) transitions Mankers Kingdoms from a 3-month vertical-slice discovery vehicle to a committed long-term solo development project. The milestones below are the concrete near-term plan that ADR-0026 mandates as a counter to unbounded scope drift. Each GDD stub is a structural commitment — full design happens at the named milestone's kickoff, not before.*
+
+- **M10 — World-generation quality pass** *(in progress)*: forest noise-based density, real 3D water geometry, minimum nest–village distance, ~1000m map, tree regrowth with stump state. See `docs/gdd/worldgen.md`.
+- **M11 — Thirst + water system**: Waterskin item, Wells building, Water Barrel storage, Rest-reaching-0 consequences (forced sleep, movement penalty, debuffs building toward eventual death — a graduated path matching Hunger's current directness but with more warning before the kill). See `docs/gdd/` (thirst design session at M11 kickoff).
+- **M12 — Production & industry tiers**: gather / basic-refine / advanced-refine framework across all Trades (Woodcutting, Stonecutting, Mining, Foraging, Hunting, Cooking). Full design session at M12 kickoff. See `docs/gdd/production.md` (stub).
+- **M13 — Research & tech tree**: Bellwright-style unlock/prerequisite system gating production tiers and buildings. Full design session at M13 kickoff. See `docs/gdd/tech_tree.md` (stub).
+- **M14 — Magic system**: activates the dormant Magic skill group from `docs/gdd/skills.md` §2.4 (Alchemy, Sorcery, Weirding). Full design session at M14 kickoff. See `docs/gdd/magic.md` (stub).
+
+---
+
 ## 6. Deferred features roadmap
 
 Ordered rough priority, not committed dates.
@@ -287,6 +299,7 @@ Chronological record of major decisions. New entries go at the bottom. Full ADRs
 | 2026-07-02 | XP formula locked | ADR-0020 | XP-per-tick-while-working; idle characters gain nothing; ties into server tick model naturally |
 | 2026-07-02 | Backlog and triage process | ADR-0021 | `IDEAS_BACKLOG.md` at repo root; new ideas captured and triaged into: trivial content / post-slice feature / slice-affecting scope change (requires new ADR) / rejected |
 | 2026-07-02 | Deterministic lockstep considered and rejected | ADR-0022 | Factorio-style lockstep evaluated; rejected for MK due to real-time combat input lag, Godot 4 non-determinism defaults, and modding fragility; authoritative host retained; determinism kept as discipline where cheap |
+| 2026-07-19 | Production-mode shift | ADR-0026 | Mankers Kingdoms transitions from vertical-slice discovery vehicle (3-month hard gate) to committed long-term solo development project; Phase 2 Roadmap (M10–M14) drafted as direct consequence to prevent unbounded scope drift |
 
 ---
 
