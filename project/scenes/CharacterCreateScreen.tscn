@@ -1,0 +1,151 @@
+[gd_scene format=3 uid="uid://ebxmi371imcl"]
+
+[ext_resource type="Script" uid="uid://c77yoehnkpeao" path="res://scripts/client/CharacterCreateScreen.cs" id="1_u2k48"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_u2k48"]
+allow_unpress = true
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_0ijd2"]
+allow_unpress = true
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_hgtxr"]
+allow_unpress = true
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_8mgug"]
+allow_unpress = true
+
+[node name="CharacterCreateScreen" type="Control" unique_id=740700718]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_u2k48")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1603924243]
+layout_mode = 0
+offset_right = 74.0
+offset_bottom = 233.0
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer" unique_id=1070853246]
+layout_mode = 2
+
+[node name="StatsPanel" type="PanelContainer" parent="VBoxContainer" unique_id=1931093137]
+layout_mode = 2
+
+[node name="StatsContainer" type="VBoxContainer" parent="VBoxContainer/StatsPanel" unique_id=41625336]
+layout_mode = 2
+
+[node name="Stats" type="Label" parent="VBoxContainer/StatsPanel/StatsContainer" unique_id=938857128]
+layout_mode = 2
+
+[node name="StatStrLabel" type="Label" parent="VBoxContainer/StatsPanel/StatsContainer" unique_id=868222670]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+
+[node name="StatDexLabel" type="Label" parent="VBoxContainer/StatsPanel/StatsContainer" unique_id=1560442927]
+layout_mode = 2
+
+[node name="StatConLabel" type="Label" parent="VBoxContainer/StatsPanel/StatsContainer" unique_id=774558841]
+layout_mode = 2
+
+[node name="StatWisLabel" type="Label" parent="VBoxContainer/StatsPanel/StatsContainer" unique_id=1313058638]
+layout_mode = 2
+
+[node name="ActionRow" type="HBoxContainer" parent="VBoxContainer/StatsPanel/StatsContainer" unique_id=241299140]
+layout_mode = 2
+
+[node name="RerollButton" type="Button" parent="VBoxContainer/StatsPanel/StatsContainer/ActionRow" unique_id=646265199]
+layout_mode = 2
+
+[node name="RacePanel" type="PanelContainer" parent="VBoxContainer" unique_id=496496271]
+layout_mode = 2
+
+[node name="RaceContainer" type="VBoxContainer" parent="VBoxContainer/RacePanel" unique_id=671178530]
+layout_mode = 2
+
+[node name="Race" type="Label" parent="VBoxContainer/RacePanel/RaceContainer" unique_id=761332812]
+layout_mode = 2
+
+[node name="RaceChoiceContainer" type="HBoxContainer" parent="VBoxContainer/RacePanel/RaceContainer" unique_id=183929356]
+layout_mode = 2
+
+[node name="RaceHumanButton" type="Button" parent="VBoxContainer/RacePanel/RaceContainer/RaceChoiceContainer" unique_id=77606814]
+layout_mode = 2
+toggle_mode = true
+
+[node name="RaceDwarfButton" type="Button" parent="VBoxContainer/RacePanel/RaceContainer/RaceChoiceContainer" unique_id=1813174286]
+layout_mode = 2
+toggle_mode = true
+
+[node name="RaceElfButton" type="Button" parent="VBoxContainer/RacePanel/RaceContainer/RaceChoiceContainer" unique_id=1816793636]
+layout_mode = 2
+toggle_mode = true
+
+[node name="RaceHalflingButton" type="Button" parent="VBoxContainer/RacePanel/RaceContainer/RaceChoiceContainer" unique_id=1598433080]
+layout_mode = 2
+toggle_mode = true
+
+[node name="HumanChoiceContainer" type="HBoxContainer" parent="VBoxContainer/RacePanel/RaceContainer" unique_id=125172069]
+layout_mode = 2
+
+[node name="HumanChoiceLabel" type="Label" parent="VBoxContainer/RacePanel/RaceContainer/HumanChoiceContainer" unique_id=1482448026]
+layout_mode = 2
+
+[node name="ChooseStrButton" type="Button" parent="VBoxContainer/RacePanel/RaceContainer/HumanChoiceContainer" unique_id=1643660805]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_u2k48")
+
+[node name="ChooseDexButton" type="Button" parent="VBoxContainer/RacePanel/RaceContainer/HumanChoiceContainer" unique_id=1626162087]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_0ijd2")
+
+[node name="ChooseConButton" type="Button" parent="VBoxContainer/RacePanel/RaceContainer/HumanChoiceContainer" unique_id=96331975]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_hgtxr")
+
+[node name="ChooseWisButton" type="Button" parent="VBoxContainer/RacePanel/RaceContainer/HumanChoiceContainer" unique_id=1861249028]
+layout_mode = 2
+toggle_mode = true
+button_group = SubResource("ButtonGroup_8mgug")
+
+[node name="ClassPanel" type="PanelContainer" parent="VBoxContainer" unique_id=1803152909]
+layout_mode = 2
+
+[node name="ClassContainer" type="VBoxContainer" parent="VBoxContainer/ClassPanel" unique_id=904355122]
+layout_mode = 2
+
+[node name="Class" type="Label" parent="VBoxContainer/ClassPanel/ClassContainer" unique_id=1684570203]
+layout_mode = 2
+
+[node name="FighterButton" type="Button" parent="VBoxContainer/ClassPanel/ClassContainer" unique_id=494181606]
+layout_mode = 2
+toggle_mode = true
+
+[node name="RangerButton" type="Button" parent="VBoxContainer/ClassPanel/ClassContainer" unique_id=697002687]
+layout_mode = 2
+toggle_mode = true
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer" unique_id=1755667287]
+layout_mode = 2
+
+[node name="DescriptionPanel" type="PanelContainer" parent="VBoxContainer" unique_id=1642202593]
+layout_mode = 2
+
+[node name="VBoxContainer2" type="VBoxContainer" parent="VBoxContainer/DescriptionPanel" unique_id=1562014243]
+layout_mode = 2
+
+[node name="RaceDescLabel" type="Label" parent="VBoxContainer/DescriptionPanel/VBoxContainer2" unique_id=802554318]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+autowrap_mode = 2
+
+[node name="ClassDescLabel" type="Label" parent="VBoxContainer/DescriptionPanel/VBoxContainer2" unique_id=66178607]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+autowrap_mode = 2
+
+[node name="ConfirmButton" type="Button" parent="VBoxContainer" unique_id=754267656]
+layout_mode = 2

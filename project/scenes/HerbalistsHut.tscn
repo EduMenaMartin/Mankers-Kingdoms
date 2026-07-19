@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://hvajj8wcspef"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_tepmp"]
+size = Vector3(4, 3, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tepmp"]
+size = Vector3(4, 3, 4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2gc5m"]
+albedo_color = Color(0.23137255, 1, 0.20392157, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bo0yh"]
+size = Vector3(5, 3, 5)
+
+[node name="HerbalistsHut" type="StaticBody3D" unique_id=272493607]
+collision_mask = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2074856509]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("BoxShape3D_tepmp")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=208099765]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+mesh = SubResource("BoxMesh_tepmp")
+surface_material_override/0 = SubResource("StandardMaterial3D_2gc5m")
+
+[node name="Area3D" type="Area3D" parent="." unique_id=1944445189]
+collision_layer = 129
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=1951236064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("BoxShape3D_bo0yh")
