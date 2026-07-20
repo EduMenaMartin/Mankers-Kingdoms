@@ -641,6 +641,17 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 
 ---
 
+## Character trait system ✅ COMPLETE (2026-07-20)
+
+GDD §11 (alignment), §12 (racial/class traits), and combat.md §16-17 (saving throws, block/crit class traits).
+
+- [x] **Alignment** — `Alignment` enum + `AlignmentExtensions`; `GameSession.ChosenAlignment`; `CharacterCreateScreen` alignment button group + handler; `SaveData` v1→v2 (`SessionSave.Alignment`); `SaveSystem` migrate+save+restore; `en.json` loc keys
+- [x] **Racial traits** — `RaceData.SavingThrowBonuses/CombatBonusVs`; `RaceRegistry` populated (Elf +4 sleep/charm, Dwarf +2 poison/magic + +2 AB vs goblin/orc, Halfling +2 magic/poison); Dwarf Wis penalty corrected to dormant Cha; `CombatSystem.RequestSetRace` RPC + Dwarf AB bonus; `PlayerController.AnnounceRace()`
+- [x] **Class traits** — `ClassKitData.ActiveBlockBonus/RangedCritThreshold`; Fighter=6/24, Ranger=4/22; `CombatSystem.RequestSetClass` + per-class block bonus in `GetPlayerTargetNumber`; `ProjectileSystem` per-shooter crit threshold via `CombatSystem.GetRangedCritThreshold()`; `PlayerController.AnnounceClass()` also calls CombatSystem
+- [x] **SavingThrowResolver** — `shared/SavingThrowResolver.cs`: 1d20 + floor(skillLevel/10) + racialBonus ≥ difficulty
+- [x] **Tests** — `AlignmentTests.cs` (12), `SavingThrowResolverTests.cs` (17); RaceRegistry + ClassKitRegistry extended; stale tests fixed. 417 total, 0 failures.
+- [ ] **Editor task** — Add `AlignLawfulButton`, `AlignNeutralButton`, `AlignChaoticButton` (Button nodes under `Alignment` Label) to `scenes/CharacterCreateScreen.tscn`
+
 ---
 
 ## M10 — World gen quality + river
@@ -668,7 +679,7 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - **370 tests, 0 failures**
 
 ### Editor tasks pending (Edu)
-- [ ] Add `WaterSystem` node (script `res://scripts/server/WaterSystem.cs`) to `GameWorld.tscn` after `TerrainSystem`. Plain `Node`.
+- [x] Add `WaterSystem` node (script `res://scripts/server/WaterSystem.cs`) to `GameWorld.tscn` after `TerrainSystem`. Plain `Node`. ✅ confirmed done
 - [ ] Assign `normal_texture` uniform on the ShaderMaterial in Inspector — recommended: `NoiseTexture2D` (FastNoiseLite, FBm, 256px, seamless=true, as_normal_map=true).
 
 ---

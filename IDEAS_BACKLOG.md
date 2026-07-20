@@ -15,6 +15,12 @@ Every entry gets one:
 
 ## Entries
 
+### 2026-07-20 — [post-slice] Godot AI MCP tool (godotengine.org/asset-library/asset/5050)
+
+Trial completed 2026-07-20. Found genuinely solid MCP mechanics (43 tools, clean HTTP/SSE transport, scene hierarchy manipulation, node create/property/script all working) but a real near-miss risk discovered during testing: when `scene_manage/create` fails due to a wrong parameter name, all subsequent `node_create`, `node_set_property`, and `scene_save` calls silently redirect to the currently-open scene with no warning. Additionally, `script_attach` does not accept the `scene_file` guard parameter that other tools support, so there is no safety net for that step specifically. In the trial this caused `GameWorld.tscn` to receive a rogue `TestLabel` node, a script attachment, and a save — all silently, requiring a `git checkout` recovery.
+
+Tool is not adopted. `docs/SCENE_WORKFLOW.md`'s rule stays in force unchanged: Claude Code never touches `.tscn`/`.tres` files; node trees are described for Edu to build in the editor. Revisit once the tool has more track record/maturity, and only with a written, tested, error-checked wrapper procedure in place first that: (1) confirms each step's return value before proceeding, (2) opens the target scene explicitly before any node operations, (3) runs a `git diff --stat` guard before any save call.
+
 ### 2026-07-19 — [trivial-content] Low-rest skill growth penalty (Rest < 20, per VERTICAL_SLICE.md §3.9)
 
 VERTICAL_SLICE.md §3.9 specifies: "low rest → reduced skill growth rate." This was deliberately excluded from the M11 rest-exhaustion fix (which addressed Rest=0 consequences) because it is a separate, quieter effect: skill XP gain is halved when Rest is below 20, regardless of how long the player has been tired.

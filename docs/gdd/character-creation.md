@@ -1,8 +1,8 @@
 # Mankers Kingdoms — Character Creation (GDD)
 
-**Status:** v0.1 — locked for v1. Race system added to vertical slice scope per Edu's direction, verified against the original D&D Stronghold (1993)'s actual character creation flow.
+**Status:** v0.1 — locked for v1. Race system, stat-rolling revision, alignment, and racial/class traits all confirmed. Visual customization deferred to its own stub (`docs/gdd/character_customization.md`).
 
-**Related:** `PRD.md` §4.4, §10; `VERTICAL_SLICE.md` §3.2; `docs/gdd/skills.md` (stat caps, ADR-0019); `docs/gdd/combat.md` (stat modifiers feed combat formulas); ADR-0019, ADR-0023 (this feature)
+**Related:** `PRD.md` §4.4, §10; `VERTICAL_SLICE.md` §3.2; `docs/gdd/skills.md` (stat caps, ADR-0019); `docs/gdd/combat.md` (stat modifiers, Saving Throws §16, class traits §17); ADR-0019, ADR-0023
 
 ---
 
@@ -22,48 +22,47 @@ We keep our **already-locked class list** (Fighter, Ranger) rather than revertin
 
 ## 2. Character creation flow
 
-1. **Roll Attributes** — 3d6 straight, once per stat (Strength, Dexterity, Constitution, Wisdom — the 4 stats locked in `PRD.md` §4.4). **This locks player stat generation to the same method already used for NPCs** (`docs/gdd/skills.md`), resolving `PRD.md` §10's previously-open question on player stat rolling.
-2. **Choose Race** — Human, Dwarf, Elf, or Halfling. Applies the racial modifier (§3) to the rolled stats.
-3. **Choose Class** — Fighter or Ranger, unchanged from `VERTICAL_SLICE.md` §3.2. Provides starting kit + skill bumps, unaffected by race.
-4. **Name Character.**
-5. **Unlimited rerolls** before commit (already locked); character is permanent once entering the world.
+1. **Roll Attributes** — see §10 for the current (revised) rolling method.
+2. **Choose Race** — Human, Dwarf, Elf, or Halfling. Applies the racial modifier (§3) to the rolled stats, plus the racial traits in §12.
+3. **Choose Class** — Fighter or Ranger, unchanged from `VERTICAL_SLICE.md` §3.2. Provides starting kit + skill bumps, plus the class traits in §12.
+4. **Choose Alignment** — Lawful / Neutral / Chaotic, see §11.
+5. **Name Character.**
+6. **Unlimited rerolls** before commit; character is permanent once entering the world.
 
 ---
 
-## 3. Racial modifiers
+## 3. Racial modifiers (stat bonuses/penalties)
 
-Applied to the 3d6-rolled stat **before** it feeds skill caps (ADR-0019) or combat formulas (`docs/gdd/combat.md`).
+Applied to the rolled stat **before** it feeds skill caps (ADR-0019) or combat formulas (`docs/gdd/combat.md`).
 
 | Race | Bonus | Penalty |
 |---|---|---|
-| **Human** | +1 to one stat of the player's choice at creation (recommended — versatility theme; open to revisiting, see §9) | none |
+| **Human** | +1 to one stat of the player's choice at creation | none |
 | **Dwarf** | +1 Constitution | −1 Charisma |
 | **Elf** | +1 Dexterity | −1 Constitution |
 | **Halfling** | +1 Dexterity | −1 Strength |
 
-These are the classic AD&D 1st/2nd Edition conventions — consistent with Stronghold's own confirmed use of "First Edition D&D Rules" (established during `docs/gdd/combat.md`'s research).
+These are the classic AD&D 1st/2nd Edition conventions — consistent with Stronghold's own confirmed use of "First Edition D&D Rules."
 
 ### 3.1 Worked example
 
 A player rolls Str 14, Dex 13, Con 12, Wis 10, picks **Dwarf**:
-- Adjusted: Str 14, Dex 13, **Con 13** (+1), **Cha n/a (we don't use Cha in v1's 4-stat set — see Open Questions §9)**
-- This adjusted Con 13 now feeds their skill cap (ADR-0019: `floor(99×13/18)` = 71 for any Con-governed skill) and their combat Target Number (`docs/gdd/combat.md` §2.2, if they're a defender).
-
-**Note:** since v1 only uses Str/Dex/Con/Wis (not Charisma), the Dwarf's −1 Cha and any other Cha-related penalty currently has **no mechanical effect** until Charisma is added at 1.0 (per `PRD.md` §10's open question on expanding to the full six stats). Document this rather than silently drop it — see §9.
+- Adjusted: Str 14, Dex 13, **Con 13** (+1)
+- Since v1 only uses Str/Dex/Con/Wis (not Charisma), Dwarf's −1 Cha currently has **no mechanical effect** until Charisma is added at 1.0 — dormant, not dropped, per §9.
 
 ---
 
 ## 4. Race × Class combinations (v1)
 
-4 races × 2 classes = **8 playable combinations** for the vertical slice: Human/Dwarf/Elf/Halfling Fighter, and Human/Dwarf/Elf/Halfling Ranger.
+4 races × 2 classes = **8 playable combinations** for the vertical slice.
 
 ---
 
 ## 5. NPC extension
 
-Procedural village NPCs (`docs/gdd/skills.md` §4 — hidden archetype + rolled stats) also receive a race at generation, using the same modifier table. This is a natural, low-cost extension of the already-locked NPC generation system — one more generation parameter, not a new system. Enables recruitment texture consistent with the original's spirit (a village might skew Dwarf-heavy, appealing for Con-driven Trades recruitment) without adding new mechanics.
+Procedural village NPCs (`docs/gdd/skills.md` §4) also receive a race at generation, using the same modifier table (§3) — but **NPCs use flat single 3d6 rolling**, not the player's best-of-3 method (§10). This is an intentional asymmetry, not an oversight.
 
-**Not included in v1:** race-matched recruitment bonuses (e.g. same-race NPCs join more easily) or race-gated buildings (alongside the existing class-gated ones). Both are natural extensions but explicitly deferred to roadmap — see §8.
+**Not included in v1:** race-matched recruitment bonuses or race-gated buildings. Both are natural extensions, deferred to roadmap (§8).
 
 ---
 
@@ -74,7 +73,9 @@ Procedural village NPCs (`docs/gdd/skills.md` §4 — hidden archetype + rolled 
   "id": "race.dwarf",
   "display_name_key": "race.dwarf.name",
   "stat_modifiers": { "con": 1, "cha": -1 },
-  "player_choice_modifier": false
+  "player_choice_modifier": false,
+  "saving_throw_bonuses": { "poison": 2, "magic": 2 },
+  "combat_bonus_vs": { "monster.goblin": 2, "monster.orc": 2 }
 }
 ```
 
@@ -94,21 +95,72 @@ Stable string IDs per ADR-0009, stored in `data/base/races/*.json`.
 
 ## 7. Visual differentiation
 
-Deferred to art pass — not blocking the mechanic. For the prototype, even a scale or color-tint variation on the existing placeholder capsule is sufficient (Halfling shorter, Dwarf stockier, Elf slimmer). Distinct models are a later content task, consistent with how the rest of v1 treats placeholder art.
+Full design in `docs/gdd/character_customization.md` (stub, see §13). For the prototype, even a scale or color-tint variation on the existing placeholder capsule/model is sufficient.
 
 ---
 
 ## 8. Roadmap (post-slice, not scheduled)
 
-- Additional races (Gnome, Half-Elf, Half-Orc, etc.) — confirmed easy to add given the system is just a modifier-table lookup.
-- Race-gated buildings, alongside the existing class-gated system in `docs/gdd/settlements.md`.
-- Race-matched recruitment bonuses (loyalty/happiness bonus for recruiting same-race NPCs into a same-race-founded settlement) — ties to the original's "leaders attract others of the same race" flavor.
-- Charisma-dependent racial penalties (Dwarf's −1 Cha, etc.) become mechanically live once Charisma is added at 1.0 (per `PRD.md` §10's open question on expanding to the full six stats).
+- Additional races (Gnome, Half-Elf, Half-Orc, etc.)
+- Race-gated buildings, alongside the existing class-gated system in `docs/gdd/settlements.md`
+- Race-matched recruitment bonuses
+- Charisma-dependent racial penalties become mechanically live once Charisma is added at 1.0
+- Elf's stealth/surprise bonus and secret-door detection, Dwarf's stonework/underground detection (verified real AD&D traits, no mechanical home yet — see `combat.md` §16.4)
 
 ---
 
-## 9. Open questions
+## 9. Open questions (resolved)
 
-1. **Human's bonus** — is "+1 to one stat of player's choice" the right call, or should Human simply have no modifier at all (purely flavor-neutral, simplest possible baseline)? Recommended the former for parity of interest with the other three races, not locked.
-2. **Cha-penalty dormancy** — Dwarf's −1 Charisma currently does nothing mechanically since v1 doesn't use Cha. Acceptable to ship as-is (documented, dormant) or should Dwarf get penalized on a stat we DO use instead, for v1 specifically? Leaning toward "ship as documented, activates naturally at 1.0" — simplest, avoids reworking the table twice.
-3. **Racial trait beyond stats** — should any race get a small non-stat trait (e.g. Elf: slightly larger vision radius / minimap range, Dwarf: bonus to a specific Trade skill like Mining) similar to how classes get skill bumps, or keep races purely stat-modifier-based for v1 simplicity? Leaning toward "stats only for v1," non-stat traits as a roadmap richness pass.
+1. ~~Human's bonus~~ — resolved: +1 to one stat of player's choice.
+2. ~~Cha-penalty dormancy~~ — resolved: ship as documented, dormant until Charisma added at 1.0.
+3. ~~Racial trait beyond stats~~ — resolved: see §12, verified against real AD&D convention (Elf sleep/charm resistance, Dwarf poison/magic resistance + Goblin/Orc combat bonus, Halfling magic/poison resistance).
+
+---
+
+## 10. Stat rolling — best-of-3 per stat, whole-character reroll (supersedes the original 3d6-straight)
+
+**Status:** locked. Revises this document's original decision. Players now roll differently from NPCs (an intentional asymmetry — protagonists get a friendlier method; NPCs stay on flat single 3d6, per §5).
+
+**The mechanic:** for each of the four stats (Str, Dex, Con, Wis), roll 3d6 **three separate times**, keep the **highest** of the three as that stat's value. All four stats use this method simultaneously.
+
+**Reroll behavior:** the Reroll button rerolls **all four stats together** as one unit — there is no mechanism to reroll a single stat in isolation. Each reroll redraws all three 3d6 attempts for all four stats fresh.
+
+**Note:** this supersedes the note in `PRD.md` §10 marking player stat rolling as "resolved: 3d6 straight, same as NPCs" — that resolution is now inaccurate and should be corrected.
+
+---
+
+## 11. Alignment
+
+**Status:** locked. A personal character trait, selected at creation, **separate from and not mechanically tied to** the world-creation win-condition alignment setting already locked in `PRD.md` §4.9.
+
+**Options:** Lawful / Neutral / Chaotic (three-point, matching the existing win-condition axis's categories, not a full 9-point Good/Evil grid).
+
+**Purpose:** flavor text and **faction interaction texture** — intended to influence dialogue tone, NPC reactions, and potentially default disposition nuances layered on top of `docs/gdd/factions.md`'s existing Hostile/Neutral/Allied model (e.g. a Chaotic character might get a different default reception at a Lawful-aligned settlement, as a later refinement — not mechanically wired in this initial pass). No effect on the world-creation win-condition setting.
+
+---
+
+## 12. Racial and class traits
+
+**Status:** locked, verified against real AD&D convention (not invented). Full mechanical detail lives in `docs/gdd/combat.md` §16 (Saving Throws, racial bonuses) and §17 (class traits) — this section is the character-creation-facing summary.
+
+### 12.1 Racial traits
+
+| Race | Trait |
+|---|---|
+| Elf | +4 Saving Throw bonus vs. sleep/charm-type effects |
+| Dwarf | +2 Saving Throw bonus vs. poison and magic; +2 Attack Bonus vs. Goblin and Orc specifically |
+| Halfling | +2 Saving Throw bonus vs. magic and poison |
+| Human | (existing +1 to any stat of choice, per §3, serves as their distinguishing trait) |
+
+### 12.2 Class traits
+
+| Class | Trait |
+|---|---|
+| Fighter | Enhanced active-block Target Number bonus (+6 instead of standard +4) |
+| Ranger | Lowered Ranged crit "wide margin" threshold (needs total ≥22 instead of ≥24 on a natural 20) |
+
+---
+
+## 13. Visual character customization — deferred to dedicated stub
+
+**Status:** confirmed direction, full design in `docs/gdd/character_customization.md` (new stub). Discrete preset system (2–3 options per customizable trait, not continuous sliders), plus height/weight applied as a scale multiplier on the base model. Age/Height/Weight rolled per race have **no mechanical effect** — cosmetic only, feeding this system.

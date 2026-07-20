@@ -6,20 +6,59 @@
 
 ## Current status
 
-**Milestone:** M10 — World gen quality + river
-**Last session:** 2026-07-20 — River generation pipeline, terrain carving, WaterSystem ribbon mesh + Area3D, water_river.gdshader, forest clustering in BushGenerator, NeedsSystem HP decay overhaul. 370 tests, 0 failures.
+**Milestone:** M10 — World gen quality + river (complete); character trait system (complete)
+**Last session:** 2026-07-20 — Alignment selection, racial traits (saving throws + Dwarf AB bonus), class traits (Fighter block +6, Ranger crit threshold 22), SavingThrowResolver, GDD §16/§17. 417 tests, 0 failures.
 **Blockers:** None.
 **Decisions needed from Edu:** None outstanding.
 
 **Next action:**
-1. **Build in Godot** — confirm game compiles clean with all M10 new files (RiverSegment, RiverData, RiverGenerator, WaterSystem) and modified files (TerrainSystem, TreeSystem, BushSystem, TreeGenerator, BushGenerator).
-2. **Editor task (M10):**
-   - Add `WaterSystem` node (script `res://scripts/server/WaterSystem.cs`) to `GameWorld.tscn` after `TerrainSystem`. Plain `Node`.
-   - In the Remote tree at runtime, select `RiverMesh` → Inspector → ShaderMaterial → assign a `NoiseTexture2D` (FastNoiseLite, FBm, 256px, seamless=true, as_normal_map=true) to the `normal_texture` uniform. Tune `flow_speed`, `normal_strength`, `tiling`.
-3. **Smoke-test river** — start new game → walk to river → confirm semi-transparent blue ribbon in carved channel; open minimap → confirm river path visible; walk into river → Output logs "[WaterSystem] Player_1 entered river".
+1. **Build in Godot** — confirm clean compile; many files changed (CharacterCreateScreen, PlayerController, CombatSystem, ProjectileSystem, RaceData, ClassKitData).
+2. **Editor task (CharacterCreateScreen.tscn)** — 3 alignment buttons needed:
+   - Add `AlignLawfulButton` (Button), `AlignNeutralButton` (Button), `AlignChaoticButton` (Button) under an `Alignment` Label section. All three must be in the same VBoxContainer as the other race/class buttons. The script wires them in code so no ButtonGroup needs to be set in the editor.
+3. **Editor task (M10 — still pending from prior session):**
+   - Assign `normal_texture` uniform on the ShaderMaterial of `RiverMesh` at runtime → `NoiseTexture2D` (FastNoiseLite, FBm, 256px, seamless=true, as_normal_map=true).
 4. **M9 pre-playtest still pending:**
    - Shelter capacity gate: `VillageSystem.RequestRecruit` rejects if no Shelter with spare capacity (max 2/shelter).
    - Godot build + smoke-test three M9 bug fixes (death drop, fog restore, NPC save) before playtest.
+
+---
+
+## What was done this session (2026-07-20, session 2)
+
+### Character trait system — COMPLETE ✅
+
+Five items implemented from `docs/gdd/character-creation.md §10-12` and `docs/gdd/combat.md §16-17`.
+
+**Item 2 — Alignment (Lawful/Neutral/Chaotic) selection:**
+- `shared/Alignment.cs` — `Alignment` enum + `AlignmentExtensions.FromString/ToLocKey`
+- `shared/GameSession.cs` — `ChosenAlignment` field; `Reset()` clears to Neutral
+- `shared/SaveData.cs` — `SaveData.Version` bumped 1→2; `SessionSave.Alignment` nullable field (null in v1 saves → Neutral on load)
+- `server/SaveSystem.cs` — `MigrateForward()` stub for v1→v2; saves/restores `ChosenAlignment`; aligned field in `SessionSave`
+- `client/CharacterCreateScreen.cs` — alignment button refs, `_selectedAlignment` state, `ButtonGroup` wiring, `OnAlignmentGroupPressed` handler, writes to `GameSession.ChosenAlignment` in `OnConfirm()`
+- `data/lang/en.json` — `charCreate.alignment.label`, `alignment.lawful/neutral/chaotic`
+- **Editor task:** 3 new buttons in `CharacterCreateScreen.tscn` — `AlignLawfulButton`, `AlignNeutralButton`, `AlignChaoticButton` (under an `Alignment` Label)
+
+**Item 3 — Racial traits (saving throw bonuses + Dwarf combat bonus):**
+- `shared/RaceData.cs` — `SavingThrowBonuses: IReadOnlyDictionary<string,int>` and `CombatBonusVs: IReadOnlyDictionary<string,int>` added to record
+- `shared/RaceRegistry.cs` — populated: Elf +4 sleep/charm; Dwarf +2 poison/magic, +2 AB vs goblin/orc; Halfling +2 magic/poison; Human empty. **Fixed Dwarf penalty from `Wis=-1` → `Cha=-1` (dormant since Cha not in StatBlock)**
+- `en.json` — Dwarf desc updated to "Con +1, Cha −1 (dormant)"
+- `server/CombatSystem.cs` — `_playerRace` dict; `RequestSetRace` RPC; Dwarf AB bonus applied in `RequestMeleeAttack` (substring match on monster ID)
+- `client/PlayerController.cs` — `AnnounceRace()` method; called deferred in `_Ready()` alongside `AnnounceClass`/`AnnounceStats`
+
+**Item 4 — Class traits (Fighter block +6, Ranger crit threshold 22):**
+- `shared/ClassKitData.cs` — `ActiveBlockBonus = 4` and `RangedCritThreshold = 24` optional params with standard defaults
+- `shared/ClassKitRegistry.cs` — Fighter: `ActiveBlockBonus=6`; Ranger: `RangedCritThreshold=22`
+- `server/CombatSystem.cs` — `_playerClass` dict; `RequestSetClass` RPC; `GetPlayerTargetNumber` uses class-specific block bonus; `GetRangedCritThreshold(peerId)` public helper
+- `server/ProjectileSystem.cs` — removed `BLOCKING_CRIT_THRESHOLD` constant; uses `CombatSystem.GetRangedCritThreshold(proj.OriginPeerId)` per shooter
+- `client/PlayerController.cs` — `AnnounceClass()` now also calls `CombatSystem.RequestSetClass` (in addition to HealthSystem)
+
+**Item 5 — SavingThrowResolver:**
+- `shared/SavingThrowResolver.cs` — pure static `Resolve(d20Roll, skillLevel, race?, category, difficulty)` → `(success, roll, racialBonus, total)`; formula: 1d20 + floor(skillLevel/10) + racialBonus ≥ difficulty
+
+**Tests: 417 passing, 0 failures** (+47 from prior session).
+- New: `AlignmentTests.cs` (12), `SavingThrowResolverTests.cs` (17)
+- Extended: `RaceRegistryTests.cs` (+17: saving throw bonuses, combat bonuses, Dwarf Cha-penalty correctness), `ClassKitRegistryTests.cs` (+6: ActiveBlockBonus, RangedCritThreshold)
+- Fixed stale: `Dwarf_ConPlusOne_WisMinusOne` → `Dwarf_ConPlusOne_ChaPenaltyDormant`; `SaveData_DefaultVersion_Is1` → `SaveData_DefaultVersion_Is2`
 
 ---
 

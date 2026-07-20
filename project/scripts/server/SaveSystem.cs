@@ -180,7 +180,8 @@ public partial class SaveSystem : Node
             ChosenClassId   = GameSession.ChosenClassId,
             ChosenRaceId    = GameSession.ChosenRaceId,
             RolledStats     = GameSession.RolledStats,
-            HumanChosenStat = GameSession.HumanChosenStat
+            HumanChosenStat = GameSession.HumanChosenStat,
+            Alignment       = GameSession.ChosenAlignment.ToString().ToLowerInvariant()
         };
 
         EnsureSaveDir();
@@ -243,6 +244,9 @@ public partial class SaveSystem : Node
             return;
         }
 
+        // Run forward migrations so old saves load cleanly under the current schema.
+        MigrateForward(data);
+
         GD.Print($"[Save] Loading v{data.Version}: seed={data.WorldSeed}, " +
                  $"{data.Players.Count} player(s), {data.Buildings.Count} building(s)");
 
@@ -257,6 +261,7 @@ public partial class SaveSystem : Node
             GameSession.ChosenRaceId    = data.Session.ChosenRaceId;
             GameSession.RolledStats     = data.Session.RolledStats;
             GameSession.HumanChosenStat = data.Session.HumanChosenStat;
+            GameSession.ChosenAlignment = AlignmentExtensions.FromString(data.Session.Alignment);
         }
 
         // Restore fog-of-war grid (worldgen.md §11.4) and push it to all clients.
@@ -337,6 +342,22 @@ public partial class SaveSystem : Node
             return data?.Session;
         }
         catch { return null; }
+    }
+
+    // ── Save format migrations ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Applies forward migrations so saves from any prior version load correctly
+    /// under the current schema. Each case bumps data.Version after applying its changes.
+    /// Add a new case for every SaveData.Version increment — even additive-only fields
+    /// need a stub so the chain remains complete (ARCHITECTURE.md §8.2).
+    /// </summary>
+    private static void MigrateForward(SaveData data)
+    {
+        // v1 → v2: SessionSave.Alignment added. Null on old saves defaults to Neutral in
+        //          GameSession on load (AlignmentExtensions.FromString(null) returns Neutral).
+        //          No data transformation needed; stub keeps the version chain intact.
+        if (data.Version < 2) data.Version = 2;
     }
 
     // ── Save directory helpers ────────────────────────────────────────────────

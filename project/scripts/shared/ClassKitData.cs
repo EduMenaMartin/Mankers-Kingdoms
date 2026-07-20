@@ -34,5 +34,17 @@ public sealed record ClassKitData(
     /// then adds StatModifier(Con) per die. See HealthSystem.RollPlayerHp.
     /// </summary>
     int HitDiceCount = 4,
-    int HitDieSize   = 8
+    int HitDieSize   = 8,
+
+    /// <summary>
+    /// TN bonus granted to the player while actively blocking with a shield (combat.md §17.1).
+    /// Standard = 4. Fighter class trait raises this to 6.
+    /// </summary>
+    int ActiveBlockBonus = 4,
+
+    /// <summary>
+    /// Minimum total roll (d20 + attackBonus) for a ranged hit to be a critical vs a blocking target
+    /// (combat.md §17.2). Standard = 24. Ranger class trait lowers this to 22.
+    /// </summary>
+    int RangedCritThreshold = 24
 );

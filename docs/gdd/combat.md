@@ -461,3 +461,50 @@ Delta: −20 percentage points from active block. Meaningful trade-off — gives
 
 1. Whether monster NPC AI should ever enter a blocking state (if so, they'd benefit from the same +4 TN bonus) — not yet specified; low priority since AI complexity is post-slice.
 2. Whether the +4 value needs balancing once armor variety increases — a pure Heavy-armor tank (high ArmorValue, Dex mod 0) may find the blocking trade-off less attractive if their passive TN is already high.
+
+---
+
+## 16. Saving Throws (addition)
+
+**Status:** locked. Introduces a classic AD&D mechanic — resisting poison, fear, and (once `docs/gdd/magic.md` is built) spell effects — adapted to fit the no-character-level design already locked (ADR-0019).
+
+### 16.1 The formula
+
+**Saving Throw Bonus** = `floor(RelevantSkillLevel ÷ 10)`, using whichever skill is most contextually relevant to the effect being resisted (e.g. Athletics for a physical poison/toxin, a future Willpower-adjacent skill for fear/charm effects once one exists). No stat modifier layered on top — this keeps the roll distinct from the Attack Bonus formula (§2.2) rather than being a reskin of it.
+
+**Resolution:** roll `1d20 + Saving Throw Bonus ≥ a fixed difficulty` (difficulty is authored per effect/source, not a universal constant — a weak toxin might require 10+, a powerful curse 16+).
+
+### 16.2 Racial Saving Throw bonuses (verified against real AD&D convention)
+
+Layered as flat additions on top of the base roll above, specific to the effect category being resisted:
+
+| Race | Bonus | Verified source |
+|---|---|---|
+| Elf | +4 vs. sleep/charm-type effects | AD&D 2e: elves have 90% resistance to sleep and charm-related spells |
+| Dwarf | +2 vs. poison, +2 vs. magic | AD&D bedrock convention across editions |
+| Halfling | +2 vs. magic, +2 vs. poison | AD&D bedrock convention across editions |
+| Human | none (their versatility bonus already applies elsewhere per `character-creation.md`) | — |
+
+### 16.3 Racial combat trait — Dwarf vs. Orc/Goblin (separate from Saving Throws, but same research pass)
+
+**Dwarf receives a flat +2 Attack Bonus specifically against Goblin and Orc** (both already in the locked bestiary, `VERTICAL_SLICE.md` §3.6) — verified AD&D convention (dwarves have a long-standing combat bonus against these humanoid types specifically). Applied in `GetPlayerAttackBonus`-equivalent logic as a target-type-conditional modifier, not a universal bonus.
+
+### 16.4 Open questions
+
+1. Exact per-effect difficulty numbers — authored per poison/spell/effect as content is added, not locked here.
+2. Whether Elf's stealth/surprise bonus (also verified in research, not wearing metal armor) is worth adopting alongside the Saving Throw bonus — flagged for later, not blocking this addition.
+3. Dwarf underground/stonework detection and Elf secret-door detection — no mechanical home yet (no stonework/secret-door system exists). Deferred, not adopted now.
+
+---
+
+## 17. Class traits (addition)
+
+**Status:** locked. Both traits extend systems already built this session rather than introducing new mechanics.
+
+### 17.1 Fighter — enhanced active-block bonus
+
+Fighter's active-block Target Number bonus (§15.2) is **+6** instead of the standard +4 — a mechanical "shield mastery" trait, felt directly in the block/parry system already tuned earlier this session. Ranger (or any other class, later) using a shield still gets the standard +4.
+
+### 17.2 Ranger — favorable ranged crit threshold
+
+Ranger's Ranged crit "wide margin" threshold (§13.3) is **lowered by 2** compared to the standard formula — i.e. where a non-Ranger needs `roll==20 && total>=24` for a critical hit, a Ranger needs `roll==20 && total>=22`. Mirrors the blocking-vs-ranged-crit fix from §13.3, applied as a class bonus rather than a defensive one.

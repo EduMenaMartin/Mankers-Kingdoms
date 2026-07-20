@@ -50,8 +50,12 @@ public class RaceRegistryTests
         Assert.Equal(1, RaceRegistry.Find("race.human")!.ChoiceModifier);
     }
 
+    /// <summary>
+    /// Dwarf: Con +1. Cha −1 is dormant (Cha not in StatBlock until 1.0 — character-creation.md §9).
+    /// Wis is unchanged. Test renamed to reflect the live modifier only.
+    /// </summary>
     [Fact]
-    public void Dwarf_ConPlusOne_WisMinusOne()
+    public void Dwarf_ConPlusOne_ChaPenaltyDormant()
     {
         var race   = RaceRegistry.Find("race.dwarf")!;
         var rolled = new StatBlock(10, 10, 10, 10);
@@ -59,7 +63,7 @@ public class RaceRegistryTests
         Assert.Equal(10, result.Str);
         Assert.Equal(10, result.Dex);
         Assert.Equal(11, result.Con);
-        Assert.Equal(9,  result.Wis);
+        Assert.Equal(10, result.Wis); // Wis unchanged; penalty is Cha (dormant)
     }
 
     [Fact]
@@ -135,5 +139,66 @@ public class RaceRegistryTests
         Assert.NotNull(fighter);
         Assert.NotNull(ranger);
         Assert.Equal(2, ClassKitRegistry.All.Count);
+    }
+
+    // ── Racial saving throw bonuses (character-creation.md §12) ─────────────
+
+    [Fact]
+    public void Elf_HasSleepAndCharmSavingThrowBonuses()
+    {
+        var race = RaceRegistry.Find("race.elf")!;
+        Assert.True(race.SavingThrowBonuses.TryGetValue("sleep", out int sleep) && sleep == 4,
+            "Elf should have +4 saving throw vs sleep");
+        Assert.True(race.SavingThrowBonuses.TryGetValue("charm", out int charm) && charm == 4,
+            "Elf should have +4 saving throw vs charm");
+    }
+
+    [Fact]
+    public void Dwarf_HasPoisonAndMagicSavingThrowBonuses()
+    {
+        var race = RaceRegistry.Find("race.dwarf")!;
+        Assert.True(race.SavingThrowBonuses.TryGetValue("poison", out int poison) && poison == 2,
+            "Dwarf should have +2 saving throw vs poison");
+        Assert.True(race.SavingThrowBonuses.TryGetValue("magic", out int magic) && magic == 2,
+            "Dwarf should have +2 saving throw vs magic");
+    }
+
+    [Fact]
+    public void Halfling_HasMagicAndPoisonSavingThrowBonuses()
+    {
+        var race = RaceRegistry.Find("race.halfling")!;
+        Assert.True(race.SavingThrowBonuses.TryGetValue("magic", out int magic) && magic == 2,
+            "Halfling should have +2 saving throw vs magic");
+        Assert.True(race.SavingThrowBonuses.TryGetValue("poison", out int poison) && poison == 2,
+            "Halfling should have +2 saving throw vs poison");
+    }
+
+    [Fact]
+    public void Human_HasNoSavingThrowBonuses()
+    {
+        var race = RaceRegistry.Find("race.human")!;
+        Assert.Empty(race.SavingThrowBonuses);
+    }
+
+    // ── Racial combat bonuses (character-creation.md §12) ───────────────────
+
+    [Fact]
+    public void Dwarf_HasCombatBonusVsGoblinAndOrc()
+    {
+        var race = RaceRegistry.Find("race.dwarf")!;
+        Assert.True(race.CombatBonusVs.TryGetValue("goblin", out int goblin) && goblin == 2,
+            "Dwarf should have +2 AB vs goblin");
+        Assert.True(race.CombatBonusVs.TryGetValue("orc", out int orc) && orc == 2,
+            "Dwarf should have +2 AB vs orc");
+    }
+
+    [Fact]
+    public void NonDwarf_HasNoCombatBonuses()
+    {
+        foreach (var raceId in new[] { "race.human", "race.elf", "race.halfling" })
+        {
+            var race = RaceRegistry.Find(raceId)!;
+            Assert.Empty(race.CombatBonusVs);
+        }
     }
 }

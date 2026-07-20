@@ -58,11 +58,17 @@ public partial class CharacterCreateScreen : Control
     private Button  _rerollButton          = null!;
     private Button  _confirmButton         = null!;
 
+    // --- Node refs (alignment) ---
+    private Button _alignLawfulButton  = null!;
+    private Button _alignNeutralButton = null!;
+    private Button _alignChaoticButton = null!;
+
     // --- State ---
     private StatBlock _rawStats;
     private string    _selectedRaceId    = "race.human";
     private string?   _selectedHumanStat = null;
     private string    _selectedClassId   = "class.fighter";
+    private Alignment _selectedAlignment = Alignment.Neutral;
 
     // Client-side UI only — System.Random is fine here (not server simulation, not seeded)
     private readonly System.Random _rng = new();
@@ -89,6 +95,9 @@ public partial class CharacterCreateScreen : Control
         _classDescLabel       = (Label)FindChild("ClassDescLabel");
         _rerollButton         = (Button)FindChild("RerollButton");
         _confirmButton        = (Button)FindChild("ConfirmButton");
+        _alignLawfulButton    = (Button)FindChild("AlignLawfulButton");
+        _alignNeutralButton   = (Button)FindChild("AlignNeutralButton");
+        _alignChaoticButton   = (Button)FindChild("AlignChaoticButton");
 
         // Check every required node and report exactly which are missing.
         // A single missing node causes a NullReferenceException that silently aborts _Ready.
@@ -112,6 +121,9 @@ public partial class CharacterCreateScreen : Control
         if (_classDescLabel       == null) missing.Append(" ClassDescLabel");
         if (_rerollButton         == null) missing.Append(" RerollButton");
         if (_confirmButton        == null) missing.Append(" ConfirmButton");
+        if (_alignLawfulButton    == null) missing.Append(" AlignLawfulButton");
+        if (_alignNeutralButton   == null) missing.Append(" AlignNeutralButton");
+        if (_alignChaoticButton   == null) missing.Append(" AlignChaoticButton");
 
         if (missing.Length > 0)
         {
@@ -148,6 +160,12 @@ public partial class CharacterCreateScreen : Control
         _rerollButton.Text  = Loc.T("charCreate.reroll");
         _confirmButton.Text = Loc.T("charCreate.confirm");
 
+        var alignHeader = (Label?)FindChild("Alignment");
+        if (alignHeader != null) alignHeader.Text = Loc.T("charCreate.alignment.label");
+        _alignLawfulButton.Text  = Loc.T("alignment.lawful");
+        _alignNeutralButton.Text = Loc.T("alignment.neutral");
+        _alignChaoticButton.Text = Loc.T("alignment.chaotic");
+
         // Create ButtonGroups in code so all buttons in each group share one instance.
         // Editor-assigned ButtonGroup resources are per-button by default (each "New ButtonGroup"
         // click creates a separate resource), which breaks exclusive selection.
@@ -171,12 +189,19 @@ public partial class CharacterCreateScreen : Control
         _rangerButton.ButtonGroup  = classGroup;
         classGroup.Pressed += OnClassGroupPressed;
 
+        var alignGroup = new ButtonGroup();
+        _alignLawfulButton.ButtonGroup  = alignGroup;
+        _alignNeutralButton.ButtonGroup = alignGroup;
+        _alignChaoticButton.ButtonGroup = alignGroup;
+        alignGroup.Pressed += OnAlignmentGroupPressed;
+
         _rerollButton.Pressed  += OnReroll;
         _confirmButton.Pressed += OnConfirm;
 
         // Sync initial visual state to match logical defaults without re-firing handlers.
         _raceHumanButton.SetPressedNoSignal(true);
         _fighterButton.SetPressedNoSignal(true);
+        _alignNeutralButton.SetPressedNoSignal(true);
 
         // Initial roll — Human selected, Fighter selected, no bonus stat chosen yet
         RollStats();
@@ -189,13 +214,21 @@ public partial class CharacterCreateScreen : Control
 
     private void RollStats()
     {
-        _rawStats = new StatBlock(Roll3d6(), Roll3d6(), Roll3d6(), Roll3d6());
+        _rawStats = new StatBlock(RollBestOf3d6(), RollBestOf3d6(), RollBestOf3d6(), RollBestOf3d6());
         _selectedHumanStat = null; // reroll clears any prior bonus stat choice
         _chooseStrButton?.ButtonGroup?.GetPressedButton()?.SetPressedNoSignal(false);
         RefreshDisplay();
     }
 
-    private int Roll3d6() => _rng.Next(1, 7) + _rng.Next(1, 7) + _rng.Next(1, 7);
+    // Roll 3d6 three times and keep the highest — best-of-3 method per character-creation.md §10.
+    // NPCs continue to use flat single 3d6 (VillageGenerator); this asymmetry is intentional.
+    private int RollBestOf3d6()
+    {
+        int a = Roll3d6Once(), b = Roll3d6Once(), c = Roll3d6Once();
+        return System.Math.Max(System.Math.Max(a, b), c);
+    }
+
+    private int Roll3d6Once() => _rng.Next(1, 7) + _rng.Next(1, 7) + _rng.Next(1, 7);
 
     // ---------------------------------------------------------------------------
     // Event handlers
@@ -238,6 +271,16 @@ public partial class CharacterCreateScreen : Control
         _classDescLabel.Text = Loc.T($"{_selectedClassId}.desc");
     }
 
+    private void OnAlignmentGroupPressed(BaseButton btn)
+    {
+        _selectedAlignment = btn switch
+        {
+            _ when btn == _alignLawfulButton  => Alignment.Lawful,
+            _ when btn == _alignChaoticButton => Alignment.Chaotic,
+            _                                 => Alignment.Neutral,
+        };
+    }
+
     private void OnConfirm()
     {
         var race = RaceRegistry.Find(_selectedRaceId);
@@ -245,6 +288,7 @@ public partial class CharacterCreateScreen : Control
         GameSession.ChosenRaceId    = _selectedRaceId;
         GameSession.HumanChosenStat = _selectedHumanStat;
         GameSession.ChosenClassId   = _selectedClassId;
+        GameSession.ChosenAlignment = _selectedAlignment;
         // Stamp a unique save slot name so the save lands in its own file.
         GameSession.SaveName = $"save_{System.DateTime.Now:yyyyMMdd_HHmmss}";
         // Each new game gets a fresh random world. See BUGS.md [P2] for why this was missing.

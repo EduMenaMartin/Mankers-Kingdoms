@@ -16,6 +16,10 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 config/main_scene="res://scenes/Main.tscn"
 
+[autoload]
+
+_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+
 [display]
 
 window/size/viewport_width=1280
@@ -29,7 +33,7 @@ project/assembly_name="MankersKingdoms"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godotsteam/plugin.cfg", "res://addons/sprite_mesh/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg", "res://addons/godotsteam/plugin.cfg", "res://addons/sprite_mesh/plugin.cfg")
 
 [physics]
 
@@ -38,14 +42,3 @@ enabled=PackedStringArray("res://addons/godotsteam/plugin.cfg", "res://addons/sp
 [rendering]
 
 rendering_device/driver.windows="d3d12"
-
-[steam]
-
-initialization/app_data/app_type=0
-initialization/app_data/app_id=0
-initialization/app_data/demo_id=0
-initialization/app_data/playtest_id=0
-initialization/app_data/tool_id=0
-initialization/processes/initialize_on_startup=false
-initialization/processes/embed_callbacks=false
-multiplayer_peer/max_channels=4

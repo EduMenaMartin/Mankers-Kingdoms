@@ -33,8 +33,10 @@ public static class ClassKitRegistry
                 new ClassKitItem("item.weapon.longsword", 1),
                 new ClassKitItem("item.armor.shield",     1),
             ],
-            HitDiceCount: 4,  // 4d8 + ConMod×4 at creation; avg Con 10 → ~18 HP
-            HitDieSize:   8
+            HitDiceCount:       4,   // 4d8 + ConMod×4 at creation; avg Con 10 → ~18 HP
+            HitDieSize:         8,
+            ActiveBlockBonus:   6,   // §17.1: Fighter block bonus (+2 over standard +4)
+            RangedCritThreshold: 24  // standard; Fighter has no ranged crit trait
         ),
         new ClassKitData(
             ClassId:        "class.ranger",
@@ -49,8 +51,10 @@ public static class ClassKitRegistry
                 new ClassKitItem("item.weapon.shortbow", 1),
                 new ClassKitItem("item.arrow",           20),
             ],
-            HitDiceCount: 3,  // 3d8 + ConMod×3 at creation; avg Con 10 → ~13.5 HP
-            HitDieSize:   8
+            HitDiceCount:       3,   // 3d8 + ConMod×3 at creation; avg Con 10 → ~13.5 HP
+            HitDieSize:         8,
+            ActiveBlockBonus:   4,   // standard; Ranger has no block trait
+            RangedCritThreshold: 22  // §17.2: Ranger crit threshold (vs standard 24)
         ),
     };
 

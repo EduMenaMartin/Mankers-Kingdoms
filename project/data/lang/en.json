@@ -106,7 +106,7 @@
   "race.human.name": "Human",
   "race.human.desc": "Adaptable and driven. Gain +1 to any stat of your choice.",
   "race.dwarf.name": "Dwarf",
-  "race.dwarf.desc": "Stoic and enduring. Con +1, Wis −1.",
+  "race.dwarf.desc": "Stoic and enduring. Con +1, Cha −1 (dormant).",
   "race.elf.name": "Elf",
   "race.elf.desc": "Graceful but fragile. Dex +1, Con −1.",
   "race.halfling.name": "Halfling",
@@ -124,6 +124,11 @@
   "charCreate.race.label": "Race",
   "charCreate.class.label": "Class",
   "charCreate.human.choice": "Choose bonus stat:",
+  "charCreate.alignment.label": "Alignment",
+
+  "alignment.lawful": "Lawful",
+  "alignment.neutral": "Neutral",
+  "alignment.chaotic": "Chaotic",
 
   "skill.melee.name": "Melee",
   "skill.ranged.name": "Ranged",

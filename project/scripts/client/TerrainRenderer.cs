@@ -23,6 +23,14 @@ public partial class TerrainRenderer : Node
     {
         var cfg       = TerrainConfig.Default;
         var heightmap = new TerrainGenerator(GameSession.WorldSeed, cfg).GenerateHeightmap();
+
+        // Apply the same river carving pass that TerrainSystem runs server-side.
+        // RiverGenerator modifies the heightmap in-place — same seed = identical carved output.
+        // Without this the visual mesh is uncarved while collision + the water ribbon sit in
+        // a ditch below the terrain surface, causing the river to be invisible.
+        var riverGen = new RiverGenerator(GameSession.WorldSeed, cfg);
+        riverGen.Generate(heightmap); // carves in-place; return value not needed client-side
+
         CachedHeightmap = heightmap;
         var mesh  = BuildMesh(heightmap, cfg);
         var mi    = new MeshInstance3D { Mesh = mesh };

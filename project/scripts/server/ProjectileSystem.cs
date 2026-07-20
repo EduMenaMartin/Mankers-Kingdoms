@@ -36,11 +36,10 @@ public partial class ProjectileSystem : Node
 	// Monster IDs start at 10001 — any OriginPeerId below this is a player.
 	private const long MONSTER_ID_THRESHOLD = 10001L;
 
-	// §15: rollTotal must meet or exceed this value on a nat20 to score a crit against an
-	// actively blocking shielded target. Threshold = 20 + 4 (mirrors the +4 melee TN bonus).
-	// Bandit Archer (AB 3): max rollTotal on nat20 = 23 < 24 → 0% crit while target blocks.
+	// §15 + §17.2: when the target is actively blocking, the attacker's ranged crit threshold
+	// is looked up per-shooter via CombatSystem.GetRangedCritThreshold (Ranger: 22, others: 24).
+	// Bandit Archer (AB 3, threshold 24): max rollTotal on nat20 = 23 < 24 → 0% crit while target blocks.
 	// Requires AB ≥ 4 to break through. See IDEAS_BACKLOG.md re: future ranged enemies.
-	private const int BLOCKING_CRIT_THRESHOLD = 24;
 
 	// Sequential ID; never reused within a session.
 	private long _nextId = 1L;
@@ -178,9 +177,11 @@ public partial class ProjectileSystem : Node
 					                 || (tgtInv?.EquippedOffHand == null
 					                     && InventorySystem.Instance.HasItems(targetId.Value, "item.armor.shield", 1));
 					bool tgtBlocking = CombatSystem.Instance?.IsBlocking(targetId.Value) == true && tgtHasShield;
-					// Unblocked: crit = nat20 (5%). Blocking: crit = nat20 AND rollTotal ≥ 24 (§15.3).
+					// Unblocked: crit = nat20 (5%). Blocking: crit = nat20 AND rollTotal ≥ shooter's threshold.
+					// §17.2: Ranger threshold = 22; others = 24 (via CombatSystem.GetRangedCritThreshold).
+					int  critThreshold = CombatSystem.Instance?.GetRangedCritThreshold(proj.OriginPeerId) ?? 24;
 					bool isCrit = tgtBlocking
-					    ? (roll == 20 && rollTotal >= BLOCKING_CRIT_THRESHOLD)
+					    ? (roll == 20 && rollTotal >= critThreshold)
 					    : (roll == 20);
 					int  dmg       = CombatResolver.RollDice(weapon.DamageDice, _projectileRng) + damageMod;
 					if (isCrit && !string.IsNullOrEmpty(weapon.DamageDice))

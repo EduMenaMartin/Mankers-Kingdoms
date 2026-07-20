@@ -15,10 +15,11 @@ public class SaveDataTests
     // ── Version field ─────────────────────────────────────────────────────────
 
     [Fact]
-    public void SaveData_DefaultVersion_Is1()
+    public void SaveData_DefaultVersion_Is2()
     {
+        // v2 added SessionSave.Alignment (character-creation.md §11).
         var data = new SaveData();
-        Assert.Equal(1, data.Version);
+        Assert.Equal(2, data.Version);
     }
 
     // ── JSON round-trip ───────────────────────────────────────────────────────

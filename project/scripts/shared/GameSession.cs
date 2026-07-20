@@ -44,6 +44,13 @@ public static class GameSession
     public static string? HumanChosenStat { get; set; } = null;
 
     /// <summary>
+    /// Alignment chosen at character creation: Lawful, Neutral, or Chaotic.
+    /// Flavor/faction-texture only in v1 — no mechanical wiring yet.
+    /// See docs/gdd/character-creation.md §11.
+    /// </summary>
+    public static Alignment ChosenAlignment { get; set; } = Alignment.Neutral;
+
+    /// <summary>
     /// Name of the active save slot (maps to user://saves/{SaveName}.json).
     /// Set to a timestamp when starting a new game via CharacterCreateScreen.
     /// Set to the chosen filename when loading from the Load Game screen.
@@ -64,10 +71,11 @@ public static class GameSession
     {
         Intent          = SessionIntent.None;
         JoinAddress     = "127.0.0.1";
-        ChosenClassId   = "class.fighter";
-        ChosenRaceId    = "race.human";
-        RolledStats     = null;
-        HumanChosenStat = null;
+        ChosenClassId    = "class.fighter";
+        ChosenRaceId     = "race.human";
+        RolledStats      = null;
+        HumanChosenStat  = null;
+        ChosenAlignment  = Alignment.Neutral;
         // SaveName intentionally NOT reset: _ExitTree fires after Reset() and must write
         // to the correct slot. New games stamp a fresh timestamp in CharacterCreateScreen;
         // load games set it in LoadGamePanel. Neither path needs Reset() to clear this.

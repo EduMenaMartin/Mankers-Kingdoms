@@ -104,9 +104,10 @@ public partial class PlayerController : CharacterBody3D
 			AddChild(new CameraController());
 			// OcclusionFader dithers geometry that sits between the camera and the player.
 			AddChild(new OcclusionFader());
-			// Tell the server our chosen class and stats.
+			// Tell the server our chosen class, race, and stats.
 			// Deferred so the node tree is fully ready before the RPCs fire.
 			Callable.From(AnnounceClass).CallDeferred();
+			Callable.From(AnnounceRace).CallDeferred();
 			Callable.From(AnnounceStats).CallDeferred();
 		}
 	}
@@ -150,13 +151,35 @@ public partial class PlayerController : CharacterBody3D
 
 	private void AnnounceClass()
 	{
+		// HealthSystem: starting kit + HP roll.
 		var hs = GetNodeOrNull(HEALTH_SYSTEM_PATH);
-		if (hs == null) return;
-		// Host (IsServer) calls directly; remote client sends to peer 1 (server).
+		if (hs != null)
+		{
+			if (Multiplayer.IsServer())
+				hs.Call("RequestSetClass", GameSession.ChosenClassId);
+			else
+				hs.RpcId(1, "RequestSetClass", GameSession.ChosenClassId);
+		}
+
+		// CombatSystem: class traits (Fighter block bonus, Ranger crit threshold).
+		var cs = GetNodeOrNull(COMBAT_SYSTEM_PATH);
+		if (cs != null)
+		{
+			if (Multiplayer.IsServer())
+				cs.Call("RequestSetClass", GameSession.ChosenClassId);
+			else
+				cs.RpcId(1, "RequestSetClass", GameSession.ChosenClassId);
+		}
+	}
+
+	private void AnnounceRace()
+	{
+		var cs = GetNodeOrNull(COMBAT_SYSTEM_PATH);
+		if (cs == null) return;
 		if (Multiplayer.IsServer())
-			hs.Call("RequestSetClass", GameSession.ChosenClassId);
+			cs.Call("RequestSetRace", GameSession.ChosenRaceId);
 		else
-			hs.RpcId(1, "RequestSetClass", GameSession.ChosenClassId);
+			cs.RpcId(1, "RequestSetRace", GameSession.ChosenRaceId);
 	}
 
 	private void AnnounceStats()
@@ -166,7 +189,7 @@ public partial class PlayerController : CharacterBody3D
 		var stats = GameSession.RolledStats;
 		if (stats == null) return;
 
-		var cs = GetNodeOrNull("/root/GameWorld/CombatSystem");
+		var cs = GetNodeOrNull(COMBAT_SYSTEM_PATH);
 		if (cs == null) return;
 
 		if (Multiplayer.IsServer())

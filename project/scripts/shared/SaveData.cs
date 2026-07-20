@@ -12,7 +12,12 @@ public sealed class SessionSave
     public string   ChosenRaceId     { get; set; } = "race.human";
     /// <summary>Null if the player skipped character creation (debug entry).</summary>
     public StatBlock? RolledStats    { get; set; }
-    public string?  HumanChosenStat { get; set; }
+    public string?  HumanChosenStat  { get; set; }
+    /// <summary>
+    /// Alignment chosen at creation. Null in saves predating v2 — defaults to Neutral on load.
+    /// Added in SaveData v2 (character-creation.md §11).
+    /// </summary>
+    public string? Alignment         { get; set; }
 }
 
 /// <summary>
@@ -25,7 +30,8 @@ public sealed class SessionSave
 public sealed class SaveData
 {
     /// <summary>Increment on every breaking change; add a migration in SaveSystem.</summary>
-    public int Version { get; set; } = 1;
+    /// v1 → v2: added SessionSave.Alignment (nullable, defaults to Neutral on load).
+    public int Version { get; set; } = 2;
 
     /// <summary>Character and session data — restored to GameSession on load so the player
     /// can go directly from Load Game to GameWorld without re-running character creation.</summary>

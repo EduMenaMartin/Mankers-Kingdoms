@@ -37,9 +37,11 @@ public partial class CombatSystem : Node
 
 	// Server-only. SortedDictionary: ADR-0011 deterministic iteration.
 	// Value = elapsed time at which the next swing is allowed.
-	private readonly SortedDictionary<long, double>      _swingReady   = new();
-	private readonly SortedDictionary<long, bool>        _blocking     = new();
-	private readonly SortedDictionary<long, StatBlock> _playerStats = new();
+	private readonly SortedDictionary<long, double>    _swingReady   = new();
+	private readonly SortedDictionary<long, bool>      _blocking     = new();
+	private readonly SortedDictionary<long, StatBlock> _playerStats  = new();
+	private readonly SortedDictionary<long, string>    _playerRace   = new();
+	private readonly SortedDictionary<long, string>    _playerClass  = new();
 	private double _elapsed;
 
 	// Seeded per ADR-0022. Initialised in _Ready() once GameSession.WorldSeed is set.
@@ -64,9 +66,11 @@ public partial class CombatSystem : Node
 
 	private void OnPlayerConnected(long peerId)
 	{
-		_swingReady[peerId]   = 0.0;
-		_blocking[peerId]     = false;
-		_playerStats[peerId]  = new StatBlock(13, 12, 10, 10); // overwritten by RequestSetStats when client announces stats
+		_swingReady[peerId]  = 0.0;
+		_blocking[peerId]    = false;
+		_playerStats[peerId] = new StatBlock(13, 12, 10, 10); // overwritten by RequestSetStats
+		_playerRace[peerId]  = "race.human";                  // overwritten by RequestSetRace
+		_playerClass[peerId] = "class.fighter";               // overwritten by RequestSetClass
 	}
 
 	private void OnPlayerDisconnected(long peerId)
@@ -74,6 +78,8 @@ public partial class CombatSystem : Node
 		_swingReady.Remove(peerId);
 		_blocking.Remove(peerId);
 		_playerStats.Remove(peerId);
+		_playerRace.Remove(peerId);
+		_playerClass.Remove(peerId);
 	}
 
 	// ── Blocking state ────────────────────────────────────────────────────────
@@ -129,9 +135,16 @@ public partial class CombatSystem : Node
 		// Apply armor debuff (e.g. SunderingHit crit effect).
 		armorValue += (int)(BuffSystem.Instance?.GetAdditiveModifier(peerId, BuffStat.ArmorValue) ?? 0f);
 
-		// §15: active block grants +4 TN bonus while blocking with a shield.
+		// §15 + §17.1: active block grants class-specific TN bonus while blocking with a shield.
 		// shieldBonus > 0 confirms the shield is still equipped at hit time (re-verification).
-		int activeBlockBonus = (IsBlocking(peerId) && shieldBonus > 0) ? 4 : 0;
+		// Fighter: +6 (§17.1). All other classes: +4 (standard).
+		int classBlockBonus = 4;
+		if (_playerClass.TryGetValue(peerId, out var classId))
+		{
+			var kit = ClassKitRegistry.Find(classId);
+			if (kit != null) classBlockBonus = kit.ActiveBlockBonus;
+		}
+		int activeBlockBonus = (IsBlocking(peerId) && shieldBonus > 0) ? classBlockBonus : 0;
 
 		return CombatResolver.PlayerTargetNumber(s.Dex, armorValue, shieldBonus, armorCategory)
 			   + activeBlockBonus;
@@ -140,6 +153,20 @@ public partial class CombatSystem : Node
 	/// <summary>Returns the stored StatBlock for a player peer, or safe defaults.</summary>
 	public StatBlock GetPlayerStats(long peerId) =>
 		_playerStats.TryGetValue(peerId, out var s) ? s : _defaultStats;
+
+	/// <summary>
+	/// Returns the ranged crit threshold for a peer based on their class trait (combat.md §17.2).
+	/// Ranger: 22. All others: 24 (standard). Used by ProjectileSystem for crit resolution.
+	/// </summary>
+	public int GetRangedCritThreshold(long peerId)
+	{
+		if (_playerClass.TryGetValue(peerId, out var classId))
+		{
+			var kit = ClassKitRegistry.Find(classId);
+			if (kit != null) return kit.RangedCritThreshold;
+		}
+		return 24; // standard fallback
+	}
 
 	/// <summary>
 	/// RPC: client announces their rolled+race-modified stats after character creation.
@@ -156,6 +183,36 @@ public partial class CombatSystem : Node
 		// Roll HP from Constitution (only executes if not yet rolled for this peer).
 		HealthSystem.Instance?.ApplyConstitution(sender, con);
 		GD.Print($"[Combat] peer {sender} stats set: Str={str} Dex={dex} Con={con} Wis={wis}");
+	}
+
+	/// <summary>
+	/// RPC: client announces their chosen class after character creation.
+	/// Server stores the class ID so combat can apply class traits (e.g. Fighter +6 block bonus).
+	/// </summary>
+	[Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+		 TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+	public void RequestSetClass(string classId)
+	{
+		if (!Multiplayer.IsServer()) return;
+		long sender = Multiplayer.GetRemoteSenderId();
+		if (sender == 0) sender = 1L;
+		_playerClass[sender] = classId;
+		GD.Print($"[Combat] peer {sender} class set: {classId}");
+	}
+
+	/// <summary>
+	/// RPC: client announces their chosen race after character creation.
+	/// Server stores the race ID so combat can apply racial bonuses (e.g. Dwarf +2 AB vs Goblin/Orc).
+	/// </summary>
+	[Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+		 TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+	public void RequestSetRace(string raceId)
+	{
+		if (!Multiplayer.IsServer()) return;
+		long sender = Multiplayer.GetRemoteSenderId();
+		if (sender == 0) sender = 1L;
+		_playerRace[sender] = raceId;
+		GD.Print($"[Combat] peer {sender} race set: {raceId}");
 	}
 
 	// ── RPCs ──────────────────────────────────────────────────────────────────
@@ -251,6 +308,24 @@ public partial class CombatSystem : Node
 		int attackBonus  = CombatResolver.PlayerAttackBonus(weaponId, stats.Str, stats.Dex, meleeLevel);
 		// Apply attack bonus debuff (e.g. OffBalance fumble effect).
 		attackBonus += (int)(BuffSystem.Instance?.GetAdditiveModifier(sender, BuffStat.AttackBonus) ?? 0f);
+		// Racial combat bonus: e.g. Dwarf +2 AB vs Goblin/Orc (character-creation.md §12).
+		// CombatBonusVs keys are substring tags matched against the monster's string ID.
+		var monsterData = MonsterSystem.Instance?.GetMonsterData(targetEntityId);
+		if (monsterData != null && _playerRace.TryGetValue(sender, out var senderRace))
+		{
+			var raceData = RaceRegistry.Find(senderRace);
+			if (raceData != null)
+			{
+				foreach (var (tag, bonus) in raceData.CombatBonusVs)
+				{
+					if (monsterData.Id.Contains(tag, System.StringComparison.OrdinalIgnoreCase))
+					{
+						attackBonus += bonus;
+						break; // each tag applies at most once
+					}
+				}
+			}
+		}
 		int targetNumber = GetEntityTargetNumber(targetEntityId);
 		int damageMod    = CombatResolver.PlayerDamageMod(weaponId, stats.Str, stats.Dex);
 

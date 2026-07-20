@@ -172,4 +172,56 @@ public class ClassKitRegistryTests
         // GameSession.ChosenClassId defaults to "class.fighter" — must be a valid kit.
         Assert.NotNull(ClassKitRegistry.Find("class.fighter"));
     }
+
+    // ── Class traits: block bonus + ranged crit threshold (combat.md §17) ────
+
+    [Fact]
+    public void Fighter_ActiveBlockBonus_Is6()
+    {
+        // §17.1: Fighter block bonus +6 > standard +4.
+        var kit = ClassKitRegistry.Find("class.fighter")!;
+        Assert.Equal(6, kit.ActiveBlockBonus);
+    }
+
+    [Fact]
+    public void Fighter_RangedCritThreshold_IsStandard24()
+    {
+        // Fighter has no ranged crit trait; threshold is standard 24.
+        var kit = ClassKitRegistry.Find("class.fighter")!;
+        Assert.Equal(24, kit.RangedCritThreshold);
+    }
+
+    [Fact]
+    public void Ranger_ActiveBlockBonus_IsStandard4()
+    {
+        // Ranger has no block trait; standard value applies.
+        var kit = ClassKitRegistry.Find("class.ranger")!;
+        Assert.Equal(4, kit.ActiveBlockBonus);
+    }
+
+    [Fact]
+    public void Ranger_RangedCritThreshold_Is22()
+    {
+        // §17.2: Ranger crit threshold 22 < standard 24 — harder to block crits.
+        var kit = ClassKitRegistry.Find("class.ranger")!;
+        Assert.Equal(22, kit.RangedCritThreshold);
+    }
+
+    [Fact]
+    public void AllKits_ActiveBlockBonus_AtLeast4()
+    {
+        // Standard minimum is 4; no kit should be weaker than baseline.
+        foreach (var kit in ClassKitRegistry.All)
+            Assert.True(kit.ActiveBlockBonus >= 4,
+                $"{kit.ClassId}: ActiveBlockBonus {kit.ActiveBlockBonus} is below the standard 4");
+    }
+
+    [Fact]
+    public void AllKits_RangedCritThreshold_AtMost24()
+    {
+        // Standard max is 24; no kit should require a higher roll than baseline.
+        foreach (var kit in ClassKitRegistry.All)
+            Assert.True(kit.RangedCritThreshold <= 24,
+                $"{kit.ClassId}: RangedCritThreshold {kit.RangedCritThreshold} exceeds the standard 24");
+    }
 }

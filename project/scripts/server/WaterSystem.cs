@@ -133,28 +133,31 @@ public partial class WaterSystem : Node
         var mesh = new ArrayMesh();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
 
-        // Load the water shader. The mesh is built entirely at runtime so material
-        // changes made in the editor's Remote tree don't persist — we must assign it here.
+        var mi = new MeshInstance3D { Mesh = mesh, Name = "RiverMesh" };
+        AddChild(mi);
+
+        // Assign material via SetSurfaceOverrideMaterial on the MeshInstance3D (not on the
+        // ArrayMesh resource). This is what the Remote Inspector's "Material Override" slot
+        // reflects — assigning to the mesh resource directly leaves the Inspector slot empty,
+        // which caused the apparent "reset" when trying to override in the Remote tree.
         const string SHADER_PATH = "res://shaders/water_river.gdshader";
         var shader = GD.Load<Shader>(SHADER_PATH);
         if (shader != null)
         {
-            mesh.SurfaceSetMaterial(0, new ShaderMaterial { Shader = shader });
+            mi.SetSurfaceOverrideMaterial(0, new ShaderMaterial { Shader = shader });
+            GD.Print($"[WaterSystem] water_river.gdshader loaded OK");
         }
         else
         {
             // Fallback: solid blue until the shader file exists at the expected path.
             GD.PrintErr($"[WaterSystem] Shader not found at {SHADER_PATH} — using flat blue stub");
-            mesh.SurfaceSetMaterial(0, new StandardMaterial3D
+            mi.SetSurfaceOverrideMaterial(0, new StandardMaterial3D
             {
                 AlbedoColor  = new Color(0.12f, 0.45f, 0.75f, 0.82f),
                 Transparency = BaseMaterial3D.TransparencyEnum.Alpha,
                 ShadingMode  = BaseMaterial3D.ShadingModeEnum.Unshaded
             });
         }
-
-        var mi = new MeshInstance3D { Mesh = mesh, Name = "RiverMesh" };
-        AddChild(mi);
     }
 
     // ── Area3D collision ("player is in water") ───────────────────────────────
