@@ -637,7 +637,7 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [ ] **Smoke-test bug fixes** — die → respawn → pick up death drop ✓; load game → fog explored state preserved ✓; load game → NPC workers still in roster and working ✓.
 
 ### Pre-playtest: shelter capacity recruitment gate
-- [ ] **Shelter capacity gate** — `VillageSystem.RequestRecruit` must reject recruitment if no Shelter with spare capacity exists. Each Shelter holds max 2 villagers. Count current settled NPCs against Shelter buildings in settlement. Gate message: `reject.no_shelter_capacity` loc key. Add loc key to `en.json`. Add regression test.
+- [x] **Shelter capacity gate** — `VillageSystem.RequestRecruit` rejects if `_settlementNpcs.Count >= shelterCount * 2`. `reject.no_shelter_capacity` loc key added to `en.json`.
 
 ---
 
@@ -650,7 +650,7 @@ GDD §11 (alignment), §12 (racial/class traits), and combat.md §16-17 (saving 
 - [x] **Class traits** — `ClassKitData.ActiveBlockBonus/RangedCritThreshold`; Fighter=6/24, Ranger=4/22; `CombatSystem.RequestSetClass` + per-class block bonus in `GetPlayerTargetNumber`; `ProjectileSystem` per-shooter crit threshold via `CombatSystem.GetRangedCritThreshold()`; `PlayerController.AnnounceClass()` also calls CombatSystem
 - [x] **SavingThrowResolver** — `shared/SavingThrowResolver.cs`: 1d20 + floor(skillLevel/10) + racialBonus ≥ difficulty
 - [x] **Tests** — `AlignmentTests.cs` (12), `SavingThrowResolverTests.cs` (17); RaceRegistry + ClassKitRegistry extended; stale tests fixed. 417 total, 0 failures.
-- [ ] **Editor task** — Add `AlignLawfulButton`, `AlignNeutralButton`, `AlignChaoticButton` (Button nodes under `Alignment` Label) to `scenes/CharacterCreateScreen.tscn`
+- [x] **Editor task** — Add `AlignLawfulButton`, `AlignNeutralButton`, `AlignChaoticButton` (Button nodes under `Alignment` Label) to `scenes/CharacterCreateScreen.tscn`
 
 ---
 
@@ -678,9 +678,15 @@ GDD §11 (alignment), §12 (racial/class traits), and combat.md §16-17 (saving 
 - [x] **BushGeneratorTests.cs** — 6 tests: determinism with/without trees, height floor, river mask exclusion, clustering concentration, target count preserved
 - **370 tests, 0 failures**
 
+### River shore polish (2026-07-21) ✅ COMPLETE
+- [x] `WaterSystem.cs` — ribbon upsampled at 1 m intervals via `UpsampleSegments`; tangents re-derived post-upsample
+- [x] `TerrainRenderer.cs` — bank-region cells subdivided into 4×4 sub-quads (1 m visual resolution) via `AddBankSurface`
+- [x] `WaterSystem.cs` — `NoiseTexture2D` normal map constructed and assigned in code; no editor action needed
+- [x] `docs/gdd/water.md §5` — locked constraint: map-size increase must scale cell count, not TileSize
+
 ### Editor tasks pending (Edu)
 - [x] Add `WaterSystem` node (script `res://scripts/server/WaterSystem.cs`) to `GameWorld.tscn` after `TerrainSystem`. Plain `Node`. ✅ confirmed done
-- [ ] Assign `normal_texture` uniform on the ShaderMaterial in Inspector — recommended: `NoiseTexture2D` (FastNoiseLite, FBm, 256px, seamless=true, as_normal_map=true).
+- [x] Assign `normal_texture` uniform — done in code (`WaterSystem._Ready`); no editor action needed.
 
 ---
 

@@ -16,10 +16,6 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 config/main_scene="res://scenes/Main.tscn"
 
-[autoload]
-
-_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
-
 [display]
 
 window/size/viewport_width=1280
@@ -33,7 +29,7 @@ project/assembly_name="MankersKingdoms"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_ai/plugin.cfg", "res://addons/godotsteam/plugin.cfg", "res://addons/sprite_mesh/plugin.cfg")
+enabled=PackedStringArray("res://addons/godotsteam/plugin.cfg", "res://addons/sprite_mesh/plugin.cfg")
 
 [physics]
 

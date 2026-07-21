@@ -7,19 +7,61 @@
 ## Current status
 
 **Milestone:** M10 — World gen quality + river (complete); character trait system (complete)
-**Last session:** 2026-07-20 — Alignment selection, racial traits (saving throws + Dwarf AB bonus), class traits (Fighter block +6, Ranger crit threshold 22), SavingThrowResolver, GDD §16/§17. 417 tests, 0 failures.
+**Last session:** 2026-07-21 — River shore polish (ribbon upsampling + bank terrain subdivision), shelter capacity gate, normal_texture assigned in code, godot_ai plugin cleanup. 417 tests, 0 failures.
 **Blockers:** None.
 **Decisions needed from Edu:** None outstanding.
 
 **Next action:**
-1. **Build in Godot** — confirm clean compile; many files changed (CharacterCreateScreen, PlayerController, CombatSystem, ProjectileSystem, RaceData, ClassKitData).
-2. **Editor task (CharacterCreateScreen.tscn)** — 3 alignment buttons needed:
-   - Add `AlignLawfulButton` (Button), `AlignNeutralButton` (Button), `AlignChaoticButton` (Button) under an `Alignment` Label section. All three must be in the same VBoxContainer as the other race/class buttons. The script wires them in code so no ButtonGroup needs to be set in the editor.
-3. **Editor task (M10 — still pending from prior session):**
-   - Assign `normal_texture` uniform on the ShaderMaterial of `RiverMesh` at runtime → `NoiseTexture2D` (FastNoiseLite, FBm, 256px, seamless=true, as_normal_map=true).
-4. **M9 pre-playtest still pending:**
-   - Shelter capacity gate: `VillageSystem.RequestRecruit` rejects if no Shelter with spare capacity (max 2/shelter).
-   - Godot build + smoke-test three M9 bug fixes (death drop, fog restore, NPC save) before playtest.
+1. **Pre-playtest verification (Edu must run):**
+   - Open Godot → Build Solution → confirm 0 errors.
+   - Smoke-test: die → respawn → pick up death drop; load game → fog explored state preserved; load game → NPC workers still in roster.
+2. **Schedule M9 playtest** — 30–60 min session with a friend over LAN/ENet.
+3. **Post-playtest:** Fix any P0/P1 bugs found; evaluate M9 success criteria (fun/legible/stable).
+4. **HUD warning strings** — `hud.starving` and `hud.exhausted` in `en.json` (deferred until after playtest).
+
+---
+
+## What was done this session (2026-07-21)
+
+### River shore polish — COMPLETE ✅
+
+Two visual quality fixes for the river at the water's edge:
+
+**Ribbon upsampling (`WaterSystem.cs`):**
+- Added `private const float RIBBON_STEP_M = 1f;` and `UpsampleSegments()` method.
+- `BuildRibbonMesh` now resamples the raw segment list at 1 m world-space intervals before building geometry, giving ~4–5× more vertex pairs than the 4–5.66 m terrain grid step.
+- Upsampled positions are linearly interpolated (WorldX/Y/Z, WaterY, HalfWidthM); tangents re-derived via centred finite differences to match `RiverGenerator.ComputeTangent`.
+
+**Bank terrain subdivision (`TerrainRenderer.cs`):**
+- Added `private const int BANK_SUB = 4;`.
+- `BuildMesh` now passes `riverData?.ChannelMask` — river carving pass retained from `_Ready` and assigned to `CachedHeightmap`.
+- Main surface index pass skips bank-region cells (`IsInBankRegion` — 3×3 neighbourhood check).
+- `AddBankSurface` adds a second `ArrayMesh` surface: each bank cell becomes 4×4 sub-quads (25 sub-vertices per cell) with bilinearly interpolated heights via `BilerHeight`. Gives 1 m effective resolution at the shore vs 4 m baseline. No T-junctions: bilinear at u/v=0 or 1 equals integer heightmap corner values exactly.
+- `using System.Collections.Generic` added; `Godot.Collections.Array` used fully-qualified in `AddBankSurface` to avoid ambiguity.
+
+**NoiseTexture2D in code (`WaterSystem.cs`):**
+- `ShaderMaterial` assignment block now constructs `FastNoiseLite` (SimplexSmooth, FBm) + `NoiseTexture2D` (256×256, seamless, as_normal_map) in code and calls `mat.SetShaderParameter("normal_texture", normalTex)`.
+- `mi.SetSurfaceOverrideMaterial(0, mat)` used (not `MaterialOverride` on the mesh resource) so the Remote Inspector slot reflects the assignment.
+- Editor task "assign normal_texture uniform in Inspector" is now superseded — no editor action needed.
+
+**Locked constraint documented (`docs/gdd/water.md §5`):**
+- New section: map-size increase must scale cell count, not TileSize. Increasing TileSize would silently degrade both ribbon and bank fixes. Two options documented (A: 250×250 @ 4 m; B: 128×128 @ 8 m) with explicit vertex-count trade-off table. Decision must be made explicitly when that work starts.
+
+### Shelter capacity gate — COMPLETE ✅
+
+- `server/VillageSystem.cs` — `private const int MAX_NPCS_PER_SHELTER = 2;` + `CountBuildingsOfType(string nameContains)` returning `int`. `RequestRecruit` now checks `_settlementNpcs.Count >= shelterCount * MAX_NPCS_PER_SHELTER` after proximity; sends `reject.no_shelter_capacity` warning and returns if at capacity. Zero shelters = zero capacity → recruitment impossible until a Shelter is built.
+- `data/lang/en.json` — `"reject.no_shelter_capacity": "No room in your settlement — build another Shelter (each holds 2 villagers)."`
+
+### Godot AI plugin cleanup — COMPLETE ✅
+
+- `project/project.godot` — removed the entire `[autoload]` section (`_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"`) and the `"res://addons/godot_ai/plugin.cfg"` entry from `[editor_plugins]`. The plugin was uninstalled previously but these stale references caused startup errors: `File not found: res://addons/godot_ai/runtime/game_helper.gd`.
+
+### IDEAS_BACKLOG entries (2 added) ✅
+
+- `[post-slice] Character-reactive grass displacement` — vec4 position array to shader; explicit warning that ADR-0025 perspective camera means toon/ortho grass techniques do not apply.
+- `[post-slice] Cloud shadow system` — world-space noise texture for overcast visual; same camera warning.
+
+**Commits this session:** `f9e9ffb` (main session work), `project.godot` godot_ai fix (committed in wrap-up).
 
 ---
 
