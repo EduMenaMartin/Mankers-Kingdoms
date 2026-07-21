@@ -89,13 +89,14 @@ public partial class VillageSystem : Node
     private int   _tick;
     private double _elapsed; // seconds since _Ready, used for cooldown comparison
 
-    private const float  FOLLOW_SPEED     = 3f;
-    private const float  FOLLOW_STOP_XZ   = 4f;
-    private const float  CHOP_RANGE       = 1.5f;  // distance to tree that triggers a chop
-    private const float  MAX_CHOP_RANGE   = 200f;  // NPC searches for trees within this radius
-    private const float  CHOP_COOLDOWN    = 1.0f;  // seconds between chops
-    private const int    BROADCAST_EVERY  = 3;     // physics ticks between position broadcasts
-    private const string PLAYERS_PATH     = "/root/GameWorld/Players";
+    private const float  FOLLOW_SPEED          = 3f;
+    private const float  FOLLOW_STOP_XZ        = 4f;
+    private const float  CHOP_RANGE            = 1.5f;  // distance to tree that triggers a chop
+    private const float  MAX_CHOP_RANGE        = 200f;  // NPC searches for trees within this radius
+    private const float  CHOP_COOLDOWN         = 1.0f;  // seconds between chops
+    private const int    BROADCAST_EVERY       = 3;     // physics ticks between position broadcasts
+    private const string PLAYERS_PATH          = "/root/GameWorld/Players";
+    private const int    MAX_NPCS_PER_SHELTER  = 2;     // recruitment gate: each Shelter holds max 2 settlers
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -281,6 +282,17 @@ public partial class VillageSystem : Node
         if (npcPos.DistanceTo(playerNode.GlobalPosition) > 3f)
         {
             GD.Print($"[VillageSystem] peer {sender} too far from {data.Name} to recruit");
+            return;
+        }
+
+        // Shelter capacity gate: each Shelter holds MAX_NPCS_PER_SHELTER settlers.
+        // Zero shelters means zero capacity — player must build a Shelter first.
+        int shelterCount   = CountBuildingsOfType("shelter");
+        int shelterCapacity = shelterCount * MAX_NPCS_PER_SHELTER;
+        if (_settlementNpcs.Count >= shelterCapacity)
+        {
+            SendWarningToPeer(sender, Loc.T("reject.no_shelter_capacity"));
+            GD.Print($"[VillageSystem] recruit rejected — {_settlementNpcs.Count}/{shelterCapacity} capacity ({shelterCount} shelters)");
             return;
         }
 
@@ -815,6 +827,23 @@ public partial class VillageSystem : Node
                 return true;
         }
         return false;
+    }
+
+    /// <summary>Returns the count of placed buildings whose node name contains
+    /// <paramref name="nameContains"/>.</summary>
+    private int CountBuildingsOfType(string nameContains)
+    {
+        const string SETTLEMENT_PATH = "/root/GameWorld/SettlementSystem";
+        var settlement = GetNodeOrNull(SETTLEMENT_PATH);
+        if (settlement == null) return 0;
+
+        int count = 0;
+        foreach (Node child in settlement.GetChildren())
+        {
+            if (child.Name.ToString().Contains(nameContains))
+                count++;
+        }
+        return count;
     }
 
     private string FindNearestStockpile(Vector3 fromPos)

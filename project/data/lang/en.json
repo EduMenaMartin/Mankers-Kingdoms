@@ -184,6 +184,7 @@
 
   "warning.assign.no_shelter": "Build a Shelter first — workers need somewhere to rest.",
   "warning.job.no_stockpile": "Build a Stockpile Drop — your woodcutter has nowhere to deposit wood.",
+  "reject.no_shelter_capacity": "No room in your settlement — build another Shelter (each holds 2 villagers).",
 
   "stockpile.title": "Settlement Stockpile",
   "stockpile.empty": "Stockpile is empty.",

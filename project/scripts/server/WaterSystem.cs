@@ -15,9 +15,10 @@ namespace MankersKingdoms.Server;
 ///   water_river.gdshader's NORMAL_MAP to transform normals correctly.
 ///
 /// Material:
-///   Stub: StandardMaterial3D blue, unshaded — replace with a ShaderMaterial pointing to
-///   res://assets/shaders/water_river.gdshader once Edu has authored that file (see
-///   docs/gdd/water.md §4 for the full shader spec).
+///   ShaderMaterial using res://shaders/water_river.gdshader. A NoiseTexture2D (SimplexSmooth,
+///   FBm, 256px, seamless, as_normal_map) is constructed and assigned in code via
+///   SetShaderParameter("normal_texture", ...) — no Inspector assignment needed.
+///   Falls back to flat-blue StandardMaterial3D if the shader file is missing.
 ///
 /// Collision:
 ///   Area3D "WaterTrigger" with per-segment BoxShape3D volumes oriented along flow. The
@@ -29,6 +30,10 @@ namespace MankersKingdoms.Server;
 public partial class WaterSystem : Node
 {
     public static WaterSystem Instance { get; private set; } = null!;
+
+    // Ribbon mesh is built at this world-space interval (metres), independent of the
+    // terrain grid step (4 m). Keeps the river curve smooth even on a coarse grid.
+    private const float RIBBON_STEP_M = 1f;
 
     public override void _Ready()
     {
@@ -52,6 +57,9 @@ public partial class WaterSystem : Node
 
     private void BuildRibbonMesh(IReadOnlyList<RiverSegment> segs)
     {
+        // Resample at RIBBON_STEP_M intervals so the ribbon approximates the path curve
+        // at 1 m precision, independent of the terrain grid step (~4–5.66 m per segment).
+        segs = UpsampleSegments(segs, RIBBON_STEP_M);
         int n = segs.Count;
 
         var verts    = new Vector3[n * 2];
@@ -144,8 +152,25 @@ public partial class WaterSystem : Node
         var shader = GD.Load<Shader>(SHADER_PATH);
         if (shader != null)
         {
-            mi.SetSurfaceOverrideMaterial(0, new ShaderMaterial { Shader = shader });
-            GD.Print($"[WaterSystem] water_river.gdshader loaded OK");
+            // Build the normal-map texture in code — WaterSystem is a bare Node in the scene,
+            // so there is no ShaderMaterial Inspector slot to assign through the editor.
+            var noise = new FastNoiseLite
+            {
+                NoiseType   = FastNoiseLite.NoiseTypeEnum.SimplexSmooth,
+                FractalType = FastNoiseLite.FractalTypeEnum.Fbm,
+            };
+            var normalTex = new NoiseTexture2D
+            {
+                Width       = 256,
+                Height      = 256,
+                Seamless    = true,
+                AsNormalMap = true,
+                Noise       = noise,
+            };
+            var mat = new ShaderMaterial { Shader = shader };
+            mat.SetShaderParameter("normal_texture", normalTex);
+            mi.SetSurfaceOverrideMaterial(0, mat);
+            GD.Print("[WaterSystem] water_river.gdshader loaded; normal_texture assigned in code");
         }
         else
         {
@@ -158,6 +183,62 @@ public partial class WaterSystem : Node
                 ShadingMode  = BaseMaterial3D.ShadingModeEnum.Unshaded
             });
         }
+    }
+
+    // ── Ribbon upsampling ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Resamples the segment list at world-space intervals of <paramref name="stepM"/>
+    /// so the ribbon mesh curve is approximated at fine resolution regardless of the
+    /// underlying terrain grid step (~4 m). Tangents are re-derived from the upsampled
+    /// positions using centred finite differences, matching RiverGenerator.ComputeTangent.
+    /// </summary>
+    private static List<RiverSegment> UpsampleSegments(
+        IReadOnlyList<RiverSegment> segs, float stepM)
+    {
+        var pts = new List<RiverSegment>(segs.Count * 4);
+
+        for (int i = 0; i < segs.Count - 1; i++)
+        {
+            var a = segs[i];
+            var b = segs[i + 1];
+
+            float dx   = b.WorldX - a.WorldX;
+            float dz   = b.WorldZ - a.WorldZ;
+            float dist = MathF.Sqrt(dx * dx + dz * dz);
+            int   n    = Math.Max(1, (int)MathF.Ceiling(dist / stepM));
+
+            for (int j = 0; j < n; j++)
+            {
+                float t  = (float)j / n;
+                float wx = a.WorldX     + dx                           * t;
+                float wz = a.WorldZ     + dz                           * t;
+                float wy = a.WaterY     + (b.WaterY     - a.WaterY)    * t;
+                float hw = a.HalfWidthM + (b.HalfWidthM - a.HalfWidthM) * t;
+                // Tangent placeholder — re-derived below once all positions are known.
+                pts.Add(new RiverSegment(0, 0, wx, wy, wz, 0f, 0f, hw));
+            }
+        }
+
+        // Always include the final anchor so the ribbon reaches the river mouth.
+        var last = segs[^1];
+        pts.Add(new RiverSegment(0, 0, last.WorldX, last.WaterY, last.WorldZ, 0f, 0f, last.HalfWidthM));
+
+        // Re-derive tangents using centred differences.
+        for (int i = 0; i < pts.Count; i++)
+        {
+            int   ia  = Math.Max(0,              i - 1);
+            int   ib  = Math.Min(pts.Count - 1,  i + 1);
+            float tdx = pts[ib].WorldX - pts[ia].WorldX;
+            float tdz = pts[ib].WorldZ - pts[ia].WorldZ;
+            float tlen = MathF.Sqrt(tdx * tdx + tdz * tdz);
+            float tx = tlen > 0.001f ? tdx / tlen : 1f;
+            float tz = tlen > 0.001f ? tdz / tlen : 0f;
+            var   s  = pts[i];
+            pts[i] = new RiverSegment(s.GridX, s.GridZ, s.WorldX, s.WaterY, s.WorldZ, tx, tz, s.HalfWidthM);
+        }
+
+        return pts;
     }
 
     // ── Area3D collision ("player is in water") ───────────────────────────────

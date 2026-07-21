@@ -174,8 +174,8 @@ public partial class ProjectileSystem : Node
 					int  rollTotal = roll + attackBonus;
 					var  tgtInv    = InventorySystem.Instance?.GetInventory(targetId.Value);
 					bool tgtHasShield = tgtInv?.EquippedOffHand == "item.armor.shield"
-					                 || (tgtInv?.EquippedOffHand == null
-					                     && InventorySystem.Instance.HasItems(targetId.Value, "item.armor.shield", 1));
+									 || (tgtInv?.EquippedOffHand == null
+										 && InventorySystem.Instance.HasItems(targetId.Value, "item.armor.shield", 1));
 					bool tgtBlocking = CombatSystem.Instance?.IsBlocking(targetId.Value) == true && tgtHasShield;
 					// Unblocked: crit = nat20 (5%). Blocking: crit = nat20 AND rollTotal ≥ shooter's threshold.
 					// §17.2: Ranger threshold = 22; others = 24 (via CombatSystem.GetRangedCritThreshold).

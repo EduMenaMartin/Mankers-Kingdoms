@@ -15,6 +15,24 @@ Every entry gets one:
 
 ## Entries
 
+### 2026-07-21 — [post-slice] Character-reactive grass displacement
+
+Grass bends away from moving players and NPCs within a configurable radius, using a character-position array passed to the grass shader. Technique: a manager node tracks positions of every entity in a "character" group and uploads them as a fixed-size array of `vec4` (position.xyz + bend radius in .w) to a global shader variable — fixed array size avoids Godot shader dynamic-array limits.
+
+This is a richer, independent feature from the simpler "basic wind-sway" item already logged (2026-07-09) — wind sway is vertex noise, this is player-position-driven displacement. Both can coexist.
+
+**⚠️ Art-direction dependency — do NOT implement without resolving first:**
+The majority of reference material and tutorials for this technique (including the most-cited "GPU grass" write-ups) assumes **toon/cel-shading** as the base art style and **orthographic camera** for the "fake perspective" billboard trick. **Neither applies to this project.** ADR-0025 locks us to a perspective camera, and no art-direction decision has been made on toon vs. PBR shading. Do not adopt toon-shading-specific techniques (accent grass colour banding, hybrid toon light-band smoothing, billboard trick) until an explicit art-direction decision is made — flag this dependency before any implementation.
+
+### 2026-07-21 — [post-slice] Cloud shadow system (weather flag visual payoff)
+
+VERTICAL_SLICE.md §3.8 locks "basic weather: clear or overcast (visual only, no gameplay effect)" but this currently has no real visual expression — overcast mode looks identical to clear. A world-space noise texture sampled via light-direction raymarching (stored as a global shader variable) could give "overcast" a real visual payoff: moving cloud shadows scrolling across the terrain.
+
+Ties to the still-open day/night visual payoff item already logged, and naturally pairs with the `DayNightSystem` overcast flag.
+
+**⚠️ Art-direction dependency — same as grass entry above:**
+Cloud shadow tutorials frequently assume **toon/cel-shading** pipeline (Godot 4 `CanvasItem` or custom `WorldEnvironment` toon pass) and/or rely on a top-down **orthographic** projection to trivially unproject shadow rays. Neither applies here. Do not adopt toon-specific shadow banding or hybrid toon light-band smoothing techniques until an art-direction decision is made — flag before implementation. The core raymarching technique (noise texture + directional light angle) is style-agnostic and is safe to evaluate independently.
+
 ### 2026-07-20 — [post-slice] Godot AI MCP tool (godotengine.org/asset-library/asset/5050)
 
 Trial completed 2026-07-20. Found genuinely solid MCP mechanics (43 tools, clean HTTP/SSE transport, scene hierarchy manipulation, node create/property/script all working) but a real near-miss risk discovered during testing: when `scene_manage/create` fails due to a wrong parameter name, all subsequent `node_create`, `node_set_property`, and `scene_save` calls silently redirect to the currently-open scene with no warning. Additionally, `script_attach` does not accept the `scene_file` guard parameter that other tools support, so there is no safety net for that step specifically. In the trial this caused `GameWorld.tscn` to receive a rogue `TestLabel` node, a script attachment, and a save — all silently, requiring a `git checkout` recovery.

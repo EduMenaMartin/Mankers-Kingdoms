@@ -147,13 +147,15 @@ One `Area3D` node, with per-segment `Node3D` pivot children. Each pivot contains
 `body_entered` signal fired server-side only. Stub logs the entry; future expansion: apply swim
 state, slow movement, reset stamina drain (post-M10 BACKLOG).
 
-### Stub material (until shader is authored)
-`StandardMaterial3D` with:
-- `AlbedoColor = Color(0.12f, 0.45f, 0.75f, 0.82f)` — opaque-ish blue
-- `Transparency = TransparencyEnum.Alpha`
-- `ShadingMode = ShadingModeEnum.Unshaded`
+### Material (runtime-assigned — no editor task)
+`WaterSystem._Ready` loads `res://shaders/water_river.gdshader` via `GD.Load<Shader>()`.
+If the shader loads successfully, a `ShaderMaterial` is created in code and a `NoiseTexture2D`
+(FastNoiseLite, SimplexSmooth, FBm, 256px, seamless, as_normal_map) is assigned to the
+`normal_texture` uniform via `SetShaderParameter`. There is no Inspector slot to assign.
 
-Replace with `ShaderMaterial` pointing to `water_river.gdshader` once the shader is authored.
+Fallback if the shader file is missing: `StandardMaterial3D` flat blue stub (unchanged from before).
+
+**No editor task is needed for this uniform assignment.** See `WaterSystem.cs BuildRibbonMesh`.
 
 ---
 
@@ -247,6 +249,48 @@ normal map will transform correctly.
 3. Set `Shader` on the ShaderMaterial to `res://shaders/water_river.gdshader`.
 4. Assign a water normal-map texture to the `normal_texture` uniform.
 5. Tune `flow_speed`, `normal_strength`, `tiling`, and `water_color` to taste.
+
+---
+
+## 5. Terrain resolution constraints — LOCKED (2026-07-21)
+
+### Current grid parameters
+- `TileSize = 4 m` per grid cell (`WorldConstants.TILE_SIZE`)
+- `MapWidth = MapHeight = 64` cells → 252 × 252 m world footprint
+- River ribbon: one grid segment per path step → vertex-pair spacing ~4–5.66 m (cardinal/diagonal)
+- River channel width: 8–16 m full width = 2–4 cells across
+
+### Ribbon resolution fix (M10)
+`WaterSystem.BuildRibbonMesh` resamples the segment list at `RIBBON_STEP_M = 1 m` before building
+geometry, using `UpsampleSegments`. The ribbon now has ~4–5× more vertex pairs, independent of
+how coarse the terrain grid is. The channel width in the ribbon mesh stays physically correct.
+
+### Bank terrain fix (M10)
+`TerrainRenderer.BuildMesh` subdivides cells in the bank region (channel mask ± 1 cell margin)
+into `BANK_SUB = 4` sub-quads per edge (16 sub-quads = 32 triangles per 4 m cell, giving 1 m
+visual resolution). Sub-vertex heights are bilinearly interpolated from the heightmap corners.
+Open terrain outside the bank region is unchanged (2 triangles per 4 m cell).
+
+### LOCKED constraint — map-size increase must scale cell count, NOT TileSize
+
+> **Do not increase `TileSize` to cover a larger world with the same 64×64 grid.**
+
+The PRD targets a ~1000 m map for M10. Achieving 1000 m by raising `TileSize` from 4 m to ~16 m
+while keeping `MapWidth = MapHeight = 64` would silently undo both fixes above:
+- Ribbon vertex-pair spacing: 4–5.66 m → **16–22 m** (4× coarser)
+- Bank sub-quads: 1 m effective resolution → **4 m** (back to baseline)
+
+When the map-size increase is implemented, scale **cell count** instead and keep `TileSize ≈ 4 m`.
+Two options, with explicit tradeoffs to evaluate at implementation time:
+
+| Option | `MapWidth` / `MapHeight` | `TileSize` | World size | Terrain vertices | Resolution degradation |
+|--------|--------------------------|------------|------------|-----------------|------------------------|
+| A      | 250 × 250                | 4 m        | ~1000 m    | ~62,500          | None — full fix preserved |
+| B      | 128 × 128                | 8 m        | ~1024 m    | ~16,384          | 2× (bank sub-quads: 2 m instead of 1 m) |
+
+Option A is visually ideal but increases terrain mesh vertex count by ~15×. Option B is a
+practical middle ground (4× increase) with a 2× resolution trade-off at the bank only.
+**Do not pick silently — flag the vertex-count/performance tradeoff when starting that task.**
 
 ### Normal map asset recommendation
 Godot's built-in `res://addons/...` does not include a water normal map. Options:
