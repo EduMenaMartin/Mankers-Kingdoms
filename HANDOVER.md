@@ -7,17 +7,57 @@
 ## Current status
 
 **Milestone:** M10 — World gen quality + river (complete); character trait system (complete)
-**Last session:** 2026-07-21 — River shore polish (ribbon upsampling + bank terrain subdivision), shelter capacity gate, normal_texture assigned in code, godot_ai plugin cleanup. 417 tests, 0 failures.
+**Last session:** 2026-07-22 — Smoke test + 4 bug fixes (fog save/broadcast, main menu Load Game, NPC recruitment messages), 6 `.claude/skills/` slash commands created, IDEAS_BACKLOG amended, SDK bump 4.7.0→4.7.1.
 **Blockers:** None.
 **Decisions needed from Edu:** None outstanding.
 
 **Next action:**
 1. **Pre-playtest verification (Edu must run):**
-   - Open Godot → Build Solution → confirm 0 errors.
-   - Smoke-test: die → respawn → pick up death drop; load game → fog explored state preserved; load game → NPC workers still in roster.
+   - Open Godot → Build Solution → confirm 0 errors (SDK changed to 4.7.1; verify clean compile).
 2. **Schedule M9 playtest** — 30–60 min session with a friend over LAN/ENet.
 3. **Post-playtest:** Fix any P0/P1 bugs found; evaluate M9 success criteria (fun/legible/stable).
 4. **HUD warning strings** — `hud.starving` and `hud.exhausted` in `en.json` (deferred until after playtest).
+
+---
+
+## What was done this session (2026-07-22)
+
+### Smoke test + 4 bug fixes — COMPLETE ✅
+
+Ran a smoke test of the current build. Three issues found and fixed; one follow-up fix added.
+
+**Bug 1 — Fog of war resets to all-unexplored on reload:**
+Two root causes, both needed fixing:
+- *Save side:* `FogSystem` node sits after `SaveSystem` in `GameWorld.tscn`, so `FogSystem._ExitTree()` fires before `SaveSystem._ExitTree()` calls `Save()`, leaving `FogSystem.Instance == null` and `data.FogBase64` as `null`. Fix: added `public static string? LastFogBase64` cache to `FogSystem` — updated on every `GetFogBase64()` / `RestoreFogFromBase64()` call, survives `_ExitTree()`. `SaveSystem.Save()` falls back to `FogSystem.LastFogBase64` when `Instance` is null.
+- *Broadcast side:* `Rpc()` with `CallLocal = true` did not reliably fire the local call from `CallDeferred` context with `OfflineMultiplayerPeer`. Fix: changed `BroadcastFog()` to call `ClientApplyFog(base64)` directly for the local peer, then `Rpc(MethodName.ClientApplyFog, base64)` with `CallLocal = false` for remote clients. `[Rpc]` attribute updated accordingly.
+- Files: `project/scripts/server/FogSystem.cs`, `project/scripts/server/SaveSystem.cs`
+
+**Bug 2 — Load Game panel at main menu shows no saves:**
+`SaveUtil.ListSavesProvider` / `PeekSessionProvider` were wired only by `SaveSystem._Ready()` (GameWorld.tscn), which doesn't exist at the main menu. Fix: added `ListSaves()` + `PeekSession()` static helper methods to `MainMenuController` (mirroring the `SaveSystem` implementations — `DirAccess`/`FileAccess` are safe in `client/`), wired in `_Ready()` before the `LoadGamePanel` child is added.
+- Files: `project/scripts/client/MainMenuController.cs`
+
+**Bug 3 — NPC recruitment failures have no user-visible feedback:**
+`VillageSystem.RequestRecruit` silently returned on "already has follower" and "not close enough" paths. Fix: added `SendWarningToPeer(sender, Loc.T(...))` calls on both rejection paths, matching the existing `reject.no_shelter_capacity` pattern. Added two new loc keys.
+- Files: `project/scripts/server/VillageSystem.cs`, `project/data/lang/en.json`
+
+**SDK bump (Edu):** `project/MankersKingdoms.csproj` — `Godot.NET.Sdk/4.7.0` → `Godot.NET.Sdk/4.7.1` (applied externally by Edu).
+
+### `.claude/skills/` slash commands — COMPLETE ✅
+
+Created six reusable skill files under `.claude/skills/<name>/SKILL.md`:
+- `/session-start` — reads CLAUDE.md, HANDOVER, TODO, VERTICAL_SLICE; outputs structured brief; waits for scope confirmation
+- `/session-end` — updates HANDOVER/TODO/BUGS/IDEAS_BACKLOG/CHANGELOG; preps commit message; does NOT run git commit
+- `/mid-task` — states files, approach, tests, uncertainties before any code; waits for "go"
+- `/milestone-complete` — verifies DoD, updates docs, proposes git tag; parameterized with `$ARGUMENTS`
+- `/weekly-retro` — git log last 7 days + honest feedback
+- `/when-stuck` — surfaces goal / work done / assumptions / blockers; proposes continue/pivot/stop
+
+Note: skills are loaded at Claude Code startup. Skills created mid-session won't be available until next restart.
+
+### IDEAS_BACKLOG amendments — COMPLETE ✅
+
+- Amended `[trivial-content] Foliage/grass wind sway shader` — added wind-params-as-Shader-Globals note and REQUIRED static shadow mesh companion fix.
+- Added `[rejected] Spatial Gardener / hand-placement foliage plugins` — maintenance overhead and editor-only workflow incompatible with procedural generation architecture.
 
 ---
 

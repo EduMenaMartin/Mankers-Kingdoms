@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Text.Json;
 using Godot;
 using MankersKingdoms.Shared;
 
@@ -17,6 +19,11 @@ public partial class MainMenuController : Control
 
 	public override void _Ready()
 	{
+		// Wire SaveUtil providers so LoadGamePanel can list saves at the main menu.
+		// SaveSystem (GameWorld.tscn) wires these too, but it doesn't exist here.
+		SaveUtil.ListSavesProvider   = ListSaves;
+		SaveUtil.PeekSessionProvider = PeekSession;
+
 		RegisterInputActions();
 
 		_startSoloButton = GetNode<Button>("%StartSoloButton");
@@ -121,5 +128,43 @@ public partial class MainMenuController : Control
 		InputMap.AddAction(action);
 		var ev = new InputEventKey { PhysicalKeycode = key };
 		InputMap.ActionAddEvent(action, ev);
+	}
+
+	// ── SaveUtil provider implementations ─────────────────────────────────────
+	// Mirrors SaveSystem.DoListSaves / DoPeekSession so LoadGamePanel works
+	// before GameWorld (and therefore SaveSystem) is ever loaded.
+
+	private static List<string> ListSaves()
+	{
+		var result = new List<string>();
+		var dir = DirAccess.Open(SaveUtil.SaveDir);
+		if (dir == null) return result;
+
+		dir.ListDirBegin();
+		string name = dir.GetNext();
+		while (name != "")
+		{
+			if (!dir.CurrentIsDir() && name.EndsWith(".json"))
+				result.Add(name[..^5]); // strip .json
+			name = dir.GetNext();
+		}
+		dir.ListDirEnd();
+
+		result.Sort(static (a, b) => string.CompareOrdinal(b, a)); // newest-first
+		return result;
+	}
+
+	private static SessionSave? PeekSession(string saveName)
+	{
+		var path = $"{SaveUtil.SaveDir}/{saveName}.json";
+		if (!FileAccess.FileExists(path)) return null;
+		try
+		{
+			using var f = FileAccess.Open(path, FileAccess.ModeFlags.Read);
+			if (f == null) return null;
+			var data = JsonSerializer.Deserialize<SaveData>(f.GetAsText());
+			return data?.Session;
+		}
+		catch { return null; }
 	}
 }

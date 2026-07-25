@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bbrkrcj0onhd2"
+path="res://.godot/imported/Ancient_Call_1.mp3-739949e369918bd5f65ffb8a495b62d6.mp3str"
+
+[deps]
+
+source_file="res://assets/Ambient Music/Ancient_Call_1.mp3"
+dest_files=["res://.godot/imported/Ancient_Call_1.mp3-739949e369918bd5f65ffb8a495b62d6.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

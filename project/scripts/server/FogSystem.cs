@@ -23,6 +23,15 @@ public partial class FogSystem : Node
 {
     public static FogSystem Instance { get; private set; } = null!;
 
+    /// <summary>
+    /// Last fog state serialized to Base64. Updated every time BroadcastFog() or
+    /// RestoreFogFromBase64() runs, and survives _ExitTree(). SaveSystem.Save() reads
+    /// this as a fallback when Instance is null — which happens when FogSystem's node
+    /// position in GameWorld.tscn is after SaveSystem, causing FogSystem._ExitTree()
+    /// to fire before SaveSystem._ExitTree() calls Save().
+    /// </summary>
+    public static string? LastFogBase64 { get; private set; }
+
     private const float  FOG_UPDATE_INTERVAL = 1.5f;
     private const string PLAYERS_PATH        = "/root/GameWorld/Players";
 
@@ -32,6 +41,7 @@ public partial class FogSystem : Node
     public override void _Ready()
     {
         Instance = this;
+        LastFogBase64 = null; // clear stale cache from a previous session
     }
 
     public override void _ExitTree()
@@ -57,8 +67,13 @@ public partial class FogSystem : Node
 
     // ── Save / load API ───────────────────────────────────────────────────────
 
-    /// <summary>Returns the current fog state encoded as a Base64 string for persistence.</summary>
-    public string GetFogBase64() => Convert.ToBase64String(_fog.ToBytes());
+    /// <summary>Returns the current fog state encoded as a Base64 string for persistence.
+    /// Also updates LastFogBase64 so SaveSystem can read it even after _ExitTree().</summary>
+    public string GetFogBase64()
+    {
+        LastFogBase64 = Convert.ToBase64String(_fog.ToBytes());
+        return LastFogBase64;
+    }
 
     /// <summary>Restores fog from a previously saved Base64 string.</summary>
     public void RestoreFogFromBase64(string? base64)
@@ -68,6 +83,7 @@ public partial class FogSystem : Node
         {
             var bytes = Convert.FromBase64String(base64);
             _fog = FogOfWarData.FromBytes(bytes);
+            LastFogBase64 = base64; // keep cache current so Save() has it if needed
         }
         catch
         {
@@ -86,17 +102,20 @@ public partial class FogSystem : Node
     }
 
     /// <summary>
-    /// Broadcasts the current fog state to all peers (CallLocal=true includes the host).
-    /// Called by SaveSystem after restoring fog from a save, so clients don't keep the
-    /// initial all-UNSEEN state while the server has the restored explored grid.
+    /// Broadcasts the current fog state to all peers.
+    /// Calls ClientApplyFog directly for the local peer first — Rpc() with CallLocal=true
+    /// does not reliably fire the local call when invoked from a CallDeferred context
+    /// (e.g. SaveSystem.TryLoad) with OfflineMultiplayerPeer. Mirrors the pattern used
+    /// by BroadcastVillageRoster, which calls its client method directly for the host peer.
     /// </summary>
     public void BroadcastFog()
     {
-        var base64 = Convert.ToBase64String(_fog.ToBytes());
-        Rpc(MethodName.ClientApplyFog, base64);
+        var base64 = GetFogBase64();                  // also updates LastFogBase64
+        ClientApplyFog(base64);                       // direct call — always fires on local peer
+        Rpc(MethodName.ClientApplyFog, base64);       // sends to actual remote clients
     }
 
-    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = true,
+    [Rpc(MultiplayerApi.RpcMode.Authority, CallLocal = false,
          TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     private void ClientApplyFog(string base64)
     {

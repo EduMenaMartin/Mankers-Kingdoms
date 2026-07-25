@@ -274,7 +274,12 @@ public partial class VillageSystem : Node
         if (_workAssignments.ContainsKey(villagerId))    { GD.Print($"[VillageSystem] {data.Name} already working"); return; }
         if (_walkingToShelter.ContainsKey(villagerId))   { GD.Print($"[VillageSystem] {data.Name} is heading to rest"); return; }
         if (_sleeping.ContainsKey(villagerId))           { GD.Print($"[VillageSystem] {data.Name} is sleeping"); return; }
-        if (_followerByPeer.ContainsKey(sender))         { GD.Print($"[VillageSystem] peer {sender} already has a follower"); return; }
+        if (_followerByPeer.ContainsKey(sender))
+        {
+            GD.Print($"[VillageSystem] peer {sender} already has a follower");
+            SendWarningToPeer(sender, Loc.T("reject.already_has_follower"));
+            return;
+        }
 
         if (!_positions.TryGetValue(villagerId, out var npcPos)) return;
         var playerNode = GetNodeOrNull<Node3D>($"{PLAYERS_PATH}/Player_{sender}");
@@ -282,6 +287,7 @@ public partial class VillageSystem : Node
         if (npcPos.DistanceTo(playerNode.GlobalPosition) > 3f)
         {
             GD.Print($"[VillageSystem] peer {sender} too far from {data.Name} to recruit");
+            SendWarningToPeer(sender, Loc.T("reject.too_far_to_recruit"));
             return;
         }
 

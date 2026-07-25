@@ -185,6 +185,8 @@
   "warning.assign.no_shelter": "Build a Shelter first — workers need somewhere to rest.",
   "warning.job.no_stockpile": "Build a Stockpile Drop — your woodcutter has nowhere to deposit wood.",
   "reject.no_shelter_capacity": "No room in your settlement — build another Shelter (each holds 2 villagers).",
+  "reject.already_has_follower": "You already have someone following you — assign them to a station first.",
+  "reject.too_far_to_recruit": "Get closer to the villager before recruiting.",
 
   "stockpile.title": "Settlement Stockpile",
   "stockpile.empty": "Stockpile is empty.",

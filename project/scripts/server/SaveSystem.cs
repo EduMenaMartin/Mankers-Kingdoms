@@ -171,8 +171,12 @@ public partial class SaveSystem : Node
         }
 
         // Fog-of-war grid (worldgen.md §11.4).
-        if (FogSystem.Instance != null)
-            data.FogBase64 = FogSystem.Instance.GetFogBase64();
+        // FogSystem is positioned after SaveSystem in GameWorld.tscn, so its _ExitTree()
+        // fires before SaveSystem._ExitTree() calls Save(). Instance is null by then —
+        // fall back to the static LastFogBase64 cache that FogSystem keeps current.
+        data.FogBase64 = FogSystem.Instance != null
+            ? FogSystem.Instance.GetFogBase64()
+            : FogSystem.LastFogBase64;
 
         // Session character data (so Load Game can restore GameSession without CharacterCreateScreen).
         data.Session = new SessionSave

@@ -633,8 +633,8 @@ teleporting it to the abstract stockpile. More satisfying and visible.
 - [x] **ClassSelectScreen removed** — dead code, superseded by CharacterCreateScreen.
 
 ### Pre-playtest verification (required before playtest session)
-- [ ] **Godot build** — open Godot, Build → Build Solution, confirm 0 errors. Critical: HealthSystem 0xD1CE1234u change and FogSystem/BuffSystem additions must compile.
-- [ ] **Smoke-test bug fixes** — die → respawn → pick up death drop ✓; load game → fog explored state preserved ✓; load game → NPC workers still in roster and working ✓.
+- [ ] **Godot build** — open Godot, Build → Build Solution, confirm 0 errors. SDK bumped to 4.7.1 (2026-07-22) — verify clean compile.
+- [x] **Smoke-test bug fixes** — die → respawn → pick up death drop ✓; load game → fog explored state preserved ✓; load game → NPC workers still in roster and working ✓; Load Game panel at main menu lists saves ✓; NPC recruitment rejection messages shown ✓ (fixed 2026-07-22).
 
 ### Pre-playtest: shelter capacity recruitment gate
 - [x] **Shelter capacity gate** — `VillageSystem.RequestRecruit` rejects if `_settlementNpcs.Count >= shelterCount * 2`. `reject.no_shelter_capacity` loc key added to `en.json`.

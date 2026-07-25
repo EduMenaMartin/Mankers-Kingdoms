@@ -15,6 +15,18 @@ Every entry gets one:
 
 ## Entries
 
+### 2026-07-25 — [post-slice] True flow-map for water shader
+
+Upgrade from the current tangent-scroll approximation to a proper baked flow-map texture. The current approach — per-segment tangent-direction scrolling in `water_river.gdshader` — is a valid, lighter-weight approximation of the technique used by the Waterways plugin and similar Godot river tools. The "proper" technique bakes a flow-map texture once from the path geometry, encoding scroll direction and speed per pixel, giving accurate flow speed and direction variation across the full river width rather than uniform per-segment scrolling.
+
+Real visual upgrade, real complexity. The existing tangent data is already computed per upsample step in `WaterSystem.UpsampleSegments` and could seed a bake pass. Defer until the base water system is proven in playtesting to need it.
+
+### 2026-07-25 — [trivial-content] Foam at river banks
+
+Blend a foam effect into the water shader based on distance to the channel edge. Standard, cheap technique: sample a foam noise texture; attenuate by distance from the channel boundary; add to the diffuse output. `IsInRiverChannel()` (already in `TerrainSystem`) provides exactly the channel-mask data a foam distance calculation needs.
+
+Low cost to add once the base water shader is stable. No new data — the channel mask and bank-region logic from the recent terrain-carving work (`TerrainRenderer.AddBankSurface`, `FogSystem.IsInRiverChannel`) already have the inputs.
+
 ### 2026-07-21 — [post-slice] Character-reactive grass displacement
 
 Grass bends away from moving players and NPCs within a configurable radius, using a character-position array passed to the grass shader. Technique: a manager node tracks positions of every entity in a "character" group and uploads them as a fixed-size array of `vec4` (position.xyz + bend radius in .w) to a global shader variable — fixed array size avoids Godot shader dynamic-array limits.
@@ -237,6 +249,22 @@ Cheap vertex-shader technique (no new geometry, no particles) — directly
 targets the KayKit nature pack assets already installed. Likely the
 single cheapest fix for "plain textures moving plainly" specifically.
 
+**Wind parameters — use Shader Globals, not per-shader uniforms:**
+Expose wind direction, speed, strength, and noise texture as Godot Shader
+Globals (Project Settings → Globals → Shader Globals). This lets one set
+of values drive every foliage shader consistently from a single source;
+any future shader (bushes, herbs, crops) can opt in without re-wiring
+parameters individually.
+
+**REQUIRED companion fix — static shadow mesh:**
+Once foliage animates from wind, per-pixel shadows on that foliage will
+flicker as the mesh moves. Fix: duplicate the animated mesh; set the
+original to not cast shadows; set the duplicate to "Shadows Only"
+(invisible, static, no wind animation applied) so shadows stay stable
+while the visible mesh animates. This must ship together with wind sway —
+flickering shadows would be an immediately visible defect the moment wind
+sway lands, and cannot be deferred as a follow-up.
+
 ### 2026-07-09 — [trivial-content] Water shimmer shader for the locked river
 VERTICAL_SLICE.md §3.8 locks "one river" as a terrain feature. Check
 whether it's currently a flat plane — if so, a simple scrolling-normal-
@@ -264,6 +292,13 @@ visibility of the settlement, teammates, and incoming threats in a
 top-down coop game. Do not add this even if it comes up again as
 "standard practice" — the reasoning here is project-specific, not a
 general objection to the technique.
+
+### 2026-07-22 — [rejected] Spatial Gardener / hand-placement foliage plugins
+Considered via video research. Conflicts with the existing procedural,
+seeded generation architecture (TreeGenerator/BushGenerator/
+HerbGenerator) confirmed by the M-era codebase audit — same reasoning
+already established for HeightMap Terrain/Waterways/Scatter earlier
+this session. Not applicable regardless of art style.
 
 ### 2026-07-09 — [trivial-content] Godot-specific shader/VFX asset resource
 itch.io has curated, engine-tagged shader/VFX packs (some specifically

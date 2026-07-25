@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bykhcpfrov5fa"
+path="res://.godot/imported/And The Manker Begins _1.mp3-be3509171a979f7ed3879d58527953ad.mp3str"
+
+[deps]
+
+source_file="res://assets/Ambient Music/And The Manker Begins _1.mp3"
+dest_files=["res://.godot/imported/And The Manker Begins _1.mp3-be3509171a979f7ed3879d58527953ad.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -2,6 +2,43 @@
 
 **Format:** one entry per bug. Newest at the top.
 
+## [P1] Load Game panel at main menu shows no saves (2026-07-22)
+
+**Milestone found:** M8, discovered M10 smoke test
+**Reproduce:** From main menu → click Load Game → panel shows "No saves found" even though saves exist on disk.
+**Expected:** Save slots appear in the main menu Load Game panel, matching what is visible from the in-game pause menu.
+**Actual:** `SaveUtil.ListSavesProvider` and `PeekSessionProvider` are wired in `SaveSystem._Ready()`, but `SaveSystem` is a node in `GameWorld.tscn` — it never runs at the main menu. `SaveUtil.ListSaves()` returns an empty list when the provider is null (its null-guard default), so `LoadGamePanel.Refresh()` finds nothing. In-game (pause menu → Load), `GameWorld` IS loaded so the providers are wired and the panel works.
+**Fix:** Wire both providers in `MainMenuController._Ready()` (before `_loadPanel` is added as a child) using the same `DirAccess`/`FileAccess`/`JsonSerializer` implementations as `SaveSystem`. `SaveSystem` keeps its wiring unchanged for the in-game case.
+
+Status: FIXED (2026-07-22)
+
+---
+
+## [P1] Fog of war resets to all-unexplored on reload — regression (2026-07-22)
+
+**Milestone found:** M9/M10 smoke test
+**Reproduce:** Explore a significant area → save (exit-save or autosave) → quit → load → minimap and world map fog is all-black again.
+**Expected:** Explored (grey) areas persist across save/load.
+**Root causes (two, both required to fix):**
+1. **Fog never saved (primary):** `FogSystem` node is positioned after `SaveSystem` in `GameWorld.tscn`. Godot fires `_ExitTree()` in reverse sibling order, so `FogSystem._ExitTree()` → `Instance = null` fires before `SaveSystem._ExitTree()` calls `Save()`. `Save()` checks `FogSystem.Instance != null` before writing `FogBase64` — Instance is null, so `FogBase64` is never written. Save file always has `"FogBase64": null`. **Fix:** Added `FogSystem.LastFogBase64` static cache updated by `GetFogBase64()`, `BroadcastFog()`, and `RestoreFogFromBase64()`. `SaveSystem.Save()` falls back to the cache when Instance is null.
+2. **Fog not broadcast on restore (secondary):** `BroadcastFog()` used `Rpc()` with `CallLocal = true`, which does not reliably fire the local call from a `CallDeferred` context with `OfflineMultiplayerPeer`. Fixed by calling `ClientApplyFog(base64)` directly before `Rpc()` and setting `CallLocal = false` on the attribute.
+
+Status: FIXED (2026-07-22)
+
+---
+
+## [P2] Recruitment failures (follower / proximity checks) have no user-visible feedback (2026-07-22)
+
+**Milestone found:** M6 (VillageSystem), discovered M10 smoke test
+**Reproduce:** (a) Already have an NPC following you → approach another villager → press E → click Recruit → dialogue closes, no message, NPC never added to settlement. (b) Move >3 m from NPC mid-interaction → click Recruit → same: silent rejection.
+**Expected:** Player sees a clear in-game message explaining why recruitment was blocked (e.g. "You already have someone following you — assign them to a station first." / "Get closer to the villager.").
+**Actual:** `RequestRecruit` returns early with only a `GD.Print` console log on two paths: `_followerByPeer.ContainsKey(sender)` (already has follower) and `npcPos.DistanceTo(...) > 3f` (too far). From the player's perspective: dialogue closed, nothing happened. Inconsistent with the shelter-capacity path which correctly calls `SendWarningToPeer`.
+**Fix:** Call `SendWarningToPeer(sender, Loc.T("reject.*"))` on both paths; add two loc keys.
+
+Status: FIXED (2026-07-22)
+
+---
+
 ## [P1] Hunger at 0 triggers instant kill, not gradual HP drain (2026-07-19)
 
 **Milestone found:** M3 (spec written), discovered M9 post-playtest audit
